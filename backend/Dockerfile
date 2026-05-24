@@ -39,7 +39,7 @@ EXPOSE 8000
 # Set APP_ENV=development in docker-compose or .env to enable hot-reload.
 CMD ["sh", "-c", \
   "if [ \"${APP_ENV}\" = 'development' ]; then \
-     exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload; \
+     exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --reload; \
    else \
-     exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2; \
+     exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2; \
    fi"]
