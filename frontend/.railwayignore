@@ -1,0 +1,7 @@
+node_modules
+.next
+.turbo
+out
+tsconfig.tsbuildinfo
+tests
+playwright.config.ts
