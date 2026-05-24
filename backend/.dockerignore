@@ -1,0 +1,29 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# SQLite databases (must not enter the image)
+*.db
+
+# Test code — not needed at runtime
+tests/
+
+# Environment files — injected at runtime, never baked in
+.env
+.env.*
+*.env
+
+# IDE and OS artefacts
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build artefacts
+dist/
+build/

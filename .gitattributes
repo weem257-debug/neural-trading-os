@@ -1,0 +1,8 @@
+# Normalize line endings for cross-platform consistency
+* text=auto eol=lf
+
+# Force binary for assets
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff2 binary

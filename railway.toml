@@ -1,0 +1,74 @@
+# ============================================================
+# Railway Deployment — Neural Trading OS
+# ============================================================
+# Deploy: railway up  (from the tradingbot/dashboard directory)
+#
+# Required env vars to set in Railway dashboard:
+#   ANTHROPIC_API_KEY      — your Anthropic key
+#   JWT_SECRET_KEY         — min 32 chars, use: openssl rand -hex 32
+#   DEMO_USERNAME          — login username (default: admin)
+#   DEMO_PASSWORD          — login password (change from default!)
+#   PRODUCTION_URL         — your Railway frontend URL after first deploy
+#                            e.g. https://neural-trading-os-frontend.up.railway.app
+#
+# Optional (for real data):
+#   FINNHUB_API_KEY, ALPACA_API_KEY, ALPACA_SECRET_KEY, etc.
+# ============================================================
+
+[build]
+builder = "dockerfile"
+
+# ─── Backend Service ──────────────────────────────────────────────────────────
+[[services]]
+name = "backend"
+source = "backend"
+
+[services.build]
+dockerfilePath = "backend/Dockerfile"
+
+[services.deploy]
+startCommand = "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/api/health"
+restartPolicyType = "on_failure"
+
+[[services.variables]]
+name = "ENVIRONMENT"
+value = "production"
+
+[[services.variables]]
+name = "DATABASE_URL"
+value = "${{Postgres.DATABASE_URL}}"
+
+[[services.variables]]
+name = "REDIS_URL"
+value = "${{Redis.REDIS_URL}}"
+
+[[services.variables]]
+name = "ENABLE_LIVE_TRADING"
+value = "false"
+
+[[services.variables]]
+name = "ENABLE_PAPER_TRADING"
+value = "true"
+
+[[services.variables]]
+name = "YAHOO_FINANCE_ENABLED"
+value = "true"
+
+# ─── Frontend Service ─────────────────────────────────────────────────────────
+[[services]]
+name = "frontend"
+source = "frontend"
+
+[services.build]
+dockerfilePath = "frontend/Dockerfile"
+buildArgs = { NEXT_PUBLIC_APP_NAME = "Neural Trading OS", NEXT_PUBLIC_PAPER_MODE = "true" }
+
+[services.deploy]
+startCommand = "node server.js"
+healthcheckPath = "/"
+restartPolicyType = "on_failure"
+
+[[services.variables]]
+name = "NODE_ENV"
+value = "production"

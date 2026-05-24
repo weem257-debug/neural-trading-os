@@ -1,0 +1,322 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   NEURAL TRADING OS — GLOBAL DESIGN SYSTEM
+   ============================================================ */
+
+:root {
+  --base: #080B14;
+  --base-2: #0D1117;
+  --base-3: #111827;
+  --cyan: #00D4FF;
+  --neon-green: #00FF88;
+  --neon-pink: #FF0080;
+  --neon-purple: #7B2FFF;
+  --neon-yellow: #FFD700;
+  --foreground: #E2E8F0;
+  --foreground-muted: #64748B;
+  --foreground-dim: #334155;
+}
+
+/* ---- Base ---- */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--base);
+  color: var(--foreground);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+/* ---- Neon Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.4);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.7);
+  box-shadow: 0 0 6px rgba(0, 212, 255, 0.5);
+}
+
+/* ---- Glassmorphism Cards ---- */
+@layer components {
+  .glass-card {
+    @apply relative overflow-hidden;
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .glass-card-cyan {
+    @apply glass-card;
+    border-color: rgba(0, 212, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,212,255,0.1), inset 0 1px 0 rgba(0,212,255,0.05);
+  }
+
+  .glass-card-green {
+    @apply glass-card;
+    border-color: rgba(0, 255, 136, 0.2);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,255,136,0.1), inset 0 1px 0 rgba(0,255,136,0.05);
+  }
+
+  .glass-card-pink {
+    @apply glass-card;
+    border-color: rgba(255, 0, 128, 0.2);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,0,128,0.1), inset 0 1px 0 rgba(255,0,128,0.05);
+  }
+
+  .glass-card-purple {
+    @apply glass-card;
+    border-color: rgba(123, 47, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(123,47,255,0.1), inset 0 1px 0 rgba(123,47,255,0.05);
+  }
+
+  /* Legacy .card — mapped to glass-card for backward compat */
+  .card {
+    @apply glass-card p-4;
+  }
+
+  /* ---- Neon Text ---- */
+  .text-neon-cyan {
+    color: var(--cyan);
+    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+  }
+
+  .text-neon-green {
+    color: var(--neon-green);
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+  }
+
+  .text-neon-pink {
+    color: var(--neon-pink);
+    text-shadow: 0 0 10px rgba(255, 0, 128, 0.5);
+  }
+
+  .text-neon-purple {
+    color: var(--neon-purple);
+    text-shadow: 0 0 10px rgba(123, 47, 255, 0.5);
+  }
+
+  /* ---- Glow Buttons ---- */
+  .btn-cyan {
+    @apply relative overflow-hidden font-semibold transition-all duration-200;
+    background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,212,255,0.1));
+    border: 1px solid rgba(0,212,255,0.4);
+    color: #00D4FF;
+    box-shadow: 0 0 15px rgba(0,212,255,0.2);
+  }
+  .btn-cyan:hover {
+    background: linear-gradient(135deg, rgba(0,212,255,0.3), rgba(0,212,255,0.15));
+    box-shadow: 0 0 25px rgba(0,212,255,0.4), 0 0 50px rgba(0,212,255,0.2);
+  }
+
+  .btn-green {
+    @apply relative overflow-hidden font-semibold transition-all duration-200;
+    background: linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,255,136,0.1));
+    border: 1px solid rgba(0,255,136,0.4);
+    color: #00FF88;
+    box-shadow: 0 0 15px rgba(0,255,136,0.2);
+  }
+  .btn-green:hover {
+    box-shadow: 0 0 25px rgba(0,255,136,0.4), 0 0 50px rgba(0,255,136,0.2);
+  }
+
+  .btn-pink {
+    @apply relative overflow-hidden font-semibold transition-all duration-200;
+    background: linear-gradient(135deg, rgba(255,0,128,0.2), rgba(255,0,128,0.1));
+    border: 1px solid rgba(255,0,128,0.4);
+    color: #FF0080;
+    box-shadow: 0 0 15px rgba(255,0,128,0.2);
+  }
+  .btn-pink:hover {
+    box-shadow: 0 0 25px rgba(255,0,128,0.4), 0 0 50px rgba(255,0,128,0.2);
+  }
+
+  /* ---- Signal Badges ---- */
+  .signal-strong-buy {
+    background: rgba(0,255,136,0.15);
+    border: 1px solid rgba(0,255,136,0.4);
+    color: #00FF88;
+    text-shadow: 0 0 8px rgba(0,255,136,0.5);
+  }
+  .signal-buy {
+    background: rgba(0,255,136,0.08);
+    border: 1px solid rgba(0,255,136,0.25);
+    color: #00DD77;
+  }
+  .signal-hold {
+    background: rgba(255,215,0,0.08);
+    border: 1px solid rgba(255,215,0,0.25);
+    color: #FFD700;
+  }
+  .signal-sell {
+    background: rgba(255,0,128,0.08);
+    border: 1px solid rgba(255,0,128,0.25);
+    color: #FF6098;
+  }
+  .signal-strong-sell {
+    background: rgba(255,0,128,0.15);
+    border: 1px solid rgba(255,0,128,0.4);
+    color: #FF0080;
+    text-shadow: 0 0 8px rgba(255,0,128,0.5);
+  }
+
+  /* ---- Sentiment Colors ---- */
+  .sentiment-positive { color: var(--neon-green); }
+  .sentiment-negative { color: var(--neon-pink); }
+  .sentiment-neutral  { color: var(--foreground-muted); }
+
+  /* ---- PnL ---- */
+  .pnl-positive { color: var(--neon-green); text-shadow: 0 0 8px rgba(0,255,136,0.3); }
+  .pnl-negative { color: var(--neon-pink); text-shadow: 0 0 8px rgba(255,0,128,0.3); }
+  .pnl-zero     { color: var(--foreground-muted); }
+
+  /* ---- Grid Background ---- */
+  .bg-neural-grid {
+    background-image:
+      linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* ---- Animated border ---- */
+  .border-glow-cyan {
+    border-color: rgba(0,212,255,0.3);
+    animation: border-glow 2s ease-in-out infinite;
+  }
+
+  /* ---- Section label ---- */
+  .section-label {
+    @apply text-xs font-semibold uppercase tracking-widest;
+    color: var(--foreground-muted);
+    letter-spacing: 0.15em;
+  }
+
+  /* ---- Status dot ---- */
+  .status-dot-live {
+    @apply w-2 h-2 rounded-full;
+    background: var(--neon-green);
+    box-shadow: 0 0 6px var(--neon-green);
+    animation: glow-pulse-green 2s ease-in-out infinite;
+  }
+
+  .status-dot-paper {
+    @apply w-2 h-2 rounded-full;
+    background: #00D4FF;
+    box-shadow: 0 0 6px #00D4FF;
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  /* ---- Data value ---- */
+  .data-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ---- Scan line effect ---- */
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.08) 2px,
+    rgba(0, 0, 0, 0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ---- Ticker bar ---- */
+.ticker-container {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ticker-inner {
+  display: inline-flex;
+  animation: ticker-scroll 40s linear infinite;
+}
+
+.ticker-inner:hover {
+  animation-play-state: paused;
+}
+
+/* ---- Gauge arc ---- */
+.gauge-arc {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s ease;
+}
+
+/* ---- Keyframes (for non-Tailwind use) ---- */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(0,212,255,0.3); }
+  50%       { box-shadow: 0 0 25px rgba(0,212,255,0.6), 0 0 50px rgba(0,212,255,0.3); }
+}
+
+@keyframes glow-pulse-green {
+  0%, 100% { box-shadow: 0 0 10px rgba(0,255,136,0.3); }
+  50%       { box-shadow: 0 0 25px rgba(0,255,136,0.6), 0 0 50px rgba(0,255,136,0.3); }
+}
+
+@keyframes border-glow {
+  0%, 100% { border-color: rgba(0,212,255,0.3); }
+  50%       { border-color: rgba(0,212,255,0.7); }
+}
+
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes fade-in-up {
+  0%   { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  0%   { opacity: 0; transform: translateX(20px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes neural-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%       { opacity: 1; transform: scale(1.05); }
+}
+
+/* ---- Input overrides ---- */
+input, select, textarea {
+  color-scheme: dark;
+}
+
+/* ---- Selection ---- */
+::selection {
+  background: rgba(0, 212, 255, 0.25);
+  color: #fff;
+}

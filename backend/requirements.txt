@@ -1,0 +1,72 @@
+# Trading Dashboard Backend — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Core Framework
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.11.2
+pydantic-settings>=2.10.1
+python-multipart>=0.0.9
+
+# Anthropic Claude SDK (primary LLM provider)
+anthropic>=0.96.0
+
+# HTTP Client
+httpx>=0.28.1
+aiohttp>=3.10.0
+
+# WebSocket support (included in uvicorn[standard])
+websockets>=13.0
+
+# Data processing
+pandas>=2.3.0
+numpy>=1.26.0,<2.0
+
+# Market data (choose based on available API keys)
+yfinance>=0.2.63          # Yahoo Finance — no API key needed
+# finnhub-python==2.4.20  # Finnhub — requires API key
+# alpaca-py==0.30.0       # Alpaca Trading — requires API key
+
+# Database
+sqlalchemy==2.0.35
+aiosqlite==0.20.0         # SQLite async driver
+asyncpg>=0.29.0           # PostgreSQL async driver (Railway / Supabase)
+alembic>=1.13.0           # Database migrations
+fints>=4.0.0              # FinTS — German bank protocol (comdirect, DKB, ING, Sparkasse)
+
+# Self-learning trading AI
+youtube-transcript-api>=0.6.2   # YouTube transcripts — no API key needed
+apscheduler>=3.10.4             # Background job scheduler (AsyncIOScheduler)
+rank-bm25>=0.2.2                # BM25 keyword retrieval for insight search (lightweight)
+# sentence-transformers>=3.0.0  # Optional: dense semantic embeddings (needs torch ~200MB)
+
+# Caching (optional — needs Redis)
+# redis==5.1.0
+# hiredis==3.0.0
+
+# JWT Authentication
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt==4.2.1               # passlib 1.7.4 is incompatible with bcrypt>=5.0
+
+# Environment
+python-dotenv==1.0.1
+
+# Rate Limiting
+slowapi>=0.1.9
+
+# Logging & Monitoring
+structlog==24.4.0
+
+# Testing
+pytest==8.3.0
+pytest-asyncio==0.24.0
+# httpx already declared above — for TestClient
+
+# Type checking
+mypy==1.11.0
+
+# ---- Optional: install only if using the specific repo ----
+# nautilus_trader==1.200.0   # requires C compilation on Windows
+# jesse                       # pip install jesse
+# qlib                        # pip install pyqlib

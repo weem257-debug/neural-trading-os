@@ -1,0 +1,153 @@
+version: "3.9"
+
+# ============================================================
+# Trading Dashboard — Docker Compose
+# ============================================================
+# Services:
+#   backend   — FastAPI API + WebSocket server (port 8000)
+#   frontend  — Next.js dashboard (port 3000)
+#   redis     — Caching + WebSocket pub/sub (port 6379)
+#   postgres  — Persistent storage for trades/signals (port 5432)
+#
+# Usage:
+#   docker-compose up --build
+#   docker-compose up backend     # backend only
+#   docker-compose logs -f backend
+# ============================================================
+
+services:
+
+  # ----------------------------------------------------------
+  # Backend — FastAPI
+  # ----------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trading-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      # SQLite database persistence
+      - trading_db:/app/data
+      # Log persistence
+      - trading_logs:/app/logs
+      # Mount all 9 repos as read-only for Python imports
+      - ../TradingAgents:/repos/TradingAgents:ro
+      - ../AI-Trader:/repos/AI-Trader:ro
+      - ../daily_stock_analysis:/repos/daily_stock_analysis:ro
+      - ../Vibe-Trading:/repos/Vibe-Trading:ro
+      - ../qlib:/repos/qlib:ro
+      - ../nautilus_trader:/repos/nautilus_trader:ro
+      - ../FinGPT:/repos/FinGPT:ro
+      - ../FinRobot:/repos/FinRobot:ro
+      - ../jesse:/repos/jesse:ro
+      - trading_data:/data
+    env_file:
+      - .env
+    environment:
+      - TRADINGAGENTS_PATH=/repos/TradingAgents
+      - AI_TRADER_PATH=/repos/AI-Trader
+      - DAILY_ANALYSIS_PATH=/repos/daily_stock_analysis
+      - VIBE_TRADING_PATH=/repos/Vibe-Trading
+      - QLIB_PATH=/repos/qlib
+      - NAUTILUS_PATH=/repos/nautilus_trader
+      - FINGPT_PATH=/repos/FinGPT
+      - FINROBOT_PATH=/repos/FinRobot
+      - JESSE_PATH=/repos/jesse
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=postgresql://trading:trading@postgres:5432/trading
+      - LOG_DIR=/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ----------------------------------------------------------
+  # Frontend — Next.js
+  # ----------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: trading-frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env.local
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_WS_URL=ws://backend:8000
+      - NEXT_PUBLIC_APP_NAME=Neural Trading OS
+      - NEXT_PUBLIC_PAPER_MODE=true
+      - NODE_ENV=production
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ----------------------------------------------------------
+  # Redis — Caching + pub/sub for WebSocket fanout
+  # ----------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: trading-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------
+  # PostgreSQL — Persistent storage
+  # ----------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: trading-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: trading
+      POSTGRES_PASSWORD: trading
+      POSTGRES_DB: trading
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trading"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  trading_data:
+  trading_db:
+  trading_logs:
+  redis_data:
+  postgres_data:
+
+networks:
+  default:
+    name: trading-network
