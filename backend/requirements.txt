@@ -31,6 +31,7 @@ yfinance>=0.2.63          # Yahoo Finance — no API key needed
 sqlalchemy==2.0.35
 aiosqlite==0.20.0         # SQLite async driver
 asyncpg>=0.29.0           # PostgreSQL async driver (Railway / Supabase)
+psycopg2-binary>=2.9.9    # PostgreSQL sync driver for Alembic migrations
 alembic>=1.13.0           # Database migrations
 fints>=4.0.0              # FinTS — German bank protocol (comdirect, DKB, ING, Sparkasse)
 

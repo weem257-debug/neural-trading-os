@@ -39,25 +39,19 @@ target_metadata = Base.metadata
 # Resolve database URL (sync driver for Alembic)
 # ---------------------------------------------------------------------------
 def _get_sync_url() -> str:
-    """
-    Return a sync SQLite URL using the same absolute DB path as database.py.
-
-    database.py computes an absolute path from __file__; we replicate that
-    here so Alembic always migrates the same file the async engine connects to.
-    """
-    try:
-        from app.db.database import _DB_URL
-        return _DB_URL.replace("sqlite+aiosqlite:///", "sqlite:///")
-    except Exception:
-        pass
-
+    """Return a *sync* driver URL for Alembic (no asyncpg / aiosqlite)."""
     try:
         from app.core.config import settings
         db_url: str = settings.DATABASE_URL
     except Exception:
         db_url = os.getenv("DATABASE_URL", "sqlite:///./trading_dashboard.db")
 
-    db_url = db_url.replace("sqlite+aiosqlite://", "sqlite:///")
+    # async → sync driver substitution
+    db_url = (
+        db_url
+        .replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+        .replace("sqlite+aiosqlite:///", "sqlite:///")
+    )
     return db_url
 
 
