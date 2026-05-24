@@ -255,7 +255,7 @@ function PortfolioModal({
               <label className="block text-xs text-slate-400 mb-1">Typ</label>
               <select
                 value={type}
-                onChange={(e) => setType(e.target.value)}
+                onChange={(e) => setType(e.target.value as "crypto" | "p2p" | "mixed" | "stocks")}
                 className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white"
               >
                 <option value="mixed">Gemischt</option>
@@ -268,7 +268,7 @@ function PortfolioModal({
               <label className="block text-xs text-slate-400 mb-1">Kategorie</label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => setCategory(e.target.value as "private" | "business")}
                 className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white"
               >
                 <option value="private">Privat</option>
