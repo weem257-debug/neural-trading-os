@@ -17,6 +17,8 @@ Signal pipeline:
 import sys
 import os
 import uuid
+import json
+import asyncio
 import logging
 from datetime import datetime, date, UTC
 from typing import Optional
@@ -25,6 +27,129 @@ from app.core.config import settings
 from app.models.schemas import TradingSignal, SignalDirection
 
 logger = logging.getLogger(__name__)
+
+
+async def _claude_generate_signal(
+    ticker: str,
+    analysis_date: str,
+    fast_mode: bool = False,
+    learning_context: str = "",
+) -> TradingSignal:
+    """
+    Native Claude signal generator — used when TradingAgents repo is unavailable.
+    Fetches live price + technical data via yfinance, enriches with news sentiment,
+    then asks Claude for a structured trading recommendation.
+    """
+    import anthropic
+
+    # ── 1. Fetch price history (last 30 trading days) ──────────────────────────
+    price_summary = "No price data available."
+    try:
+        import yfinance as yf
+        from datetime import timedelta
+
+        end = datetime.strptime(analysis_date, "%Y-%m-%d")
+        start = (end - timedelta(days=45)).strftime("%Y-%m-%d")
+        hist = await asyncio.to_thread(
+            lambda: yf.Ticker(ticker).history(start=start, end=analysis_date, auto_adjust=True)
+        )
+        if not hist.empty:
+            latest = hist.iloc[-1]
+            prev = hist.iloc[-2] if len(hist) > 1 else latest
+            chg = ((latest["Close"] - prev["Close"]) / prev["Close"]) * 100
+            hi52 = hist["High"].max()
+            lo52 = hist["Low"].min()
+            sma20 = hist["Close"].tail(20).mean()
+            sma50 = hist["Close"].tail(50).mean() if len(hist) >= 50 else hist["Close"].mean()
+            price_summary = (
+                f"Current price: ${latest['Close']:.2f} ({chg:+.2f}% today)\n"
+                f"Volume: {int(latest['Volume']):,}\n"
+                f"30-day range: ${hist['Low'].tail(30).min():.2f} – ${hist['High'].tail(30).max():.2f}\n"
+                f"52-week range: ${lo52:.2f} – ${hi52:.2f}\n"
+                f"20-day SMA: ${sma20:.2f} | 50-day SMA: ${sma50:.2f}\n"
+                f"Price vs SMA20: {'above' if latest['Close'] > sma20 else 'below'}"
+            )
+    except Exception as e:
+        logger.debug("yfinance fetch failed for %s: %s", ticker, e)
+
+    # ── 2. Fetch news sentiment ─────────────────────────────────────────────────
+    sentiment_summary = ""
+    try:
+        from app.api.routes.sentiment import _cached_sentiment
+        sentiment = await _cached_sentiment(ticker.upper())
+        sentiment_summary = (
+            f"News sentiment: {sentiment.overall_sentiment} "
+            f"(score={sentiment.overall_score:.2f}, "
+            f"{sentiment.news_count} articles, "
+            f"{sentiment.positive_count}+ / {sentiment.negative_count}-)"
+        )
+    except Exception as e:
+        logger.debug("Sentiment fetch failed for %s: %s", ticker, e)
+
+    # ── 3. Call Claude ──────────────────────────────────────────────────────────
+    model = settings.ANTHROPIC_MODEL_FAST if fast_mode else settings.ANTHROPIC_MODEL_ANALYSIS
+    client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+    system_prompt = (
+        "You are an expert quantitative trading analyst. "
+        "Analyse the provided market data and return a JSON trading signal. "
+        "JSON schema (strict, no extra keys):\n"
+        '{"direction": "BUY|SELL|HOLD|STRONG_BUY|STRONG_SELL", '
+        '"confidence": 0.0-1.0, '
+        '"price_target": float_or_null, '
+        '"stop_loss": float_or_null, '
+        '"time_horizon": "1d|1w|1m|3m|6m|null", '
+        '"reasoning": "2-4 sentence rationale"}'
+    )
+    if learning_context:
+        system_prompt += f"\n\n## Historical trading patterns:\n{learning_context}"
+
+    user_msg = (
+        f"Generate a trading signal for {ticker.upper()} as of {analysis_date}.\n\n"
+        f"PRICE DATA:\n{price_summary}\n\n"
+        f"{('SENTIMENT:\n' + sentiment_summary) if sentiment_summary else ''}\n\n"
+        "Return ONLY valid JSON, no markdown, no explanation outside the JSON."
+    )
+
+    try:
+        resp = await client.messages.create(
+            model=model,
+            max_tokens=400,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+        raw = resp.content[0].text.strip()
+        # Strip markdown fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        data = json.loads(raw)
+
+        direction_map = {
+            "STRONG_BUY": SignalDirection.STRONG_BUY,
+            "BUY": SignalDirection.BUY,
+            "HOLD": SignalDirection.HOLD,
+            "SELL": SignalDirection.SELL,
+            "STRONG_SELL": SignalDirection.STRONG_SELL,
+        }
+        direction = direction_map.get(data.get("direction", "HOLD").upper(), SignalDirection.HOLD)
+
+        return TradingSignal(
+            id=str(uuid.uuid4()),
+            ticker=ticker.upper(),
+            direction=direction,
+            confidence=float(data.get("confidence", 0.5)),
+            price_target=data.get("price_target"),
+            stop_loss=data.get("stop_loss"),
+            time_horizon=data.get("time_horizon"),
+            reasoning=str(data.get("reasoning", ""))[:1000],
+            source=f"Claude[{model}]",
+            generated_at=datetime.now(UTC),
+        )
+    except Exception as e:
+        logger.error("Claude signal generation failed for %s: %s", ticker, e)
+        return _placeholder_signal(ticker, analysis_date, f"claude_error:{e}")
 
 
 def _ensure_repo_on_path() -> bool:
@@ -96,9 +221,10 @@ async def generate_signal(
         logger.debug("RAG context retrieval skipped: %s", rag_err)
 
     if not _ensure_repo_on_path():
-        # Repo not available — return a neutral placeholder (with learning context logged)
-        if learning_context:
-            logger.debug("RAG context for %s (repo unavailable): %s", ticker, learning_context[:200])
+        # TradingAgents repo unavailable — fall back to native Claude analysis
+        if settings.ANTHROPIC_API_KEY and not settings.ANTHROPIC_API_KEY.startswith("your-"):
+            logger.info("TradingAgents unavailable, using Claude fallback for %s", ticker)
+            return await _claude_generate_signal(ticker, analysis_date, fast_mode, learning_context)
         return _placeholder_signal(ticker, analysis_date, "repo_unavailable")
 
     try:
