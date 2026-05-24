@@ -193,6 +193,68 @@ async def _signal_performance_loop() -> None:
             logger.error("signal_performance_loop_error", reason=str(loop_err))
 
 
+async def _p2p_snapshot_loop() -> None:
+    """
+    Background task: save P2P snapshots once per day at 02:00 UTC.
+    Skips if no credentials are configured (demo data would just duplicate).
+    """
+    import os
+    from datetime import datetime, timedelta, timezone
+
+    while True:
+        now = datetime.now(timezone.utc)
+        next_run = now.replace(hour=2, minute=0, second=0, microsecond=0)
+        if next_run <= now:
+            next_run += timedelta(days=1)
+        sleep_secs = (next_run - now).total_seconds()
+        logger.info("p2p_snapshot_loop_sleeping", seconds=int(sleep_secs))
+        await asyncio.sleep(sleep_secs)
+
+        has_credentials = any([
+            os.getenv("MINTOS_API_KEY", ""),
+            os.getenv("BONDORA_API_KEY", ""),
+            os.getenv("PEERBERRY_EMAIL", ""),
+        ])
+        if not has_credentials:
+            logger.info("p2p_snapshot_skipped_no_credentials")
+            continue
+
+        try:
+            from app.services.p2p import mintos as mintos_svc
+            from app.services.p2p import bondora as bondora_svc
+            from app.services.p2p import peerberry as peerberry_svc
+            from app.db.database import get_session
+            from app.db.models import P2PSnapshot
+            from datetime import datetime as _dt, UTC
+
+            mintos_data, bondora_data, peerberry_data = await asyncio.gather(
+                mintos_svc.fetch_summary(),
+                bondora_svc.fetch_summary(),
+                peerberry_svc.fetch_summary(),
+            )
+            async with get_session() as session:
+                for svc_data in [mintos_data, bondora_data, peerberry_data]:
+                    d = svc_data.to_dict()
+                    snap = P2PSnapshot(
+                        platform=d["platform"],
+                        total_invested=svc_data.total_invested,
+                        outstanding_principal=svc_data.outstanding_principal,
+                        interest_month=svc_data.interest_month,
+                        total_interest=svc_data.total_interest,
+                        defaulted_amount=svc_data.defaulted_amount,
+                        cash_balance=svc_data.cash_balance,
+                        net_annual_return=svc_data.net_annual_return,
+                        num_active_loans=svc_data.num_active_loans,
+                        currency=svc_data.currency,
+                        fetched_at=_dt.now(UTC),
+                    )
+                    session.add(snap)
+                await session.commit()
+            logger.info("p2p_snapshot_saved_daily")
+        except Exception as snap_err:
+            logger.warning("p2p_snapshot_loop_error", reason=str(snap_err))
+
+
 async def _price_stream_loop() -> None:
     """
     Background task: fetch current prices for the default watchlist every 10 s
@@ -314,6 +376,10 @@ async def lifespan(app: FastAPI):
     signal_perf_task = asyncio.create_task(_signal_performance_loop())
     logger.info("signal_performance_tracker_started")
 
+    # Start daily P2P snapshot (runs at 02:00 UTC — only when credentials set)
+    p2p_snapshot_task = asyncio.create_task(_p2p_snapshot_loop())
+    logger.info("p2p_snapshot_scheduler_started")
+
     # Start price alert checker (polls every 15s) — load from DB first
     from app.services.price_alerts.manager import get_alert_manager
     alert_manager = get_alert_manager()
@@ -351,6 +417,12 @@ async def lifespan(app: FastAPI):
     signal_perf_task.cancel()
     try:
         await signal_perf_task
+    except asyncio.CancelledError:
+        pass
+
+    p2p_snapshot_task.cancel()
+    try:
+        await p2p_snapshot_task
     except asyncio.CancelledError:
         pass
 
