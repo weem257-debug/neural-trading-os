@@ -267,3 +267,24 @@ class OrderRecord(Base):
         default=lambda: datetime.now(UTC),
         index=True,
     )
+
+
+class PriceAlertRecord(Base):
+    """Persisted price alert — survives container restarts."""
+
+    __tablename__ = "price_alerts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    alert_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True, index=True)
+    ticker: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    condition: Mapped[str] = mapped_column(String(20), nullable=False)
+    threshold: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(String(10), nullable=False, default="active", index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )
+    fired_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    fired_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)

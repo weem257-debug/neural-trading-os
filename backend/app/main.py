@@ -314,9 +314,10 @@ async def lifespan(app: FastAPI):
     signal_perf_task = asyncio.create_task(_signal_performance_loop())
     logger.info("signal_performance_tracker_started")
 
-    # Start price alert checker (polls every 15s)
+    # Start price alert checker (polls every 15s) — load from DB first
     from app.services.price_alerts.manager import get_alert_manager
     alert_manager = get_alert_manager()
+    await alert_manager.load_from_db()
     alert_task = asyncio.create_task(alert_manager.run_checker())
     logger.info("price_alert_checker_started")
 
