@@ -387,7 +387,7 @@ export default function LandingPage() {
             {[
               { label: "Trading Engines", value: "9" },
               { label: "AI Agents", value: "5" },
-              { label: "Tests Passing", value: "159" },
+              { label: "Tests Passing", value: "309+" },
               { label: "Paper Capital", value: "100K" },
             ].map((stat) => (
               <div key={stat.label}>
@@ -478,7 +478,7 @@ export default function LandingPage() {
                   </h3>
                   <div className="flex items-baseline gap-1 mb-2">
                     <span className="text-4xl font-black text-white">
-                      EUR {tier.price}
+                      €{tier.price}
                     </span>
                     <span className="text-slate-500 text-sm">{tier.period}</span>
                   </div>
@@ -498,7 +498,7 @@ export default function LandingPage() {
                 </ul>
 
                 <Link
-                  href={tier.name === "Institutional" ? "mailto:weem257@gmail.com?subject=Neural Trading OS — Institutional" : "#waitlist"}
+                  href={tier.name === "Institutional" ? "mailto:weem257@gmail.com?subject=Neural Trading OS — Institutional" : "/pricing"}
                   className={`
                     w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
                     ${
@@ -588,7 +588,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-slate-500 text-sm">
               <BarChart3 className="w-4 h-4 text-cyan-400" />
-              Neural Trading OS v0.7.0 — MIT License
+              Neural Trading OS v0.8.0 — MIT License
             </div>
             <div className="flex items-center gap-6 text-sm text-slate-500">
               <a
