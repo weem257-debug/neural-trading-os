@@ -274,5 +274,10 @@ export const api = {
       }),
     portal: () =>
       apiFetch<{ portal_url: string }>("/api/billing/portal", { method: "POST" }),
+    usage: () =>
+      apiFetch<{
+        plan: string; signals_used_today: number; signals_limit: number;
+        signals_remaining: number; reset_at: string;
+      }>("/api/billing/usage"),
   },
 };

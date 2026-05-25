@@ -332,3 +332,50 @@ async def stripe_webhook(request: Request):
         await session.commit()
 
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# GET /api/billing/usage
+# ---------------------------------------------------------------------------
+
+class UsageResponse(BaseModel):
+    plan: str
+    signals_used_today: int
+    signals_limit: int
+    signals_remaining: int
+    reset_at: str
+
+
+@router.get("/usage", response_model=UsageResponse)
+async def get_usage(
+    current_user: UserInfo = Depends(get_current_user),
+):
+    """Return today's signal usage vs. plan limit for the authenticated user."""
+    from datetime import date
+    from sqlalchemy import func
+    from app.db.models import Signal
+
+    async with get_session() as session:
+        sub_result = await session.execute(
+            select(Subscription).where(Subscription.user_id == current_user.username)
+        )
+        sub = sub_result.scalar_one_or_none()
+        plan = sub.plan if sub else "free"
+
+        today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=UTC)
+        count_result = await session.execute(
+            select(func.count()).select_from(Signal).where(Signal.created_at >= today_start)
+        )
+        used_today = count_result.scalar_one()
+
+    meta = PLAN_META.get(plan, PLAN_META["free"])
+    limit = meta["signals_day"]
+    remaining = max(0, limit - used_today) if limit >= 0 else -1
+
+    return UsageResponse(
+        plan=plan,
+        signals_used_today=used_today,
+        signals_limit=limit,
+        signals_remaining=remaining,
+        reset_at=f"{date.today().isoformat()}T23:59:59Z",
+    )
