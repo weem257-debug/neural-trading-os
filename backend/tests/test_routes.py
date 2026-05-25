@@ -3639,3 +3639,36 @@ class TestBilling:
             headers={"Content-Type": "application/json", "stripe-signature": "invalid"},
         )
         assert resp.status_code == 400
+
+    def test_usage_requires_auth(self, client):
+        resp = client.get("/api/billing/usage")
+        assert resp.status_code == 401
+
+    def test_usage_returns_200_when_authenticated(self, client):
+        resp = client.get("/api/billing/usage", headers=self._auth(client))
+        assert resp.status_code == 200
+
+    def test_usage_has_required_fields(self, client):
+        resp = client.get("/api/billing/usage", headers=self._auth(client))
+        data = resp.json()
+        assert "plan" in data
+        assert "signals_used_today" in data
+        assert "signals_limit" in data
+        assert "signals_remaining" in data
+        assert "reset_at" in data
+
+    def test_usage_default_plan_is_free(self, client):
+        resp = client.get("/api/billing/usage", headers=self._auth(client))
+        assert resp.json()["plan"] == "free"
+
+    def test_usage_free_limit_is_3(self, client):
+        resp = client.get("/api/billing/usage", headers=self._auth(client))
+        assert resp.json()["signals_limit"] == 3
+
+    def test_usage_remaining_not_negative(self, client):
+        resp = client.get("/api/billing/usage", headers=self._auth(client))
+        assert resp.json()["signals_remaining"] >= 0
+
+    def test_usage_reset_at_is_string(self, client):
+        resp = client.get("/api/billing/usage", headers=self._auth(client))
+        assert isinstance(resp.json()["reset_at"], str)

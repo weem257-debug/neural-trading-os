@@ -353,7 +353,7 @@ async def get_usage(
     """Return today's signal usage vs. plan limit for the authenticated user."""
     from datetime import date
     from sqlalchemy import func
-    from app.db.models import Signal
+    from app.db.models import SignalRecord
 
     async with get_session() as session:
         sub_result = await session.execute(
@@ -364,7 +364,7 @@ async def get_usage(
 
         today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=UTC)
         count_result = await session.execute(
-            select(func.count()).select_from(Signal).where(Signal.created_at >= today_start)
+            select(func.count()).select_from(SignalRecord).where(SignalRecord.generated_at >= today_start)
         )
         used_today = count_result.scalar_one()
 
