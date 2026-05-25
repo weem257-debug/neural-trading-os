@@ -8,7 +8,9 @@ import type { TradingSignal, SignalPerformanceResponse } from "@/types";
 import {
   TrendingUp, TrendingDown, Minus, Loader2, Brain,
   ChevronDown, Clock, Target, AlertTriangle, Zap, Download, ScanSearch, X, CheckSquare, Square,
+  ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 import { GlassCard, SectionLabel, NeonBadge } from "@/components/ui/GlassCard";
 import { ExplanationModal, InfoButton } from "@/components/ui/ExplanationModal";
 import type { ExplanationContent } from "@/components/ui/ExplanationModal";
@@ -529,6 +531,25 @@ export default function SignalsPage() {
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
         <CandlestickChart defaultTicker="AAPL" controlledTicker={ticker} height={340} />
       </motion.div>
+
+      {/* Marketplace banner */}
+      <Link
+        href="/signals/marketplace"
+        className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group"
+        style={{
+          background: "rgba(0,255,136,0.06)",
+          border: "1px solid rgba(0,255,136,0.18)",
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <Zap className="w-3.5 h-3.5 text-neon-green flex-shrink-0" />
+          <span className="text-xs font-semibold text-neon-green">Signal Marketplace</span>
+          <span className="text-xs text-slate-500 hidden sm:inline">— View track record, win rate and equity curve</span>
+        </div>
+        <div className="flex items-center gap-1 text-xs text-slate-500 group-hover:text-neon-green transition-colors">
+          €19/mo <ArrowRight className="w-3 h-3" />
+        </div>
+      </Link>
 
       {/* Header */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
