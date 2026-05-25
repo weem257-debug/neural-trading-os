@@ -123,6 +123,10 @@ export const api = {
       return apiFetch<TradingSignal[]>(`/api/signals/${query ? `?${query}` : ""}`);
     },
     performance: () => apiFetch<SignalPerformanceResponse>("/api/signals/performance"),
+    trending: (limit = 10) =>
+      apiFetch<Array<{ ticker: string; count: number; avg_confidence: number; trending: boolean }>>(
+        `/api/signals/trending?limit=${limit}`
+      ),
     clearCache: () => apiFetch<ClearCacheResponse>("/api/signals/cache", { method: "DELETE" }),
     /** Batch-scan up to 10 tickers in parallel (demo mode). */
     batch: (tickers: string[]) =>
