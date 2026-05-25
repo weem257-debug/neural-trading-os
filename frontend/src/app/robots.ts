@@ -1,16 +1,23 @@
 import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://neural-trading-os.com";
+  const base =
+    process.env.NEXT_PUBLIC_APP_URL ??
+    "https://frontend-production-8a00.up.railway.app";
   return {
     rules: [
       {
         userAgent: "*",
-        allow: ["/landing", "/login"],
+        allow: [
+          "/landing",
+          "/pricing",
+          "/signals/marketplace",
+          "/login",
+        ],
         disallow: [
           "/dashboard",
           "/portfolio",
-          "/signals",
+          "/signals$",
           "/backtest",
           "/risk",
           "/execution",
@@ -18,6 +25,8 @@ export default function robots(): MetadataRoute.Robots {
           "/analysis",
           "/sentiment",
           "/settings",
+          "/billing",
+          "/p2p",
           "/api/",
         ],
       },
