@@ -418,6 +418,7 @@ export default function SignalsPage() {
   const [newSignalPulse, setNewSignalPulse] = useState(false);
   const [perf, setPerf] = useState<SignalPerformanceResponse | null>(null);
   const [isApiOnline, setIsApiOnline] = useState(false);
+  const [trendingTickers, setTrendingTickers] = useState<Array<{ ticker: string; count: number; avg_confidence: number }>>([]);
   const { signals, addSignal, setSignals } = useTradingStore();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -437,6 +438,7 @@ export default function SignalsPage() {
     api.signals.performance()
       .then((data) => { setPerf(data); setIsApiOnline(true); })
       .catch(() => setIsApiOnline(false));
+    api.signals.trending(8).then(setTrendingTickers).catch(() => {});
     if (signals.length === 0) {
       api.signals.list()
         .then((data) => { if (data.length > 0) setSignals(data); })
@@ -626,6 +628,32 @@ export default function SignalsPage() {
 
       {/* Performance strip — shows only when backend has evaluated signals */}
       {perf && <PerformanceStrip perf={perf} />}
+
+      {/* Hot Tickers Bar */}
+      {trendingTickers.length > 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.08 }}
+          className="flex items-center gap-2 flex-wrap"
+        >
+          <span className="text-xs text-slate-600 font-medium shrink-0">Hot:</span>
+          {trendingTickers.map((t) => (
+            <button
+              key={t.ticker}
+              onClick={() => setTicker(t.ticker)}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all"
+              style={{
+                background: "rgba(0,255,136,0.06)",
+                border: "1px solid rgba(0,255,136,0.15)",
+                color: "#64748b",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#00FF88"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,255,136,0.4)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#64748b"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,255,136,0.15)"; }}
+            >
+              {t.ticker}
+              {t.count > 1 && <span className="text-slate-700 font-normal">×{t.count}</span>}
+            </button>
+          ))}
+        </motion.div>
+      )}
 
       {/* Generator Panel */}
       <GlassCard variant="green" delay={0.1}>
