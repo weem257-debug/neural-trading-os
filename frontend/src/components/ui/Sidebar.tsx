@@ -22,6 +22,7 @@ import {
   Landmark,
   Wallet,
   Brain,
+  CreditCard,
 } from "lucide-react";
 import { LanguageToggle, useI18n } from "@/i18n/context";
 import { api } from "@/lib/api";
@@ -41,6 +42,7 @@ const navItems = [
   { href: "/risk",       labelKey: "nav.risk",       icon: Shield,          color: "pink" },
   { href: "/execution",  labelKey: "nav.execution",  icon: Zap,             color: "green" },
   { href: "/alerts",     labelKey: "nav.alerts",     icon: Bell,            color: "yellow" },
+  { href: "/pricing",   labelKey: "nav.pricing",   icon: CreditCard,      color: "green" },
 ];
 
 const colorMap: Record<string, { active: string; icon: string; glow: string; bar: string }> = {
