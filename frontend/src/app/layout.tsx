@@ -7,6 +7,7 @@ import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { ShortcutsProvider } from "@/components/ui/ShortcutsProvider";
 import { Notifications } from "@/components/ui/Notifications";
 import { AuthGuard } from "@/components/ui/AuthGuard";
+import { UpgradeBanner } from "@/components/ui/UpgradeBanner";
 import { I18nProvider } from "@/i18n/context";
 import { PricesProvider } from "@/components/ui/PricesProvider";
 
@@ -91,6 +92,7 @@ export default function RootLayout({
               <main className="flex-1 overflow-y-auto p-5">
                 <ErrorBoundary>
                   <AuthGuard>
+                    <UpgradeBanner />
                     {children}
                   </AuthGuard>
                 </ErrorBoundary>
