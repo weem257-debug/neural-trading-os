@@ -193,6 +193,70 @@ async def _signal_performance_loop() -> None:
             logger.error("signal_performance_loop_error", reason=str(loop_err))
 
 
+_SIGNAL_WATCHLIST = ["AAPL", "NVDA", "MSFT", "TSLA", "META", "AMD"]
+
+
+async def _daily_signal_loop() -> None:
+    """
+    Background task: generate fresh Claude signals for the watchlist once per day.
+    Runs at 15:00 UTC (US market open + 30 min). Uses fast (Haiku) mode to keep costs low.
+    Only runs if ANTHROPIC_API_KEY is configured.
+    """
+    import os
+    from datetime import datetime, timedelta, timezone
+    from app.core.config import settings
+
+    while True:
+        now = datetime.now(timezone.utc)
+        next_run = now.replace(hour=15, minute=0, second=0, microsecond=0)
+        if next_run <= now:
+            next_run += timedelta(days=1)
+        sleep_secs = (next_run - now).total_seconds()
+        logger.info("daily_signal_loop_sleeping", seconds=int(sleep_secs))
+        await asyncio.sleep(sleep_secs)
+
+        if not settings.ANTHROPIC_API_KEY or settings.ANTHROPIC_API_KEY.startswith("your-"):
+            logger.info("daily_signal_skipped_no_api_key")
+            continue
+
+        try:
+            from app.services.tradingagents.client import generate_signal
+            from app.db.database import get_session
+            from app.db.models import SignalRecord
+            from datetime import date
+            import json
+
+            today = date.today().isoformat()
+            generated = 0
+            for ticker in _SIGNAL_WATCHLIST:
+                try:
+                    signal = await generate_signal(ticker, today, fast_mode=True)
+                    async with get_session() as session:
+                        record = SignalRecord(
+                            id=signal.id,
+                            ticker=signal.ticker,
+                            direction=signal.direction.value,
+                            confidence=signal.confidence,
+                            reasoning=signal.reasoning,
+                            source=signal.source,
+                            generated_at=signal.generated_at,
+                            agents_consensus=json.dumps(signal.agents_consensus) if signal.agents_consensus else None,
+                            price_target=signal.price_target,
+                            stop_loss=signal.stop_loss,
+                            time_horizon=signal.time_horizon,
+                        )
+                        session.add(record)
+                        await session.commit()
+                    generated += 1
+                    await asyncio.sleep(2)  # polite API pacing
+                except Exception as sig_err:
+                    logger.warning("daily_signal_ticker_failed", ticker=ticker, reason=str(sig_err))
+
+            logger.info("daily_signal_loop_complete", generated=generated)
+        except Exception as loop_err:
+            logger.error("daily_signal_loop_error", reason=str(loop_err))
+
+
 async def _p2p_snapshot_loop() -> None:
     """
     Background task: save P2P snapshots once per day at 02:00 UTC.
@@ -380,6 +444,10 @@ async def lifespan(app: FastAPI):
     p2p_snapshot_task = asyncio.create_task(_p2p_snapshot_loop())
     logger.info("p2p_snapshot_scheduler_started")
 
+    # Start daily signal generation (runs at 15:00 UTC — only when API key set)
+    daily_signal_task = asyncio.create_task(_daily_signal_loop())
+    logger.info("daily_signal_generator_started")
+
     # Start price alert checker (polls every 15s) — load from DB first
     from app.services.price_alerts.manager import get_alert_manager
     alert_manager = get_alert_manager()
@@ -423,6 +491,12 @@ async def lifespan(app: FastAPI):
     p2p_snapshot_task.cancel()
     try:
         await p2p_snapshot_task
+    except asyncio.CancelledError:
+        pass
+
+    daily_signal_task.cancel()
+    try:
+        await daily_signal_task
     except asyncio.CancelledError:
         pass
 
