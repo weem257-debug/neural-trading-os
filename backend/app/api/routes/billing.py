@@ -5,10 +5,10 @@ Feature-flagged: returns 503 when STRIPE_SECRET_KEY is not configured.
 All routes require JWT authentication.
 
 Plans:
-  basic        — €29/mo (STRIPE_PRICE_BASIC)
-  pro          — €99/mo (STRIPE_PRICE_PRO)
+  basic         — €29/mo (STRIPE_PRICE_BASIC)
+  pro           — €99/mo (STRIPE_PRICE_PRO)
   institutional — €299/mo (STRIPE_PRICE_INST)
-  signals      — €19/mo add-on (STRIPE_PRICE_SIGNALS)
+  signals       — €19/mo add-on (STRIPE_PRICE_SIGNALS)
 """
 import json
 import logging
@@ -18,7 +18,6 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 
 from app.api.auth import UserInfo, get_current_user
 from app.core.config import settings
@@ -37,11 +36,11 @@ PLAN_TO_PRICE: dict[str, str] = {
 }
 
 PLAN_META = {
-    "free":         {"name": "Free",          "price_eur": 0,   "signals_day": 3},
-    "basic":        {"name": "Basic",         "price_eur": 29,  "signals_day": 10},
-    "pro":          {"name": "Pro",           "price_eur": 99,  "signals_day": 50},
-    "institutional":{"name": "Institutional", "price_eur": 299, "signals_day": -1},
-    "signals":      {"name": "Signal Marketplace", "price_eur": 19, "signals_day": 10},
+    "free":          {"name": "Free",               "price_eur": 0,   "signals_day": 3},
+    "basic":         {"name": "Basic",               "price_eur": 29,  "signals_day": 10},
+    "pro":           {"name": "Pro",                 "price_eur": 99,  "signals_day": 50},
+    "institutional": {"name": "Institutional",       "price_eur": 299, "signals_day": -1},
+    "signals":       {"name": "Signal Marketplace",  "price_eur": 19,  "signals_day": 10},
 }
 
 
@@ -74,7 +73,7 @@ class SubscriptionStatus(BaseModel):
 
 
 class CheckoutRequest(BaseModel):
-    plan: str  # "basic" | "pro" | "institutional" | "signals"
+    plan: str
     annual: bool = False
 
 
@@ -88,53 +87,7 @@ class PortalResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Helper — get or create subscription row
-# ---------------------------------------------------------------------------
-
-async def _get_or_create_sub(user_id: str, session) -> Subscription:
-    result = await session.execute(select(Subscription).where(Subscription.user_id == user_id))
-    sub = result.scalar_one_or_none()
-    if sub is None:
-        sub = Subscription(
-            user_id=user_id,
-            plan="free",
-            status="active",
-            created_at=datetime.now(UTC),
-            updated_at=datetime.now(UTC),
-        )
-        session.add(sub)
-        await session.flush()
-    return sub
-
-
-# ---------------------------------------------------------------------------
-# GET /api/billing/status
-# ---------------------------------------------------------------------------
-
-@router.get("/status", response_model=SubscriptionStatus)
-async def get_subscription_status(
-    current_user: UserInfo = Depends(get_current_user),
-    session=Depends(get_session),
-):
-    """Return current subscription plan and limits."""
-    sub = await _get_or_create_sub(current_user.username, session)
-    await session.commit()
-    meta = PLAN_META.get(sub.plan, PLAN_META["free"])
-    return SubscriptionStatus(
-        user_id=sub.user_id,
-        plan=sub.plan,
-        plan_name=meta["name"],
-        price_eur=meta["price_eur"],
-        signals_per_day=meta["signals_day"],
-        status=sub.status,
-        current_period_end=sub.current_period_end,
-        cancel_at_period_end=sub.cancel_at_period_end,
-        stripe_configured=_stripe_enabled(),
-    )
-
-
-# ---------------------------------------------------------------------------
-# GET /api/billing/plans  (public — no auth required for pricing display)
+# GET /api/billing/plans  (public)
 # ---------------------------------------------------------------------------
 
 @router.get("/plans")
@@ -155,14 +108,52 @@ async def list_plans():
 
 
 # ---------------------------------------------------------------------------
-# POST /api/billing/checkout  — create Stripe Checkout session
+# GET /api/billing/status
+# ---------------------------------------------------------------------------
+
+@router.get("/status", response_model=SubscriptionStatus)
+async def get_subscription_status(
+    current_user: UserInfo = Depends(get_current_user),
+):
+    """Return current subscription plan and limits."""
+    async with get_session() as session:
+        result = await session.execute(
+            select(Subscription).where(Subscription.user_id == current_user.username)
+        )
+        sub = result.scalar_one_or_none()
+        if sub is None:
+            sub = Subscription(
+                user_id=current_user.username,
+                plan="free",
+                status="active",
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
+            )
+            session.add(sub)
+            await session.commit()
+
+        meta = PLAN_META.get(sub.plan, PLAN_META["free"])
+        return SubscriptionStatus(
+            user_id=sub.user_id,
+            plan=sub.plan,
+            plan_name=meta["name"],
+            price_eur=meta["price_eur"],
+            signals_per_day=meta["signals_day"],
+            status=sub.status,
+            current_period_end=sub.current_period_end,
+            cancel_at_period_end=sub.cancel_at_period_end,
+            stripe_configured=_stripe_enabled(),
+        )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/billing/checkout
 # ---------------------------------------------------------------------------
 
 @router.post("/checkout", response_model=CheckoutResponse)
 async def create_checkout_session(
     req: CheckoutRequest,
     current_user: UserInfo = Depends(get_current_user),
-    session=Depends(get_session),
 ):
     """Create a Stripe Checkout session for the requested plan."""
     _require_stripe()
@@ -177,8 +168,12 @@ async def create_checkout_session(
 
     stripe.api_key = settings.STRIPE_SECRET_KEY
 
-    sub = await _get_or_create_sub(current_user.username, session)
-    await session.commit()
+    async with get_session() as session:
+        result = await session.execute(
+            select(Subscription).where(Subscription.user_id == current_user.username)
+        )
+        sub = result.scalar_one_or_none()
+        stripe_customer_id = sub.stripe_customer_id if sub else None
 
     try:
         checkout_kwargs: dict = {
@@ -189,8 +184,8 @@ async def create_checkout_session(
             "metadata": {"user_id": current_user.username, "plan": req.plan},
             "allow_promotion_codes": True,
         }
-        if sub.stripe_customer_id:
-            checkout_kwargs["customer"] = sub.stripe_customer_id
+        if stripe_customer_id:
+            checkout_kwargs["customer"] = stripe_customer_id
 
         checkout_session = stripe.checkout.Session.create(**checkout_kwargs)
     except stripe.StripeError as exc:
@@ -201,23 +196,25 @@ async def create_checkout_session(
 
 
 # ---------------------------------------------------------------------------
-# POST /api/billing/portal  — Stripe Customer Portal
+# POST /api/billing/portal
 # ---------------------------------------------------------------------------
 
 @router.post("/portal", response_model=PortalResponse)
 async def create_billing_portal(
     current_user: UserInfo = Depends(get_current_user),
-    session=Depends(get_session),
 ):
     """Return a Stripe Customer Portal URL for managing subscription/payment methods."""
     _require_stripe()
 
     import stripe
 
-    sub = await _get_or_create_sub(current_user.username, session)
-    await session.commit()
+    async with get_session() as session:
+        result = await session.execute(
+            select(Subscription).where(Subscription.user_id == current_user.username)
+        )
+        sub = result.scalar_one_or_none()
 
-    if not sub.stripe_customer_id:
+    if not sub or not sub.stripe_customer_id:
         raise HTTPException(status_code=400, detail="No active Stripe subscription found.")
 
     stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -234,15 +231,12 @@ async def create_billing_portal(
 
 
 # ---------------------------------------------------------------------------
-# POST /api/billing/webhook  — Stripe webhook receiver
+# POST /api/billing/webhook
 # ---------------------------------------------------------------------------
 
 @router.post("/webhook", include_in_schema=False)
-async def stripe_webhook(request: Request, session=Depends(get_session)):
-    """
-    Receives Stripe webhook events and updates subscription state.
-    Requires STRIPE_WEBHOOK_SECRET for signature verification.
-    """
+async def stripe_webhook(request: Request):
+    """Stripe webhook receiver with signature verification and idempotency guard."""
     if not _stripe_enabled():
         raise HTTPException(status_code=503, detail="Stripe not configured.")
 
@@ -259,81 +253,82 @@ async def stripe_webhook(request: Request, session=Depends(get_session)):
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    # Idempotency check
-    existing = await session.execute(
-        select(BillingEvent).where(BillingEvent.stripe_event_id == event["id"])
-    )
-    if existing.scalar_one_or_none():
-        return {"status": "already_processed"}
-
-    billing_event = BillingEvent(
-        stripe_event_id=event["id"],
-        event_type=event["type"],
-        payload=json.dumps(dict(event["data"]["object"])),
-        processed=False,
-        created_at=datetime.now(UTC),
-    )
-    session.add(billing_event)
-
-    obj = event["data"]["object"]
-
-    # customer.subscription.created / updated / deleted
-    if event["type"] in ("customer.subscription.created", "customer.subscription.updated"):
-        customer_id = obj.get("customer")
-        stripe_sub_id = obj.get("id")
-        status = obj.get("status", "active")
-        cancel_at_end = obj.get("cancel_at_period_end", False)
-        period_end_ts = obj.get("current_period_end")
-        current_period_end = datetime.fromtimestamp(period_end_ts, tz=UTC) if period_end_ts else None
-
-        price_id = None
-        items = obj.get("items", {}).get("data", [])
-        if items:
-            price_id = items[0].get("price", {}).get("id")
-
-        plan = "free"
-        for p, pid in PLAN_TO_PRICE.items():
-            if pid and pid == price_id:
-                plan = p
-                break
-
-        result = await session.execute(
-            select(Subscription).where(Subscription.stripe_customer_id == customer_id)
+    async with get_session() as session:
+        # Idempotency check
+        existing = await session.execute(
+            select(BillingEvent).where(BillingEvent.stripe_event_id == event["id"])
         )
-        sub = result.scalar_one_or_none()
-        if sub:
-            sub.plan = plan
-            sub.status = status
-            sub.stripe_subscription_id = stripe_sub_id
-            sub.current_period_end = current_period_end
-            sub.cancel_at_period_end = cancel_at_end
-            sub.updated_at = datetime.now(UTC)
+        if existing.scalar_one_or_none():
+            return {"status": "already_processed"}
 
-    elif event["type"] == "customer.subscription.deleted":
-        customer_id = obj.get("customer")
-        result = await session.execute(
-            select(Subscription).where(Subscription.stripe_customer_id == customer_id)
+        billing_event = BillingEvent(
+            stripe_event_id=event["id"],
+            event_type=event["type"],
+            payload=json.dumps(dict(event["data"]["object"])),
+            processed=False,
+            created_at=datetime.now(UTC),
         )
-        sub = result.scalar_one_or_none()
-        if sub:
-            sub.plan = "free"
-            sub.status = "canceled"
-            sub.cancel_at_period_end = False
-            sub.current_period_end = None
-            sub.updated_at = datetime.now(UTC)
+        session.add(billing_event)
 
-    elif event["type"] == "checkout.session.completed":
-        customer_id = obj.get("customer")
-        user_id = obj.get("metadata", {}).get("user_id")
-        if user_id and customer_id:
+        obj = event["data"]["object"]
+
+        if event["type"] in ("customer.subscription.created", "customer.subscription.updated"):
+            customer_id = obj.get("customer")
+            stripe_sub_id = obj.get("id")
+            status = obj.get("status", "active")
+            cancel_at_end = obj.get("cancel_at_period_end", False)
+            period_end_ts = obj.get("current_period_end")
+            current_period_end = datetime.fromtimestamp(period_end_ts, tz=UTC) if period_end_ts else None
+
+            price_id = None
+            items = obj.get("items", {}).get("data", [])
+            if items:
+                price_id = items[0].get("price", {}).get("id")
+
+            plan = "free"
+            for p, pid in PLAN_TO_PRICE.items():
+                if pid and pid == price_id:
+                    plan = p
+                    break
+
             result = await session.execute(
-                select(Subscription).where(Subscription.user_id == user_id)
+                select(Subscription).where(Subscription.stripe_customer_id == customer_id)
             )
             sub = result.scalar_one_or_none()
-            if sub and not sub.stripe_customer_id:
-                sub.stripe_customer_id = customer_id
+            if sub:
+                sub.plan = plan
+                sub.status = status
+                sub.stripe_subscription_id = stripe_sub_id
+                sub.current_period_end = current_period_end
+                sub.cancel_at_period_end = cancel_at_end
                 sub.updated_at = datetime.now(UTC)
 
-    billing_event.processed = True
-    await session.commit()
+        elif event["type"] == "customer.subscription.deleted":
+            customer_id = obj.get("customer")
+            result = await session.execute(
+                select(Subscription).where(Subscription.stripe_customer_id == customer_id)
+            )
+            sub = result.scalar_one_or_none()
+            if sub:
+                sub.plan = "free"
+                sub.status = "canceled"
+                sub.cancel_at_period_end = False
+                sub.current_period_end = None
+                sub.updated_at = datetime.now(UTC)
+
+        elif event["type"] == "checkout.session.completed":
+            customer_id = obj.get("customer")
+            user_id = obj.get("metadata", {}).get("user_id")
+            if user_id and customer_id:
+                result = await session.execute(
+                    select(Subscription).where(Subscription.user_id == user_id)
+                )
+                sub = result.scalar_one_or_none()
+                if sub and not sub.stripe_customer_id:
+                    sub.stripe_customer_id = customer_id
+                    sub.updated_at = datetime.now(UTC)
+
+        billing_event.processed = True
+        await session.commit()
+
     return {"status": "ok"}

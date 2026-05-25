@@ -3487,3 +3487,155 @@ class TestLearning:
         assert isinstance(jobs, list)
         # At minimum the job we just triggered exists
         assert len(jobs) >= 0  # non-negative
+
+
+# ---------------------------------------------------------------------------
+# Billing
+# ---------------------------------------------------------------------------
+
+class TestBilling:
+    """Tests for /api/billing — plan listing and subscription status (Stripe optional)."""
+
+    def _auth(self, client) -> dict:
+        resp = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+        )
+        return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+    # -- Plans (public, no auth required) ------------------------------------
+
+    def test_plans_returns_200(self, client):
+        resp = client.get("/api/billing/plans")
+        assert resp.status_code == 200
+
+    def test_plans_has_plans_list(self, client):
+        data = client.get("/api/billing/plans").json()
+        assert "plans" in data
+        assert isinstance(data["plans"], list)
+        assert len(data["plans"]) > 0
+
+    def test_plans_includes_free_plan(self, client):
+        data = client.get("/api/billing/plans").json()
+        ids = [p["id"] for p in data["plans"]]
+        assert "free" in ids
+
+    def test_plans_includes_paid_tiers(self, client):
+        data = client.get("/api/billing/plans").json()
+        ids = [p["id"] for p in data["plans"]]
+        for expected in ("basic", "pro", "institutional", "signals"):
+            assert expected in ids, f"Plan '{expected}' missing from /api/billing/plans"
+
+    def test_plans_has_stripe_configured_flag(self, client):
+        data = client.get("/api/billing/plans").json()
+        assert "stripe_configured" in data
+        assert isinstance(data["stripe_configured"], bool)
+
+    def test_plans_each_has_required_fields(self, client):
+        data = client.get("/api/billing/plans").json()
+        for plan in data["plans"]:
+            for field in ("id", "name", "price_eur", "signals_day", "available"):
+                assert field in plan, f"Plan '{plan.get('id')}' missing field '{field}'"
+
+    def test_plans_free_tier_price_is_zero(self, client):
+        data = client.get("/api/billing/plans").json()
+        free = next((p for p in data["plans"] if p["id"] == "free"), None)
+        assert free is not None
+        assert free["price_eur"] == 0
+
+    def test_plans_pro_costs_more_than_basic(self, client):
+        data = client.get("/api/billing/plans").json()
+        by_id = {p["id"]: p for p in data["plans"]}
+        assert by_id["pro"]["price_eur"] > by_id["basic"]["price_eur"]
+
+    # -- Status (requires auth) ---------------------------------------------
+
+    def test_status_requires_auth(self, client):
+        resp = client.get("/api/billing/status")
+        assert resp.status_code == 401
+
+    def test_status_returns_200_when_authenticated(self, client):
+        headers = self._auth(client)
+        resp = client.get("/api/billing/status", headers=headers)
+        assert resp.status_code == 200
+
+    def test_status_has_required_fields(self, client):
+        headers = self._auth(client)
+        data = client.get("/api/billing/status", headers=headers).json()
+        for field in ("user_id", "plan", "plan_name", "price_eur", "signals_per_day", "status", "stripe_configured"):
+            assert field in data, f"Billing status missing field '{field}'"
+
+    def test_status_default_plan_is_free(self, client):
+        headers = self._auth(client)
+        data = client.get("/api/billing/status", headers=headers).json()
+        assert data["plan"] == "free"
+        assert data["price_eur"] == 0
+
+    def test_status_stripe_configured_is_bool(self, client):
+        headers = self._auth(client)
+        data = client.get("/api/billing/status", headers=headers).json()
+        assert isinstance(data["stripe_configured"], bool)
+
+    def test_status_free_has_limited_signals(self, client):
+        headers = self._auth(client)
+        data = client.get("/api/billing/status", headers=headers).json()
+        assert data["signals_per_day"] > 0 or data["signals_per_day"] == -1
+
+    # -- Checkout (requires auth + Stripe) ----------------------------------
+
+    def test_checkout_returns_503_without_stripe_key(self, client):
+        headers = self._auth(client)
+        resp = client.post(
+            "/api/billing/checkout",
+            json={"plan": "pro", "annual": False},
+            headers=headers,
+        )
+        assert resp.status_code == 503, (
+            f"Expected 503 (Stripe not configured), got {resp.status_code}: {resp.text[:200]}"
+        )
+
+    def test_checkout_requires_auth(self, client):
+        resp = client.post("/api/billing/checkout", json={"plan": "pro"})
+        assert resp.status_code == 401
+
+    def test_checkout_rejects_unknown_plan(self, client):
+        headers = self._auth(client)
+        resp = client.post(
+            "/api/billing/checkout",
+            json={"plan": "nonexistent_plan"},
+            headers=headers,
+        )
+        # Either 400 (unknown plan) or 503 (Stripe not configured) is acceptable
+        assert resp.status_code in (400, 422, 503)
+
+    # -- Portal (requires auth + Stripe) ------------------------------------
+
+    def test_portal_returns_503_without_stripe_key(self, client):
+        headers = self._auth(client)
+        resp = client.post("/api/billing/portal", headers=headers)
+        assert resp.status_code == 503
+
+    def test_portal_requires_auth(self, client):
+        resp = client.post("/api/billing/portal")
+        assert resp.status_code == 401
+
+    # -- Webhook (public endpoint, Stripe signature required) ---------------
+
+    def test_webhook_returns_503_without_stripe_key(self, client):
+        resp = client.post(
+            "/api/billing/webhook",
+            content=b'{"type":"test"}',
+            headers={"Content-Type": "application/json"},
+        )
+        assert resp.status_code == 503
+
+    def test_webhook_rejects_invalid_signature_when_stripe_configured(self, client):
+        import os
+        if not os.getenv("STRIPE_SECRET_KEY"):
+            pytest.skip("STRIPE_SECRET_KEY not set — Stripe tests skipped")
+        resp = client.post(
+            "/api/billing/webhook",
+            content=b'{"type":"test"}',
+            headers={"Content-Type": "application/json", "stripe-signature": "invalid"},
+        )
+        assert resp.status_code == 400

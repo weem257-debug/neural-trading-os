@@ -422,6 +422,15 @@ async def lifespan(app: FastAPI):
     except Exception as db_err:
         logger.warning("db_migrations_failed", reason=str(db_err))
 
+    # Ensure all ORM-registered tables exist (safety net for SQLite dev/test environments
+    # where Alembic may target a different relative path than the async engine)
+    try:
+        from app.db.database import create_all_tables
+        await create_all_tables()
+        logger.info("db_tables_ensured")
+    except Exception as tbl_err:
+        logger.warning("db_tables_ensure_failed", reason=str(tbl_err))
+
     # Initialize execution client
     from app.services.nautilus.client import get_execution_client
     client = get_execution_client()

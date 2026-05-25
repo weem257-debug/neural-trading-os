@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import {
   Brain,
   TrendingUp,
@@ -458,9 +459,10 @@ export default function LandingPage() {
                   ))}
                 </ul>
 
-                <button
+                <Link
+                  href={tier.name === "Institutional" ? "mailto:weem257@gmail.com?subject=Neural Trading OS — Institutional" : "#waitlist"}
                   className={`
-                    w-full py-3 rounded-xl font-bold text-sm transition-all
+                    w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
                     ${
                       tier.highlight
                         ? "bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_20px_rgba(0,212,255,0.4)]"
@@ -469,7 +471,7 @@ export default function LandingPage() {
                   `}
                 >
                   {tier.cta}
-                </button>
+                </Link>
               </div>
             ))}
           </div>
