@@ -7,7 +7,9 @@ import {
   TrendingUp, TrendingDown, DollarSign, Shield,
   Activity, Zap, Brain, Target, AlertTriangle,
   ArrowUpRight, ArrowDownRight, Cpu, Radio,
+  CreditCard, BarChart2, ShoppingCart,
 } from "lucide-react";
+import Link from "next/link";
 import { GlassCard, SectionLabel, NeonBadge } from "@/components/ui/GlassCard";
 import { ExplanationModal, InfoButton } from "@/components/ui/ExplanationModal";
 import type { ExplanationContent } from "@/components/ui/ExplanationModal";
@@ -812,6 +814,49 @@ export default function DashboardPage() {
                 <p className="text-xs font-bold" style={{ color: "#FF0080" }}>{signalCounts.sell}</p>
                 <p className="text-xs text-slate-500">Sell</p>
               </div>
+            </div>
+          </GlassCard>
+
+          {/* Quick Actions */}
+          <GlassCard delay={0.45}>
+            <div className="flex items-center gap-2 mb-3">
+              <Zap className="w-4 h-4 text-neon-green" />
+              <SectionLabel>Quick Actions</SectionLabel>
+            </div>
+            <div className="space-y-2">
+              <Link
+                href="/signals/marketplace"
+                className="flex items-center justify-between px-3 py-2 rounded-lg group transition-colors"
+                style={{ background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.12)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <BarChart2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span className="text-xs text-slate-300 group-hover:text-cyan-400 transition-colors">Signal Track Record</span>
+                </div>
+                <ArrowUpRight className="w-3 h-3 text-slate-600 group-hover:text-cyan-400 transition-colors" />
+              </Link>
+              <Link
+                href="/pricing"
+                className="flex items-center justify-between px-3 py-2 rounded-lg group transition-colors"
+                style={{ background: "rgba(123,47,255,0.06)", border: "1px solid rgba(123,47,255,0.12)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="w-3.5 h-3.5 text-neon-purple" />
+                  <span className="text-xs text-slate-300 group-hover:text-neon-purple transition-colors">Upgrade Plan</span>
+                </div>
+                <ArrowUpRight className="w-3 h-3 text-slate-600 group-hover:text-neon-purple transition-colors" />
+              </Link>
+              <Link
+                href="/billing"
+                className="flex items-center justify-between px-3 py-2 rounded-lg group transition-colors"
+                style={{ background: "rgba(0,255,136,0.05)", border: "1px solid rgba(0,255,136,0.1)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-3.5 h-3.5 text-neon-green" />
+                  <span className="text-xs text-slate-300 group-hover:text-neon-green transition-colors">Manage Subscription</span>
+                </div>
+                <ArrowUpRight className="w-3 h-3 text-slate-600 group-hover:text-neon-green transition-colors" />
+              </Link>
             </div>
           </GlassCard>
         </div>
