@@ -270,7 +270,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-4">
             <a
-              href="https://github.com/your-org/neural-trading-os"
+              href="https://github.com/weem257-debug/neural-trading-os"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors text-sm"
@@ -333,7 +333,7 @@ export default function LandingPage() {
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </a>
             <a
-              href="https://github.com/your-org/neural-trading-os"
+              href="https://github.com/weem257-debug/neural-trading-os"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-8 py-4 rounded-xl border border-slate-700 text-slate-300 font-medium text-lg hover:border-slate-500 hover:text-white transition-all"
@@ -552,7 +552,7 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-6 text-sm text-slate-500">
               <a
-                href="https://github.com/your-org/neural-trading-os"
+                href="https://github.com/weem257-debug/neural-trading-os"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 hover:text-white transition-colors"

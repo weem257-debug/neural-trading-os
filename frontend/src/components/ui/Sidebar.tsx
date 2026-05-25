@@ -364,6 +364,9 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
 /* ------------------------------------------------------------------ */
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+
+  if (pathname === "/landing" || pathname === "/login") return null;
 
   return (
     <>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { WSStatus } from "./WSStatus";
 import { useTradingStore } from "@/store/tradingStore";
 
@@ -38,7 +39,10 @@ function fmt(price: number, symbol: string): string {
 }
 
 export function TickerBar() {
+  const pathname = usePathname();
   const storePrices = useTradingStore((s) => s.prices);
+
+  if (pathname === "/landing" || pathname === "/login") return null;
 
   // Merge live WS prices into the seed list; fall back to seed when no live data
   const tickers = useMemo<TickerItem[]>(() => {
