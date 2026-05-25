@@ -8,7 +8,7 @@ import type { TradingSignal, SignalPerformanceResponse } from "@/types";
 import {
   TrendingUp, TrendingDown, Minus, Loader2, Brain,
   ChevronDown, Clock, Target, AlertTriangle, Zap, Download, ScanSearch, X, CheckSquare, Square,
-  ArrowRight,
+  ArrowRight, Share2,
 } from "lucide-react";
 import Link from "next/link";
 import { GlassCard, SectionLabel, NeonBadge } from "@/components/ui/GlassCard";
@@ -176,7 +176,7 @@ function SignalCard({ signal, index }: { signal: TradingSignal; index: number })
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <div className="text-right">
                 {signal.price_target && (
                   <p className="text-xs text-slate-500">Target: <span className="font-mono font-bold text-neon-green">${signal.price_target}</span></p>
@@ -185,6 +185,20 @@ function SignalCard({ signal, index }: { signal: TradingSignal; index: number })
                   <p className="text-xs text-slate-500">Stop: <span className="font-mono font-bold text-neon-pink">${signal.stop_loss}</span></p>
                 )}
               </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const conf = (signal.confidence * 100).toFixed(0);
+                  const target = signal.price_target ? ` 🎯 $${signal.price_target}` : "";
+                  const text = `${cfg.label.toUpperCase()} $${signal.ticker} — ${conf}% confidence${target} via Neural Trading OS\n\nneuraltrading.os/signals/marketplace`;
+                  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer,width=550,height=420");
+                }}
+                className="p-1.5 rounded-lg text-slate-600 hover:text-slate-300 hover:bg-white/5 transition-all"
+                aria-label="Share on X / Twitter"
+                title="Share on X"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
               <motion.div animate={{ rotate: expanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
                 <ChevronDown className="w-4 h-4 text-slate-600" />
               </motion.div>
