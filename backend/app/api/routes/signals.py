@@ -1,7 +1,7 @@
 """
 /api/signals — Trading signal generation via TradingAgents multi-agent LLM.
 
-Route order matters: specific paths (/generate, /demo, /batch, /cache, /export, /)
+Route order matters: specific paths (/generate, /demo, /batch, /export, /, /trending, /performance, /cache)
 must be declared BEFORE parametrised paths (/{ticker}) to avoid FastAPI matching
 those literals as a ticker value.
 """
@@ -508,6 +508,55 @@ async def get_trending_tickers(limit: int = 10) -> list[dict]:
         ]
     except Exception:
         return []
+
+
+@router.get(
+    "/stats",
+    summary="Daily signal statistics — counts by direction",
+)
+async def get_signal_stats() -> dict:
+    """
+    GET /api/signals/stats
+
+    Returns today's signal counts broken down by direction,
+    plus total count. Useful for the Dashboard 'Signals Today' widget.
+    """
+    from datetime import date, timedelta
+    from sqlalchemy import select, func
+    from app.db.database import get_session
+    from app.db.models import SignalRecord
+
+    today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=UTC)
+    try:
+        async with get_session() as session:
+            result = await session.execute(
+                select(SignalRecord.direction, func.count(SignalRecord.id).label("count"))
+                .where(SignalRecord.generated_at >= today_start)
+                .group_by(SignalRecord.direction)
+            )
+            rows = result.all()
+
+        counts: dict[str, int] = {}
+        total = 0
+        for row in rows:
+            d = (row.direction or "HOLD").upper()
+            counts[d] = row.count
+            total += row.count
+
+        buy_total = sum(v for k, v in counts.items() if "BUY" in k)
+        sell_total = sum(v for k, v in counts.items() if "SELL" in k)
+        hold_total = counts.get("HOLD", 0)
+
+        return {
+            "total_today": total,
+            "buy": buy_total,
+            "sell": sell_total,
+            "hold": hold_total,
+            "by_direction": counts,
+            "date": date.today().isoformat(),
+        }
+    except Exception:
+        return {"total_today": 0, "buy": 0, "sell": 0, "hold": 0, "by_direction": {}, "date": date.today().isoformat()}
 
 
 @router.get(
