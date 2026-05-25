@@ -236,7 +236,7 @@ WS   /ws/{channel}              — prices · alerts · risk · signals
 
 ```bash
 cd dashboard/backend
-pytest -v                    # 289 tests, all passing
+pytest -v                    # 316 tests, all passing
 pytest tests/test_signals.py # Run specific module
 ```
 
@@ -257,7 +257,7 @@ dashboard/
 │   │   ├── services/        # Business logic (signals, P2P, learning)
 │   │   └── websocket/       # WebSocket channel manager
 │   ├── alembic/             # Database migrations
-│   └── tests/               # pytest test suite (289 tests)
+│   └── tests/               # pytest test suite (316 tests)
 ├── frontend/
 │   ├── src/
 │   │   ├── app/             # Next.js App Router pages
@@ -273,11 +273,13 @@ dashboard/
 
 ## Roadmap
 
-- [ ] Stripe billing integration (Basic €29 / Pro €99 / Institutional €299)
-- [ ] Signal Marketplace — verified AI signals as standalone subscription
+- [x] Stripe billing integration (Basic €29 / Pro €99 / Institutional €299)
+- [x] Signal Marketplace — track record, equity curve, €19/mo subscription
+- [x] SEO metadata, OG images, sitemap, PWA manifest
 - [ ] Mobile app (React Native)
 - [ ] Custom signal model fine-tuning (user-uploaded trade history)
 - [ ] Live trading with Interactive Brokers + IBKR TWS
+- [ ] Email notifications for signals + alerts
 
 ---
 
@@ -285,7 +287,7 @@ dashboard/
 
 PRs welcome. Please:
 1. Fork and create a feature branch
-2. Run `pytest` — all 289 tests must pass
+2. Run `pytest` — all 316 tests must pass
 3. Run `npm run build` in `frontend/` — no TypeScript errors
 4. Open PR with a clear description
 
