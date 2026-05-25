@@ -72,6 +72,15 @@ class Settings(BaseSettings):
     FINROBOT_PATH: str = "../FinRobot"
     JESSE_PATH: str = "../jesse"
 
+    # Stripe Billing
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_PRICE_BASIC: str = ""    # price_xxx — Basic €29/mo
+    STRIPE_PRICE_PRO: str = ""      # price_xxx — Pro €99/mo
+    STRIPE_PRICE_INST: str = ""     # price_xxx — Institutional €299/mo
+    STRIPE_PRICE_SIGNALS: str = ""  # price_xxx — Signal Marketplace €19/mo
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # Feature flags
     ENABLE_LIVE_TRADING: bool = False
     ENABLE_PAPER_TRADING: bool = True

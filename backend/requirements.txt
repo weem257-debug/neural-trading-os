@@ -45,6 +45,9 @@ rank-bm25>=0.2.2                # BM25 keyword retrieval for insight search (lig
 # redis==5.1.0
 # hiredis==3.0.0
 
+# Stripe Billing (lazy-imported — only used when STRIPE_SECRET_KEY is set)
+stripe>=10.0.0
+
 # JWT Authentication
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4

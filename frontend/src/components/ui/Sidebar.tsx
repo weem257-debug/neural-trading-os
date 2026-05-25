@@ -43,6 +43,7 @@ const navItems = [
   { href: "/execution",  labelKey: "nav.execution",  icon: Zap,             color: "green" },
   { href: "/alerts",     labelKey: "nav.alerts",     icon: Bell,            color: "yellow" },
   { href: "/pricing",   labelKey: "nav.pricing",   icon: CreditCard,      color: "green" },
+  { href: "/billing",   labelKey: "nav.billing",   icon: CreditCard,      color: "cyan"  },
 ];
 
 const colorMap: Record<string, { active: string; icon: string; glow: string; bar: string }> = {

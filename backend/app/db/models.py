@@ -269,6 +269,50 @@ class OrderRecord(Base):
     )
 
 
+class Subscription(Base):
+    """Stripe subscription — one row per user (single-user MVP, user_id="admin")."""
+
+    __tablename__ = "subscriptions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True, unique=True)
+    stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, unique=True)
+    stripe_subscription_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, unique=True)
+    # plan: "free" | "basic" | "pro" | "institutional" | "signals"
+    plan: Mapped[str] = mapped_column(String(30), nullable=False, default="free")
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="active")
+    current_period_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+
+class BillingEvent(Base):
+    """Stripe webhook event log — idempotency guard."""
+
+    __tablename__ = "billing_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    stripe_event_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    processed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    payload: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+
+
 class PriceAlertRecord(Base):
     """Persisted price alert — survives container restarts."""
 

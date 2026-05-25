@@ -253,4 +253,26 @@ export const api = {
     elliottDemo: () =>
       apiFetch<ElliottWaveAnalysis>("/api/analysis/elliott/demo"),
   },
+
+  // -------------------------------------------------------------------------
+  // Billing (Stripe — returns 503 when not configured)
+  // -------------------------------------------------------------------------
+  billing: {
+    status: () => apiFetch<{
+      user_id: string; plan: string; plan_name: string; price_eur: number;
+      signals_per_day: number; status: string; current_period_end: string | null;
+      cancel_at_period_end: boolean; stripe_configured: boolean;
+    }>("/api/billing/status"),
+    plans: () => apiFetch<{
+      plans: Array<{ id: string; name: string; price_eur: number; signals_day: number; available: boolean }>;
+      stripe_configured: boolean;
+    }>("/api/billing/plans"),
+    checkout: (plan: string, annual = false) =>
+      apiFetch<{ checkout_url: string; session_id: string }>("/api/billing/checkout", {
+        method: "POST",
+        body: JSON.stringify({ plan, annual }),
+      }),
+    portal: () =>
+      apiFetch<{ portal_url: string }>("/api/billing/portal", { method: "POST" }),
+  },
 };
