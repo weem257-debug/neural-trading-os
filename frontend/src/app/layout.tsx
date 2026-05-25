@@ -13,25 +13,29 @@ import { PricesProvider } from "@/components/ui/PricesProvider";
 export const metadata: Metadata = {
   title: "Neural Trading OS — AI-Powered Trading Dashboard",
   description:
-    "Unified AI trading cockpit: 9 engines, real-time signals, backtesting, paper trading. Built with Claude Sonnet 4.6.",
+    "Unified AI trading cockpit: 9 engines, live Claude Sonnet 4.6 signals, real-time WebSocket prices, backtesting, paper trading and P2P portfolio tracking.",
   keywords: [
-    "AI trading",
-    "algorithmic trading",
-    "LLM trading",
-    "trading dashboard",
-    "backtesting",
-    "paper trading",
+    "AI trading", "algorithmic trading", "LLM trading signals", "trading dashboard",
+    "Claude AI trading", "backtesting", "paper trading", "TradingAgents",
+    "neural trading", "stock signals", "crypto signals",
   ],
   openGraph: {
-    title: "Neural Trading OS",
-    description: "AI-powered unified trading dashboard — 9 engines, one cockpit",
+    title: "Neural Trading OS — AI-Powered Trading Dashboard",
+    description: "9 AI trading engines unified: TradingAgents, Jesse, FinGPT, Qlib, Nautilus Trader and more. Live Claude signals, real-time WebSocket dashboard.",
     type: "website",
     siteName: "Neural Trading OS",
+    url: "https://frontend-production-8a00.up.railway.app",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Neural Trading OS",
-    description: "AI-powered unified trading dashboard — 9 engines, one cockpit",
+    title: "Neural Trading OS — AI Trading Dashboard",
+    description: "9 AI engines, live Claude signals, WebSocket prices, backtesting. FastAPI + Next.js + PostgreSQL.",
+    creator: "@weem257",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
   },
 };
 

@@ -243,8 +243,46 @@ export default function LandingPage() {
     }
   };
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "Neural Trading OS",
+        "applicationCategory": "FinanceApplication",
+        "operatingSystem": "Web",
+        "description": "AI-powered unified trading cockpit with 9 engines, live Claude Sonnet 4.6 signals, real-time WebSocket dashboard, paper trading and backtesting.",
+        "url": "https://frontend-production-8a00.up.railway.app",
+        "offers": [
+          { "@type": "Offer", "name": "Basic", "price": "29", "priceCurrency": "EUR", "billingPeriod": "P1M" },
+          { "@type": "Offer", "name": "Pro",   "price": "99", "priceCurrency": "EUR", "billingPeriod": "P1M" },
+        ],
+        "featureList": [
+          "Live Claude Sonnet 4.6 AI Signals",
+          "Real-time WebSocket price stream",
+          "Paper trading with 100k virtual capital",
+          "Backtesting via Jesse, Qlib, Vibe-Trading",
+          "News sentiment analysis via FinGPT",
+          "Risk management: VaR, Sharpe, Drawdown",
+          "P2P portfolio tracking",
+          "Self-learning AI with RAG feedback",
+        ],
+      },
+      {
+        "@type": "Organization",
+        "name": "Neural Trading OS",
+        "url": "https://frontend-production-8a00.up.railway.app",
+        "sameAs": ["https://github.com/weem257-debug/neural-trading-os"],
+      },
+    ],
+  };
+
   return (
     <div className="relative min-h-screen bg-[#030712] overflow-x-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Particle background */}
       <ParticleCanvas />
 
