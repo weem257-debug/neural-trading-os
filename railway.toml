@@ -10,6 +10,16 @@
 #   DEMO_PASSWORD          — login password (change from default!)
 #   PRODUCTION_URL         — your Railway frontend URL after first deploy
 #                            e.g. https://neural-trading-os-frontend.up.railway.app
+#   NEXT_PUBLIC_APP_URL    — same URL for sitemap/OG image base
+#
+# Stripe Billing (optional — 503 without these):
+#   STRIPE_SECRET_KEY       — sk_live_... or sk_test_...
+#   STRIPE_WEBHOOK_SECRET   — whsec_...  (from Stripe dashboard)
+#   STRIPE_PRICE_BASIC      — price_...  (€29/mo)
+#   STRIPE_PRICE_PRO        — price_...  (€99/mo)
+#   STRIPE_PRICE_INST       — price_...  (€299/mo)
+#   STRIPE_PRICE_SIGNALS    — price_...  (€19/mo Signal Marketplace)
+#   FRONTEND_URL            — https://your-frontend.railway.app (for Stripe redirects)
 #
 # Optional (for real data):
 #   FINNHUB_API_KEY, ALPACA_API_KEY, ALPACA_SECRET_KEY, etc.
