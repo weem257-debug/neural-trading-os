@@ -1227,6 +1227,44 @@ class TestSignalsExport:
 
 
 # ---------------------------------------------------------------------------
+# Signals trending — top tickers by signal count (last 24h)
+# ---------------------------------------------------------------------------
+
+class TestSignalsTrending:
+    def test_trending_returns_200(self, client):
+        resp = client.get("/api/signals/trending")
+        assert resp.status_code == 200
+
+    def test_trending_returns_list(self, client):
+        data = client.get("/api/signals/trending").json()
+        assert isinstance(data, list)
+
+    def test_trending_has_required_fields(self, client):
+        data = client.get("/api/signals/trending").json()
+        if data:
+            entry = data[0]
+            assert "ticker" in entry
+            assert "count" in entry
+            assert "avg_confidence" in entry
+            assert "trending" in entry
+
+    def test_trending_limit_param(self, client):
+        data = client.get("/api/signals/trending?limit=3").json()
+        assert len(data) <= 3
+
+    def test_trending_count_is_positive(self, client):
+        data = client.get("/api/signals/trending").json()
+        for entry in data:
+            assert entry["count"] >= 1
+
+    def test_trending_after_demo_includes_ticker(self, client):
+        client.post("/api/signals/demo?ticker=TRENDTEST")
+        data = client.get("/api/signals/trending?limit=100").json()
+        tickers = [e["ticker"] for e in data]
+        assert "TRENDTEST" in tickers
+
+
+# ---------------------------------------------------------------------------
 # Signals list — after demo, list must be non-empty
 # ---------------------------------------------------------------------------
 
