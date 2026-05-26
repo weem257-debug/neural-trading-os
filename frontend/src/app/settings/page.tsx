@@ -189,6 +189,9 @@ function TelegramSection() {
   const [connectCode, setConnectCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [testSent, setTestSent] = useState(false);
+  const [webhookSetting, setWebhookSetting] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
+  const [backendUrl, setBackendUrl] = useState("");
 
   function getToken() {
     try {
@@ -231,6 +234,18 @@ function TelegramSection() {
       setStatus(s => s ? { ...s, configured: true } : s);
       setTimeout(() => setTokenSaved(false), 3000);
     } finally { setTokenSaving(false); }
+  }
+
+  async function handleSetupWebhook() {
+    setWebhookSetting("loading");
+    try {
+      const result = await api.telegram.setupWebhook(backendUrl || undefined);
+      setWebhookUrl(result.webhook_url);
+      setWebhookSetting("ok");
+    } catch {
+      setWebhookSetting("error");
+      setTimeout(() => setWebhookSetting("idle"), 4000);
+    }
   }
 
   async function handleDisconnect() {
@@ -283,6 +298,49 @@ function TelegramSection() {
               {tokenSaved ? "Gespeichert" : "Speichern"}
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Webhook setup (shown when configured but webhook not yet registered) */}
+      {status?.configured && (
+        <div className="mb-4 p-3 rounded-xl space-y-2" style={{ background: "rgba(0,212,255,0.04)", border: "1px solid rgba(0,212,255,0.12)" }}>
+          <p className="text-xs text-cyan-300 font-medium">Webhook registrieren (Schritt 2)</p>
+          <p className="text-xs text-slate-500">
+            Nur einmalig nötig — verbindet Telegram mit deinem Backend.
+            Bei Railway-Deployment die Backend-URL eintragen.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={backendUrl}
+              onChange={e => setBackendUrl(e.target.value)}
+              placeholder={`${API_BASE} (auto-detect)`}
+              className="flex-1 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 placeholder-slate-600 outline-none"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.15)" }}
+            />
+            <button
+              onClick={handleSetupWebhook}
+              disabled={webhookSetting === "loading"}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 whitespace-nowrap"
+              style={{
+                background: webhookSetting === "ok" ? "rgba(0,255,136,0.12)" : webhookSetting === "error" ? "rgba(255,0,80,0.12)" : "rgba(0,212,255,0.1)",
+                border: `1px solid ${webhookSetting === "ok" ? "rgba(0,255,136,0.3)" : webhookSetting === "error" ? "rgba(255,0,80,0.3)" : "rgba(0,212,255,0.25)"}`,
+                color: webhookSetting === "ok" ? "#00FF88" : webhookSetting === "error" ? "#FF0050" : "#00D4FF",
+              }}
+            >
+              {webhookSetting === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {webhookSetting === "ok" && <CheckCircle className="w-3.5 h-3.5" />}
+              {webhookSetting === "error" && <AlertTriangle className="w-3.5 h-3.5" />}
+              {webhookSetting === "idle" && <Activity className="w-3.5 h-3.5" />}
+              {webhookSetting === "loading" ? "Registriere…" : webhookSetting === "ok" ? "Registriert!" : webhookSetting === "error" ? "Fehler" : "Webhook setzen"}
+            </button>
+          </div>
+          {webhookSetting === "ok" && webhookUrl && (
+            <p className="text-xs text-green-400 font-mono break-all">✓ {webhookUrl}</p>
+          )}
+          {webhookSetting === "error" && (
+            <p className="text-xs text-red-400">Telegram hat den Webhook abgelehnt. Token korrekt? Backend erreichbar?</p>
+          )}
         </div>
       )}
 

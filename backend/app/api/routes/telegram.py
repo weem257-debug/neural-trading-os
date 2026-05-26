@@ -20,7 +20,9 @@ from app.api.auth import get_current_user, UserInfo
 from app.services.telegram.client import (
     get_bot_name,
     is_configured,
+    is_configured_async,
     send_message,
+    set_webhook,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,14 +57,15 @@ async def get_status(current_user: UserInfo = Depends(get_current_user)) -> dict
             )
             chat = result.scalar_one_or_none()
 
+        configured = await is_configured_async()
         return {
             "connected": chat is not None,
             "username": chat.username if chat else None,
-            "configured": is_configured(),
+            "configured": configured,
         }
     except Exception as e:
         logger.warning("telegram_status_error", extra={"reason": str(e)})
-        return {"connected": False, "username": None, "configured": is_configured()}
+        return {"connected": False, "username": None, "configured": await is_configured_async()}
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +79,10 @@ async def connect(current_user: UserInfo = Depends(get_current_user)) -> dict:
     code = _generate_code()
     _pending_codes[code] = user_id
 
+    configured = await is_configured_async()
+    if not configured:
+        raise HTTPException(status_code=503, detail="TELEGRAM_BOT_TOKEN not configured. Please set it in Settings first.")
+
     bot_name = await get_bot_name()
     bot_link = f"https://t.me/{bot_name}?start={code}"
 
@@ -83,7 +90,7 @@ async def connect(current_user: UserInfo = Depends(get_current_user)) -> dict:
     return {
         "bot_link": bot_link,
         "code": code,
-        "configured": is_configured(),
+        "configured": True,
     }
 
 
@@ -213,3 +220,40 @@ async def disconnect(current_user: UserInfo = Depends(get_current_user)) -> dict
     except Exception as e:
         logger.warning("telegram_disconnect_error", extra={"reason": str(e)})
         raise HTTPException(status_code=500, detail="Failed to disconnect")
+
+
+# ---------------------------------------------------------------------------
+# POST /api/telegram/setup-webhook
+# ---------------------------------------------------------------------------
+
+@router.post("/setup-webhook")
+async def setup_webhook(
+    request: Request,
+    current_user: UserInfo = Depends(get_current_user),
+) -> dict:
+    """
+    Register the webhook URL with Telegram automatically.
+    Uses the request's base URL to construct the webhook target.
+    Can be overridden via X-Backend-Url header for Railway deployments.
+    """
+    if not await is_configured_async():
+        raise HTTPException(status_code=503, detail="TELEGRAM_BOT_TOKEN not configured")
+
+    # Determine backend base URL
+    override = request.headers.get("X-Backend-Url")
+    if override:
+        base = override.rstrip("/")
+    else:
+        base = str(request.base_url).rstrip("/")
+
+    webhook_url = f"{base}/api/telegram/webhook"
+    result = await set_webhook(webhook_url)
+
+    logger.info("telegram_webhook_setup", extra={"url": webhook_url, "ok": result.get("ok")})
+
+    if not result.get("ok"):
+        raise HTTPException(
+            status_code=502,
+            detail=f"Telegram rejected webhook: {result.get('description', 'unknown error')}",
+        )
+    return {"ok": True, "webhook_url": webhook_url, "description": result.get("description", "")}

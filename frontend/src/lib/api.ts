@@ -287,6 +287,11 @@ export const api = {
     status: () => apiFetch<{connected: boolean; username: string | null; configured: boolean}>("/api/telegram/status"),
     test: () => apiFetch<{sent: boolean}>("/api/telegram/test", { method: "POST" }),
     disconnect: () => apiFetch<{disconnected: boolean}>("/api/telegram/disconnect", { method: "DELETE" }),
+    setupWebhook: (backendUrl?: string) =>
+      apiFetch<{ok: boolean; webhook_url: string; description: string}>("/api/telegram/setup-webhook", {
+        method: "POST",
+        headers: backendUrl ? { "X-Backend-Url": backendUrl } : {},
+      }),
   },
 
   // -------------------------------------------------------------------------
