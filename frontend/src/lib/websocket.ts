@@ -31,10 +31,20 @@ export class TradingWebSocket {
     this.channel = channel;
   }
 
+  private getToken(): string {
+    try {
+      const raw = localStorage.getItem("neural-auth-storage");
+      return (JSON.parse(raw || "{}") as { state?: { token?: string } })?.state?.token ?? "";
+    } catch {
+      return "";
+    }
+  }
+
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
-    const url = `${WS_URL}/ws/${this.channel}`;
+    const token = this.getToken();
+    const url = `${WS_URL}/ws/${this.channel}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
