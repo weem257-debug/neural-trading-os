@@ -263,6 +263,24 @@ export const api = {
   },
 
   // -------------------------------------------------------------------------
+  // Settings / Credentials
+  // -------------------------------------------------------------------------
+  settings: {
+    credentials: () =>
+      apiFetch<Record<string, "configured" | "not_set">>("/api/settings/credentials"),
+    saveCredential: (key: string, value: string) =>
+      apiFetch<{ ok: boolean; key: string }>("/api/settings/credentials", {
+        method: "POST",
+        body: JSON.stringify({ key, value }),
+      }),
+    deleteCredential: (key: string) =>
+      apiFetch<{ ok: boolean; key: string; found: boolean }>(
+        `/api/settings/credentials/${key}`,
+        { method: "DELETE" }
+      ),
+  },
+
+  // -------------------------------------------------------------------------
   // Telegram Notifications
   // -------------------------------------------------------------------------
   telegram: {

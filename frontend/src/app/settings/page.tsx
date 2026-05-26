@@ -217,6 +217,22 @@ function TelegramSection() {
     setTimeout(() => setTestSent(false), 3000);
   }
 
+  const [botToken, setBotToken] = useState("");
+  const [tokenSaving, setTokenSaving] = useState(false);
+  const [tokenSaved, setTokenSaved] = useState(false);
+
+  async function handleSaveToken() {
+    if (!botToken.trim()) return;
+    setTokenSaving(true);
+    try {
+      await api.settings.saveCredential("TELEGRAM_BOT_TOKEN", botToken.trim());
+      setBotToken("");
+      setTokenSaved(true);
+      setStatus(s => s ? { ...s, configured: true } : s);
+      setTimeout(() => setTokenSaved(false), 3000);
+    } finally { setTokenSaving(false); }
+  }
+
   async function handleDisconnect() {
     await fetch(`${API_BASE}/api/telegram/disconnect`, { method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` } });
     setStatus(s => s ? {...s, connected: false, username: null} : s);
@@ -230,10 +246,45 @@ function TelegramSection() {
         <SectionLabel>Telegram Notifications</SectionLabel>
         {status?.configured === false && (
           <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(255,215,0,0.1)", color: "#FFD700" }}>
-            TELEGRAM_BOT_TOKEN not set
+            Bot-Token nicht gesetzt
           </span>
         )}
       </div>
+
+      {/* Bot-Token input (shown when not configured) */}
+      {status?.configured === false && (
+        <div className="mb-4 p-3 rounded-xl space-y-2" style={{ background: "rgba(255,215,0,0.05)", border: "1px solid rgba(255,215,0,0.15)" }}>
+          <p className="text-xs text-yellow-300 font-medium">Telegram Bot-Token hinterlegen</p>
+          <p className="text-xs text-slate-500">
+            Erstelle einen Bot via <span className="text-cyan-400">@BotFather</span> → /newbot → Token kopieren.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={botToken}
+              onChange={e => setBotToken(e.target.value)}
+              placeholder="1234567890:ABCdef..."
+              autoComplete="off"
+              className="flex-1 rounded-xl px-3 py-2 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,215,0,0.2)" }}
+              onKeyDown={e => { if (e.key === "Enter") handleSaveToken(); }}
+            />
+            <button
+              onClick={handleSaveToken}
+              disabled={tokenSaving || !botToken.trim()}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
+              style={{
+                background: tokenSaved ? "rgba(0,255,136,0.12)" : "rgba(255,215,0,0.12)",
+                border: `1px solid ${tokenSaved ? "rgba(0,255,136,0.3)" : "rgba(255,215,0,0.3)"}`,
+                color: tokenSaved ? "#00FF88" : "#FFD700",
+              }}
+            >
+              {tokenSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tokenSaved ? <CheckCircle className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+              {tokenSaved ? "Gespeichert" : "Speichern"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {status?.connected ? (
         <div className="space-y-3">
@@ -671,6 +722,164 @@ function WebhooksSection() {
 }
 
 // ---------------------------------------------------------------------------
+// P2P Credentials Section
+// ---------------------------------------------------------------------------
+
+const P2P_FIELDS: Array<{ key: string; label: string; placeholder: string; type?: "password" }> = [
+  { key: "MINTOS_API_KEY",      label: "Mintos API Key",       placeholder: "Bearer token from developers.mintos.com" },
+  { key: "BONDORA_API_KEY",     label: "Bondora API Key",      placeholder: "Token from api.bondora.com" },
+  { key: "PEERBERRY_EMAIL",     label: "PeerBerry E-Mail",     placeholder: "me@example.com" },
+  { key: "PEERBERRY_PASSWORD",  label: "PeerBerry Passwort",   placeholder: "••••••••", type: "password" },
+];
+
+function P2PCredentialsSection() {
+  const [statuses, setStatuses] = useState<Record<string, "configured" | "not_set">>({});
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [visible, setVisible] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    api.settings.credentials()
+      .then(s => setStatuses(s))
+      .catch(() => {});
+  }, []);
+
+  async function handleSave(key: string) {
+    const val = values[key]?.trim();
+    if (!val) { setErrors(e => ({ ...e, [key]: "Darf nicht leer sein" })); return; }
+    setSaving(s => ({ ...s, [key]: true }));
+    setErrors(e => ({ ...e, [key]: "" }));
+    try {
+      await api.settings.saveCredential(key, val);
+      setStatuses(s => ({ ...s, [key]: "configured" }));
+      setValues(v => ({ ...v, [key]: "" }));
+      setSaved(s => ({ ...s, [key]: true }));
+      setTimeout(() => setSaved(s => ({ ...s, [key]: false })), 2500);
+    } catch (err) {
+      setErrors(e => ({ ...e, [key]: err instanceof Error ? err.message : "Fehler" }));
+    } finally {
+      setSaving(s => ({ ...s, [key]: false }));
+    }
+  }
+
+  async function handleDelete(key: string) {
+    try {
+      await api.settings.deleteCredential(key);
+      setStatuses(s => ({ ...s, [key]: "not_set" }));
+    } catch { /* ignore */ }
+  }
+
+  return (
+    <GlassCard variant="purple" delay={0.16}>
+      <div
+        className="-m-4 mb-4 px-4 py-3 rounded-t-xl"
+        style={{ background: "rgba(123,47,255,0.06)", borderBottom: "1px solid rgba(123,47,255,0.1)" }}
+      >
+        <div className="flex items-center gap-2">
+          <Landmark className="w-4 h-4 text-neon-purple" aria-hidden="true" />
+          <SectionLabel>P2P Plattform API-Keys</SectionLabel>
+        </div>
+      </div>
+
+      <div className="space-y-5">
+        <p className="text-xs text-slate-500">
+          Hier gespeicherte Keys überschreiben Server-Umgebungsvariablen.
+          Werte werden ausschließlich serverseitig gespeichert — nie im Browser.
+        </p>
+
+        {P2P_FIELDS.map(({ key, label, placeholder, type }) => {
+          const isConfigured = statuses[key] === "configured";
+          const isVisible = visible[key];
+          return (
+            <div key={key} className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs text-slate-400 font-medium">{label}</label>
+                <div className="flex items-center gap-2">
+                  {isConfigured && (
+                    <>
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88", border: "1px solid rgba(0,255,136,0.25)" }}
+                      >
+                        konfiguriert ✓
+                      </span>
+                      <button
+                        onClick={() => handleDelete(key)}
+                        aria-label={`${key} löschen`}
+                        className="text-slate-600 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                  {!isConfigured && (
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(100,116,139,0.1)", color: "#64748B" }}
+                    >
+                      nicht gesetzt
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={type === "password" && !isVisible ? "password" : "text"}
+                    value={values[key] ?? ""}
+                    onChange={(e) => setValues(v => ({ ...v, [key]: e.target.value }))}
+                    placeholder={isConfigured ? "Neuen Wert eingeben zum Überschreiben…" : placeholder}
+                    autoComplete="off"
+                    className="w-full rounded-xl px-3 py-2 pr-10 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(123,47,255,0.2)" }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSave(key); }}
+                  />
+                  {type === "password" && (
+                    <button
+                      type="button"
+                      onClick={() => setVisible(v => ({ ...v, [key]: !v[key] }))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      {isVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={() => handleSave(key)}
+                  disabled={saving[key] || !values[key]?.trim()}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
+                  style={{
+                    background: saved[key] ? "rgba(0,255,136,0.12)" : "rgba(123,47,255,0.15)",
+                    border: `1px solid ${saved[key] ? "rgba(0,255,136,0.3)" : "rgba(123,47,255,0.35)"}`,
+                    color: saved[key] ? "#00FF88" : "#A78BFA",
+                  }}
+                >
+                  {saving[key]
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : saved[key]
+                    ? <CheckCircle className="w-3.5 h-3.5" />
+                    : <Save className="w-3.5 h-3.5" />
+                  }
+                  {saved[key] ? "Gespeichert" : "Speichern"}
+                </button>
+              </div>
+              {errors[key] && <p className="text-xs text-red-400">{errors[key]}</p>}
+            </div>
+          );
+        })}
+
+        <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
+          Demo-Daten werden automatisch genutzt, solange keine echten API-Keys gesetzt sind.
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // SettingsState
 // ---------------------------------------------------------------------------
 
@@ -1055,34 +1264,7 @@ export default function SettingsPage() {
       </GlassCard>
 
       {/* ── Section 4: P2P API Keys ── */}
-      <GlassCard variant="purple" delay={0.16}>
-        <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ ...sectionHeaderStyle, background: "rgba(123,47,255,0.06)", borderBottomColor: "rgba(123,47,255,0.1)" }}>
-          <div className="flex items-center gap-2">
-            <Landmark className="w-4 h-4 text-neon-purple" aria-hidden="true" />
-            <SectionLabel>P2P Plattform API-Keys</SectionLabel>
-          </div>
-        </div>
-        <div className="space-y-4">
-          <p className="text-xs text-slate-500">
-            API-Keys werden nur in localStorage gespeichert. Echte Plattform-Daten setzt du über Umgebungsvariablen im Backend (<code className="text-slate-400 bg-white/5 px-1 rounded">.env</code>).
-          </p>
-          <div>
-            <label className="text-xs text-slate-400 mb-1.5 block font-medium">Mintos API Key</label>
-            <p className="text-xs text-slate-600 mb-1">Backend-Env: <code className="text-slate-400">MINTOS_API_KEY</code> · Docs: developers.mintos.com</p>
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 mb-1.5 block font-medium">Bondora API Key</label>
-            <p className="text-xs text-slate-600 mb-1">Backend-Env: <code className="text-slate-400">BONDORA_API_KEY</code> · Docs: api.bondora.com</p>
-          </div>
-          <div>
-            <label className="text-xs text-slate-400 mb-1.5 block font-medium">PeerBerry E-Mail / Passwort</label>
-            <p className="text-xs text-slate-600 mb-1">Backend-Env: <code className="text-slate-400">PEERBERRY_EMAIL</code> + <code className="text-slate-400">PEERBERRY_PASSWORD</code></p>
-          </div>
-          <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
-            Demo-Daten werden automatisch verwendet, solange keine echten API-Keys konfiguriert sind.
-          </div>
-        </div>
-      </GlassCard>
+      <P2PCredentialsSection />
 
       {/* ── Section 5: Bank Connections (FinTS) ── */}
       <GlassCard variant="green" delay={0.17}>

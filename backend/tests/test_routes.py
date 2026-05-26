@@ -3748,3 +3748,76 @@ class TestBilling:
     def test_usage_reset_at_is_string(self, client):
         resp = client.get("/api/billing/usage", headers=self._auth(client))
         assert isinstance(resp.json()["reset_at"], str)
+
+
+# ---------------------------------------------------------------------------
+# Settings / Credentials
+# ---------------------------------------------------------------------------
+
+class TestSettingsCredentials:
+    def _auth(self, client) -> dict:
+        return _auth_headers(client)
+
+    def test_list_credentials_returns_dict(self, client):
+        resp = client.get("/api/settings/credentials", headers=self._auth(client))
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, dict)
+
+    def test_list_credentials_contains_known_keys(self, client):
+        resp = client.get("/api/settings/credentials", headers=self._auth(client))
+        data = resp.json()
+        assert "MINTOS_API_KEY" in data
+        assert "BONDORA_API_KEY" in data
+        assert "PEERBERRY_EMAIL" in data
+        assert "TELEGRAM_BOT_TOKEN" in data
+
+    def test_list_credentials_values_are_valid_status(self, client):
+        resp = client.get("/api/settings/credentials", headers=self._auth(client))
+        for v in resp.json().values():
+            assert v in ("configured", "not_set")
+
+    def test_save_credential_roundtrip(self, client):
+        auth = self._auth(client)
+        resp = client.post(
+            "/api/settings/credentials",
+            json={"key": "MINTOS_API_KEY", "value": "test-token-xyz"},
+            headers=auth,
+        )
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+        # Verify status updated
+        status = client.get("/api/settings/credentials", headers=auth).json()
+        assert status["MINTOS_API_KEY"] == "configured"
+
+    def test_delete_credential(self, client):
+        auth = self._auth(client)
+        # Ensure it exists first
+        client.post(
+            "/api/settings/credentials",
+            json={"key": "BONDORA_API_KEY", "value": "to-be-deleted"},
+            headers=auth,
+        )
+        resp = client.delete("/api/settings/credentials/BONDORA_API_KEY", headers=auth)
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+
+    def test_save_credential_empty_value_is_rejected(self, client):
+        resp = client.post(
+            "/api/settings/credentials",
+            json={"key": "MINTOS_API_KEY", "value": "   "},
+            headers=self._auth(client),
+        )
+        assert resp.status_code == 400
+
+    def test_save_unknown_key_is_rejected(self, client):
+        resp = client.post(
+            "/api/settings/credentials",
+            json={"key": "UNKNOWN_SECRET", "value": "val"},
+            headers=self._auth(client),
+        )
+        assert resp.status_code == 400
+
+    def test_unauthenticated_is_rejected(self, client):
+        resp = client.get("/api/settings/credentials")
+        assert resp.status_code == 401

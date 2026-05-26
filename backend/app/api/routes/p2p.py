@@ -33,19 +33,23 @@ router = APIRouter(prefix="/p2p", tags=["P2P Lending"])
 
 @router.get("/mintos")
 async def get_mintos(
-    api_key: Optional[str] = Query(None, description="Mintos API key (overrides env var)"),
+    api_key: Optional[str] = Query(None, description="Mintos API key (overrides stored credential)"),
     _user: UserInfo = Depends(get_current_user),
 ) -> dict:
-    summary = await mintos_svc.fetch_summary(api_key)
+    from app.services.credentials import get_credential
+    resolved = api_key or await get_credential("MINTOS_API_KEY")
+    summary = await mintos_svc.fetch_summary(resolved)
     return summary.to_dict()
 
 
 @router.get("/bondora")
 async def get_bondora(
-    api_key: Optional[str] = Query(None, description="Bondora API key (overrides env var)"),
+    api_key: Optional[str] = Query(None, description="Bondora API key (overrides stored credential)"),
     _user: UserInfo = Depends(get_current_user),
 ) -> dict:
-    summary = await bondora_svc.fetch_summary(api_key)
+    from app.services.credentials import get_credential
+    resolved = api_key or await get_credential("BONDORA_API_KEY")
+    summary = await bondora_svc.fetch_summary(resolved)
     return summary.to_dict()
 
 
@@ -55,7 +59,10 @@ async def get_peerberry(
     password: Optional[str] = Query(None),
     _user: UserInfo = Depends(get_current_user),
 ) -> dict:
-    summary = await peerberry_svc.fetch_summary(email, password)
+    from app.services.credentials import get_credential
+    resolved_email = email or await get_credential("PEERBERRY_EMAIL")
+    resolved_password = password or await get_credential("PEERBERRY_PASSWORD")
+    summary = await peerberry_svc.fetch_summary(resolved_email, resolved_password)
     return summary.to_dict()
 
 
@@ -67,9 +74,14 @@ async def get_peerberry(
 async def get_p2p_summary(
     _user: UserInfo = Depends(get_current_user),
 ) -> dict:
-    mintos_task = asyncio.create_task(mintos_svc.fetch_summary())
-    bondora_task = asyncio.create_task(bondora_svc.fetch_summary())
-    peerberry_task = asyncio.create_task(peerberry_svc.fetch_summary())
+    from app.services.credentials import get_credential
+    mintos_key = await get_credential("MINTOS_API_KEY")
+    bondora_key = await get_credential("BONDORA_API_KEY")
+    pb_email = await get_credential("PEERBERRY_EMAIL")
+    pb_password = await get_credential("PEERBERRY_PASSWORD")
+    mintos_task = asyncio.create_task(mintos_svc.fetch_summary(mintos_key))
+    bondora_task = asyncio.create_task(bondora_svc.fetch_summary(bondora_key))
+    peerberry_task = asyncio.create_task(peerberry_svc.fetch_summary(pb_email, pb_password))
 
     mintos_data, bondora_data, peerberry_data = await asyncio.gather(
         mintos_task, bondora_task, peerberry_task

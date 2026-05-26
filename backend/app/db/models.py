@@ -329,6 +329,24 @@ class TelegramChat(Base):
     )
 
 
+class AppSecret(Base):
+    """
+    Key-value store for backend credentials set via the Settings UI.
+    Checked before falling back to env vars in service code.
+    """
+
+    __tablename__ = "app_secrets"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+
 class PriceAlertRecord(Base):
     """Persisted price alert — survives container restarts."""
 
