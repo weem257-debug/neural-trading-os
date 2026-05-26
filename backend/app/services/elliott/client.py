@@ -53,10 +53,17 @@ def _fetch_ohlcv(ticker: str, period: str) -> list[dict]:
     """Download OHLCV from yfinance. Returns list of {date, open, high, low, close, volume}."""
     try:
         import yfinance as yf
+        import pandas as pd
         df = yf.download(ticker, period=period, interval="1d", progress=False, auto_adjust=True)
         if df is None or df.empty:
             raise ValueError(f"No data for {ticker}")
+
+        # yfinance >= 0.2.x returns MultiIndex columns like ('Close', 'AAPL') for single tickers
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
+
         df = df.reset_index()
+
         result = []
         for _, row in df.iterrows():
             date_val = row["Date"]
@@ -64,20 +71,20 @@ def _fetch_ohlcv(ticker: str, period: str) -> list[dict]:
                 date_str = date_val.strftime("%Y-%m-%d")
             else:
                 date_str = str(date_val)[:10]
-            # yfinance may return multi-level columns after auto_adjust
-            def _get(col):
-                if col in df.columns:
-                    v = row[col]
-                    if hasattr(v, '__len__'):
-                        v = float(v.iloc[0]) if hasattr(v, 'iloc') else float(v[0])
+
+            def _get(col: str) -> float:
+                v = row.get(col, 0.0)
+                try:
                     return float(v)
-                return 0.0
+                except (TypeError, ValueError):
+                    return 0.0
+
             result.append({
-                "date": date_str,
-                "open":  _get("Open"),
-                "high":  _get("High"),
-                "low":   _get("Low"),
-                "close": _get("Close"),
+                "date":   date_str,
+                "open":   _get("Open"),
+                "high":   _get("High"),
+                "low":    _get("Low"),
+                "close":  _get("Close"),
                 "volume": int(_get("Volume")),
             })
         return result
@@ -393,7 +400,13 @@ def analyze_elliott_waves(
     closes = [c["close"] for c in candles]
     dates = [c["date"] for c in candles]
 
-    pivots = _find_pivots(closes, dates, window=window, min_swing_pct=min_swing_pct)
+    # Adaptive pivot detection: relax swing filter until we have ≥ 4 pivots
+    pivots: list[dict] = []
+    for swing in [min_swing_pct, 0.02, 0.015, 0.01]:
+        pivots = _find_pivots(closes, dates, window=window, min_swing_pct=swing)
+        if len(pivots) >= 4:
+            break
+
     if len(pivots) < 4:
         return _empty_analysis(ticker, period, "Insufficient pivot points — try a longer period")
 

@@ -17,9 +17,13 @@ router = APIRouter(prefix="/analysis", tags=["Analysis"])
 VALID_PERIODS = {"1mo", "3mo", "6mo", "1y", "2y"}
 
 
-@async_cached(ttl_seconds=300)
+@async_cached(ttl_seconds=600)
 async def _cached_elliott(ticker: str, period: str) -> dict:
-    return analyze_elliott_waves(ticker=ticker, period=period)
+    result = analyze_elliott_waves(ticker=ticker, period=period)
+    # Don't cache empty results — let the next call retry
+    if not result.get("candles"):
+        raise ValueError("Empty analysis result — skip cache")
+    return result
 
 
 @router.get(
