@@ -8,9 +8,18 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "android": "npx cap open android",
+    "android:sync": "npx cap sync android",
+    "android:build": "npx cap build android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/push-notifications": "^8.1.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "@tsparticles/react": "3.0.0",
     "@tsparticles/slim": "3.7.1",
     "@types/node": "22.5.0",
