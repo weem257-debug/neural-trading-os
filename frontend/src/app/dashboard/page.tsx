@@ -300,6 +300,7 @@ export default function DashboardPage() {
   const [isApiOnline, setIsApiOnline] = useState(false);
   const [executionMode, setExecutionMode] = useState<"paper" | "live">("paper");
   const [explainContent, setExplainContent] = useState<ExplanationContent | null>(null);
+  const [dailyStats, setDailyStats] = useState<{ total_today: number; buy: number; sell: number; hold: number } | null>(null);
   const { events: alertEvents } = useAlertsStream();
   const { signals, setSignals } = useTradingStore((s) => ({ signals: s.signals, setSignals: s.setSignals }));
 
@@ -351,6 +352,10 @@ export default function DashboardPage() {
     api.risk.metrics().then(setRisk).catch(() => {});
     api.execution.mode().then((m) => setExecutionMode(m.mode as "paper" | "live")).catch(() => {});
     api.signals.performance().then((d) => setWinRate(d.win_rate)).catch(() => {});
+    // Poll daily signal stats every 60s for live buy/sell/hold counts
+    const fetchStats = () => api.signals.stats().then(setDailyStats).catch(() => {});
+    fetchStats();
+    const statsInterval = setInterval(fetchStats, 60_000);
     // Load existing signals; if store is empty, generate a demo batch to pre-populate the feed
     api.signals.list().then((existing) => {
       if (existing.length > 0) {
@@ -363,7 +368,7 @@ export default function DashboardPage() {
       }
     }).catch(() => {});
 
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); clearInterval(statsInterval); };
   }, [fetchPortfolio, setSignals]);
 
   const donutData = useMemo(
@@ -799,19 +804,19 @@ export default function DashboardPage() {
               <SectionLabel>Signals Today</SectionLabel>
             </div>
             <div className="text-3xl font-bold font-mono text-center py-2" style={{ color: "#00D4FF", textShadow: "0 0 20px rgba(0,212,255,0.5)" }}>
-              {INITIAL_SIGNALS_COUNT + signals.length}
+              {dailyStats?.total_today ?? (INITIAL_SIGNALS_COUNT + signals.length)}
             </div>
             <div className="flex justify-around text-center mt-1">
               <div>
-                <p className="text-xs font-bold" style={{ color: "#00FF88" }}>{signalCounts.buy}</p>
+                <p className="text-xs font-bold" style={{ color: "#00FF88" }}>{dailyStats?.buy ?? signalCounts.buy}</p>
                 <p className="text-xs text-slate-500">Buy</p>
               </div>
               <div>
-                <p className="text-xs font-bold" style={{ color: "#FFD700" }}>{signalCounts.hold}</p>
+                <p className="text-xs font-bold" style={{ color: "#FFD700" }}>{dailyStats?.hold ?? signalCounts.hold}</p>
                 <p className="text-xs text-slate-500">Hold</p>
               </div>
               <div>
-                <p className="text-xs font-bold" style={{ color: "#FF0080" }}>{signalCounts.sell}</p>
+                <p className="text-xs font-bold" style={{ color: "#FF0080" }}>{dailyStats?.sell ?? signalCounts.sell}</p>
                 <p className="text-xs text-slate-500">Sell</p>
               </div>
             </div>

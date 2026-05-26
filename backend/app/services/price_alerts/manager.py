@@ -88,6 +88,13 @@ class PriceAlertManager:
                 result = await session.execute(select(PriceAlertRecord))
                 rows = result.scalars().all()
 
+            from datetime import timezone as _tz
+
+            def _ensure_aware(dt: Optional[datetime]) -> Optional[datetime]:
+                if dt is not None and dt.tzinfo is None:
+                    return dt.replace(tzinfo=_tz.utc)
+                return dt
+
             async with self._lock:
                 self._alerts.clear()
                 for row in rows:
@@ -97,8 +104,8 @@ class PriceAlertManager:
                         condition=row.condition,
                         threshold=row.threshold,
                         status=row.status,
-                        created_at=row.created_at,
-                        fired_at=row.fired_at,
+                        created_at=_ensure_aware(row.created_at),
+                        fired_at=_ensure_aware(row.fired_at),
                         fired_price=row.fired_price,
                     )
                     self._alerts[alert.alert_id] = alert
@@ -195,10 +202,17 @@ class PriceAlertManager:
 
     async def get_all_alerts(self) -> list[dict]:
         """Return all alerts from in-memory cache, newest first."""
+        from datetime import timezone as _tz
+        def _sort_key(a: "PriceAlert") -> datetime:
+            dt = a.created_at
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=_tz.utc)
+            return dt
+
         async with self._lock:
             return [a.to_dict() for a in sorted(
                 self._alerts.values(),
-                key=lambda a: a.created_at,
+                key=_sort_key,
                 reverse=True,
             )]
 

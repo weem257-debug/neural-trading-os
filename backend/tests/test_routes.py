@@ -1265,6 +1265,44 @@ class TestSignalsTrending:
 
 
 # ---------------------------------------------------------------------------
+# Signals stats — daily buy/sell/hold counts
+# ---------------------------------------------------------------------------
+
+class TestSignalsStats:
+    def test_stats_returns_200(self, client):
+        resp = client.get("/api/signals/stats")
+        assert resp.status_code == 200
+
+    def test_stats_has_required_fields(self, client):
+        data = client.get("/api/signals/stats").json()
+        for field in ("total_today", "buy", "sell", "hold", "by_direction", "date"):
+            assert field in data, f"Missing field: {field}"
+
+    def test_stats_total_equals_sum(self, client):
+        client.post("/api/signals/demo?ticker=STATSTEST")
+        data = client.get("/api/signals/stats").json()
+        assert data["total_today"] >= data["buy"] + data["sell"] + data["hold"]
+
+    def test_stats_counts_non_negative(self, client):
+        data = client.get("/api/signals/stats").json()
+        assert data["total_today"] >= 0
+        assert data["buy"] >= 0
+        assert data["sell"] >= 0
+        assert data["hold"] >= 0
+
+    def test_stats_increases_after_demo(self, client):
+        before = client.get("/api/signals/stats").json()["total_today"]
+        client.post("/api/signals/demo?ticker=STATSINC")
+        after = client.get("/api/signals/stats").json()["total_today"]
+        assert after >= before
+
+    def test_stats_date_format(self, client):
+        import re
+        data = client.get("/api/signals/stats").json()
+        assert re.match(r"\d{4}-\d{2}-\d{2}", data["date"]), f"Unexpected date format: {data['date']}"
+
+
+# ---------------------------------------------------------------------------
 # Signals list — after demo, list must be non-empty
 # ---------------------------------------------------------------------------
 

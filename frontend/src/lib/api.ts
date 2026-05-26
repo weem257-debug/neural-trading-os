@@ -127,6 +127,10 @@ export const api = {
       apiFetch<Array<{ ticker: string; count: number; avg_confidence: number; trending: boolean }>>(
         `/api/signals/trending?limit=${limit}`
       ),
+    stats: () =>
+      apiFetch<{ total_today: number; buy: number; sell: number; hold: number; by_direction: Record<string, number>; date: string }>(
+        "/api/signals/stats"
+      ),
     clearCache: () => apiFetch<ClearCacheResponse>("/api/signals/cache", { method: "DELETE" }),
     /** Batch-scan up to 10 tickers in parallel (demo mode). */
     batch: (tickers: string[]) =>
