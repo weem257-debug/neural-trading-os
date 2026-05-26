@@ -97,6 +97,43 @@ def _fire_webhook(event: str, payload: dict) -> None:
         pass  # Never block signal generation on webhook failure
 
 
+async def _notify_telegram_signal(signal: TradingSignal) -> None:
+    """Fire-and-forget Telegram notification for a new trading signal."""
+    try:
+        from app.services.telegram.client import send_message, is_configured
+        from app.db.database import get_session
+        from sqlalchemy import select
+        from app.db.models import TelegramChat
+        if not is_configured():
+            return
+        async with get_session() as session:
+            result = await session.execute(select(TelegramChat))
+            chats = result.scalars().all()
+        if not chats:
+            return
+        dir_emoji = {
+            "BUY": "\U0001f4c8",
+            "STRONG_BUY": "\U0001f680",
+            "SELL": "\U0001f4c9",
+            "STRONG_SELL": "\U0001f53b",
+            "HOLD": "⏸️",
+        }
+        direction_str = signal.direction.value if hasattr(signal.direction, "value") else str(signal.direction)
+        emoji = dir_emoji.get(direction_str, "\U0001f4ca")
+        conf = int((signal.confidence or 0.5) * 100)
+        target = f"\nTarget: ${signal.price_target:.2f}" if signal.price_target else ""
+        stop = f"\nStop: ${signal.stop_loss:.2f}" if signal.stop_loss else ""
+        msg = (
+            f"{emoji} <b>{direction_str} — {signal.ticker}</b>\n\n"
+            f"Confidence: <b>{conf}%</b>{target}{stop}\n\n"
+            f"<i>{signal.source}</i> | Neural Trading OS"
+        )
+        for chat in chats:
+            await send_message(chat.chat_id, msg)
+    except Exception as e:
+        logger.debug("telegram_signal_notify_failed", extra={"reason": str(e)})
+
+
 def _make_demo_signal(ticker: str, source_prefix: str = "Demo[mock]") -> TradingSignal:
     """Build a deterministic demo signal for a ticker."""
     resolved = ticker.upper().strip()
@@ -188,6 +225,7 @@ async def generate_trading_signal(request: Request, req: SignalRequest) -> Tradi
             "confidence": signal.confidence,
             "source": signal.source,
         })
+        asyncio.create_task(_notify_telegram_signal(signal))
         return signal
     except FileNotFoundError as e:
         logger.warning("TradingAgents repo not found: %s", e)
@@ -267,6 +305,7 @@ async def generate_demo_signal(ticker: Optional[str] = None) -> TradingSignal:
         "confidence": signal.confidence,
         "source": signal.source,
     })
+    asyncio.create_task(_notify_telegram_signal(signal))
 
     logger.info("Demo signal generated for %s -> %s (%.0f%%)", resolved_ticker, signal.direction.value, signal.confidence * 100)
     return signal

@@ -28,7 +28,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings, jwt_key_is_secure
 from app.core.rate_limits import limiter
-from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing
+from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing, telegram
 from app.api import auth
 from app.websocket.manager import ws_manager
 
@@ -593,6 +593,7 @@ app.include_router(p2p.router, prefix="/api")
 app.include_router(fints_routes.router, prefix="/api")
 app.include_router(learning.router, prefix="/api")
 app.include_router(billing.router, prefix="/api")
+app.include_router(telegram.router, prefix="/api")
 
 
 # ---------------------------------------------------------------------------

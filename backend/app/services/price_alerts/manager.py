@@ -284,6 +284,30 @@ class PriceAlertManager:
             except Exception as ws_err:
                 logger.debug("alert_ws_broadcast_failed", extra={"reason": str(ws_err)})
 
+        # Telegram notification for fired alerts
+        try:
+            from app.services.telegram.client import send_message, is_configured
+            from app.db.database import get_session
+            from sqlalchemy import select
+            from app.db.models import TelegramChat
+            if is_configured():
+                async with get_session() as session:
+                    result = await session.execute(select(TelegramChat))
+                    chats = result.scalars().all()
+                for chat in chats:
+                    for alert_dict in fired_alerts:
+                        cond = alert_dict["condition"].replace("_", " ")
+                        msg = (
+                            f"\U0001f514 <b>Price Alert Fired</b>\n\n"
+                            f"\U0001f4c8 <b>{alert_dict['ticker']}</b>\n"
+                            f"Condition: {cond} {alert_dict['threshold']}\n"
+                            f"Fired at: <b>${alert_dict.get('fired_price', '—')}</b>\n\n"
+                            f"<i>Neural Trading OS</i>"
+                        )
+                        await send_message(chat.chat_id, msg)
+        except Exception as e:
+            logger.debug("telegram_alert_notify_failed", extra={"reason": str(e)})
+
     async def _persist_fired(self, fired: list[dict]) -> None:
         """Update fired alerts in DB."""
         from app.db.database import _AsyncSessionFactory as async_session_factory

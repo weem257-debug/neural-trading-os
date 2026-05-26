@@ -263,6 +263,15 @@ export const api = {
   },
 
   // -------------------------------------------------------------------------
+  // Telegram Notifications
+  // -------------------------------------------------------------------------
+  telegram: {
+    status: () => apiFetch<{connected: boolean; username: string | null; configured: boolean}>("/api/telegram/status"),
+    test: () => apiFetch<{sent: boolean}>("/api/telegram/test", { method: "POST" }),
+    disconnect: () => apiFetch<{disconnected: boolean}>("/api/telegram/disconnect", { method: "DELETE" }),
+  },
+
+  // -------------------------------------------------------------------------
   // Billing (Stripe — returns 503 when not configured)
   // -------------------------------------------------------------------------
   billing: {

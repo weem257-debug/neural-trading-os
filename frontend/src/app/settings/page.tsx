@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import {
   Key, TrendingUp, Bell, Info, Save, Eye, EyeOff,
   CheckCircle, AlertTriangle, Plus, Trash2, Webhook,
-  Play, Loader2, Activity, Landmark, Building,
+  Play, Loader2, Activity, Landmark, Building, Send,
 } from "lucide-react";
 import { GlassCard, SectionLabel } from "@/components/ui/GlassCard";
 import { api, API_BASE } from "@/lib/api";
@@ -173,6 +173,128 @@ function PriceAlertsSection() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Telegram Notifications Section Component
+// ---------------------------------------------------------------------------
+
+function TelegramSection() {
+  const [status, setStatus] = useState<{connected: boolean; username: string | null; configured: boolean} | null>(null);
+  const [connectLink, setConnectLink] = useState<string | null>(null);
+  const [connectCode, setConnectCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [testSent, setTestSent] = useState(false);
+
+  function getToken() {
+    try {
+      return (JSON.parse(localStorage.getItem("neural-auth-storage") || "{}") as {state?: {token?: string}})?.state?.token ?? "";
+    } catch { return ""; }
+  }
+
+  useEffect(() => {
+    fetch(`${API_BASE}/api/telegram/status`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then(r => r.json()).then(setStatus).catch(() => {});
+  }, []);
+
+  async function handleConnect() {
+    setLoading(true);
+    try {
+      const r = await fetch(`${API_BASE}/api/telegram/connect`, { method: "POST", headers: { Authorization: `Bearer ${getToken()}` } });
+      const data = await r.json();
+      setConnectLink(data.bot_link);
+      setConnectCode(data.code);
+    } finally { setLoading(false); }
+  }
+
+  async function handleTest() {
+    await fetch(`${API_BASE}/api/telegram/test`, { method: "POST", headers: { Authorization: `Bearer ${getToken()}` } });
+    setTestSent(true);
+    setTimeout(() => setTestSent(false), 3000);
+  }
+
+  async function handleDisconnect() {
+    await fetch(`${API_BASE}/api/telegram/disconnect`, { method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` } });
+    setStatus(s => s ? {...s, connected: false, username: null} : s);
+    setConnectLink(null);
+  }
+
+  return (
+    <GlassCard padding="p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <Send className="w-4 h-4 text-cyan-400" />
+        <SectionLabel>Telegram Notifications</SectionLabel>
+        {status?.configured === false && (
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(255,215,0,0.1)", color: "#FFD700" }}>
+            TELEGRAM_BOT_TOKEN not set
+          </span>
+        )}
+      </div>
+
+      {status?.connected ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm" style={{ color: "#00FF88" }}>
+            <CheckCircle className="w-4 h-4" />
+            Connected{status.username ? ` as @${status.username}` : ""}
+          </div>
+          <p className="text-xs text-slate-500">
+            You will receive price alert and signal notifications via Telegram.
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleTest}
+              className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
+              style={{ background: "rgba(0,212,255,0.1)", color: "#00D4FF", border: "1px solid rgba(0,212,255,0.2)" }}
+            >
+              {testSent ? "Sent!" : "Send Test"}
+            </button>
+            <button
+              onClick={handleDisconnect}
+              className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
+              style={{ background: "rgba(255,0,128,0.08)", color: "#FF0080", border: "1px solid rgba(255,0,128,0.2)" }}
+            >
+              Disconnect
+            </button>
+          </div>
+        </div>
+      ) : connectLink ? (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-300">
+            Open this link and send <code className="text-cyan-400 bg-white/5 px-1 rounded">/start</code> to the bot:
+          </p>
+          <a
+            href={connectLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all"
+            style={{ background: "linear-gradient(135deg, #00D4FF22, #7B2FFF22)", border: "1px solid rgba(0,212,255,0.3)", color: "#00D4FF" }}
+          >
+            <Send className="w-3.5 h-3.5" />
+            Open Telegram Bot
+          </a>
+          <p className="text-xs text-slate-600">Code: <span className="font-mono text-slate-400">{connectCode}</span> — valid for 10 minutes</p>
+          <button onClick={() => window.location.reload()} className="text-xs text-cyan-400 underline">
+            I connected — refresh status
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-slate-400">
+            Get price alerts and AI signals directly in Telegram.
+          </p>
+          <button
+            onClick={handleConnect}
+            disabled={loading || status?.configured === false}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
+            style={{ background: "rgba(0,212,255,0.1)", color: "#00D4FF", border: "1px solid rgba(0,212,255,0.25)" }}
+          >
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+            Connect Telegram
+          </button>
         </div>
       )}
     </GlassCard>
@@ -740,6 +862,9 @@ export default function SettingsPage() {
           All values persist in your browser&apos;s localStorage.
         </p>
       </motion.div>
+
+      {/* ── Telegram Notifications ── */}
+      <TelegramSection />
 
       {/* ── Section 1: API Configuration ── */}
       <GlassCard variant="cyan" delay={0.05}>

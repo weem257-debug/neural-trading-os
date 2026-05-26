@@ -313,6 +313,22 @@ class BillingEvent(Base):
     )
 
 
+class TelegramChat(Base):
+    """Telegram chat connection — one row per user."""
+
+    __tablename__ = "telegram_chats"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    chat_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    connected_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
+
+
 class PriceAlertRecord(Base):
     """Persisted price alert — survives container restarts."""
 
