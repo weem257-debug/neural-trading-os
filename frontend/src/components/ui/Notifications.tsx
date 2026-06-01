@@ -99,7 +99,7 @@ function ToastCard({ notification }: { notification: Notification }) {
           style={{ color: "#475569" }}
           onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#E2E8F0")}
           onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = "#475569")}
-          aria-label="Dismiss notification"
+          aria-label="Benachrichtigung schließen"
         >
           <X className="w-3.5 h-3.5" />
         </button>
@@ -129,18 +129,52 @@ function AlertBridge() {
 
   useEffect(() => {
     if (!events || events.length === 0) return;
-    const latest = events[events.length - 1];
+    const latest = events[0]; // events[0] = newest (prepended in useWebSocket)
     if (!latest) return;
 
-    // Determine severity from alert content
-    const text = typeof latest === "string" ? latest : JSON.stringify(latest);
-    const isHigh = /high|critical|breach|exceeded/i.test(text);
+    if (typeof latest !== "object" || latest === null) return;
+    const ev = latest as unknown as Record<string, unknown>;
+
+    // Price alert fired — show success toast
+    if (ev.type === "price_alert_fired") {
+      const ticker = ev.ticker as string | undefined;
+      const condition = ev.condition as string | undefined;
+      const threshold = ev.threshold as number | undefined;
+      const currentPrice = ev.current_price as number | undefined;
+
+      let msg = ticker ? `${ticker}` : "Alarm ausgelöst";
+      if (condition === "above" && threshold !== undefined)
+        msg += ` hat $${threshold.toLocaleString()} überschritten`;
+      else if (condition === "below" && threshold !== undefined)
+        msg += ` ist unter $${threshold.toLocaleString()} gefallen`;
+      else if (condition === "change_pct" && threshold !== undefined)
+        msg += ` Änderung ≥ ${threshold}%`;
+      if (currentPrice !== undefined)
+        msg += ` (Kurs: $${currentPrice.toLocaleString()})`;
+
+      addNotification({
+        type: "success",
+        title: "Preisalarm ausgelöst",
+        message: msg,
+        duration: 10000,
+      });
+      return;
+    }
+
+    // Only handle genuine risk alert events — skip WS control messages and data broadcasts
+    const alertTypes = new Set(["alert", "risk_alert", "risk_warning", "margin_call", "stop_loss"]);
+    if (!alertTypes.has(ev.type as string)) return;
+
+    // Determine severity
+    const text = (ev.message as string) ?? (ev.detail as string) ?? JSON.stringify(ev);
+    const isHigh = ev.severity === "high" || ev.severity === "critical" ||
+      /critical|breach|exceeded|margin.?call/i.test(text);
 
     addNotification({
       type: isHigh ? "error" : "warning",
-      title: isHigh ? "Risk Alert — Action Required" : "Risk Warning",
+      title: isHigh ? "Risikoalarm — Handlung erforderlich" : "Risikowarnung",
       message: text.length > 120 ? text.slice(0, 120) + "…" : text,
-      duration: isHigh ? 0 : 8000, // sticky for high-severity
+      duration: isHigh ? 0 : 8000,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events]);
@@ -162,7 +196,7 @@ export function Notifications() {
       {/* Toast stack — upper right */}
       <div
         className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"
-        aria-label="Notifications"
+        aria-label="Benachrichtigungen"
       >
         <AnimatePresence mode="popLayout">
           {notifications.map((n) => (

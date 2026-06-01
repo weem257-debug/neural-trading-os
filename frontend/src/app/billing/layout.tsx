@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Billing & Subscription — Neural Trading OS",
+  title: "Abonnement & Abrechnung — Neural Trading OS",
   description:
-    "Manage your Neural Trading OS subscription. Upgrade to Pro (€99/mo) for 50 AI signals/day, or add Signal Marketplace access at €19/mo.",
+    "Neural Trading OS Abonnement verwalten. Upgrade auf Pro (€99/Monat) für 50 KI-Signale täglich, oder Signal-Marktplatz-Zugang ab €19/Monat.",
   robots: { index: false, follow: false },
 };
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { WSStatus } from "./WSStatus";
 import { useTradingStore } from "@/store/tradingStore";
+import { useAuthStore } from "@/store/authStore";
 
 interface TickerItem {
   symbol: string;
@@ -40,14 +41,12 @@ function fmt(price: number, symbol: string): string {
 
 export function TickerBar() {
   const pathname = usePathname();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
   const storePrices = useTradingStore((s) => s.prices);
 
-  if (pathname === "/landing" || pathname === "/login") return null;
-
-  // Merge live WS prices into the seed list; fall back to seed when no live data
+  // All hooks must be called unconditionally — early return comes after
   const tickers = useMemo<TickerItem[]>(() => {
     return SEED_TICKERS.map((seed) => {
-      // Try the WS key first (e.g. "BTC-USD"), then the display symbol
       const wsKey = Object.entries(WS_KEY_TO_SYMBOL).find(([, v]) => v === seed.symbol)?.[0] ?? seed.symbol;
       const live = storePrices[wsKey] ?? storePrices[seed.symbol];
       if (live) {
@@ -57,7 +56,6 @@ export function TickerBar() {
     });
   }, [storePrices]);
 
-  // Animate micro-movements on seed data only (when no live prices yet)
   const [seedTickers, setSeedTickers] = useState<TickerItem[]>(SEED_TICKERS);
   const hasLiveData = Object.keys(storePrices).length > 0;
 
@@ -77,6 +75,15 @@ export function TickerBar() {
     }, 3000);
     return () => clearInterval(interval);
   }, [hasLiveData]);
+
+  const NO_TICKERBAR = new Set(["/", "/landing", "/login", "/register", "/forgot-password", "/reset-password", "/impressum", "/datenschutz", "/agb"]);
+  if (NO_TICKERBAR.has(pathname)) return null;
+
+  // Full-screen standalone landing (invite funnel) never renders dashboard chrome.
+  if (pathname.startsWith("/invite/")) return null;
+
+  // Public share surface: hide dashboard ticker bar for anonymous visitors.
+  if (!isAuthenticated && pathname.startsWith("/signals/view/")) return null;
 
   const displayed = hasLiveData ? tickers : seedTickers;
 

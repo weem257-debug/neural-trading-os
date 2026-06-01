@@ -1,26 +1,26 @@
 import type { Metadata } from "next";
 
 export const landingMetadata: Metadata = {
-  title: "Neural Trading OS — AI-Powered Trading Dashboard",
+  title: "Neural Trading OS — KI-Trading Dashboard",
   description:
-    "Unified AI trading cockpit: 9 engines, real-time signals, backtesting, paper trading. Built with Claude Sonnet 4.6.",
+    "KI-Trading Cockpit mit 9 Engines: Echtzeit-Signale, Backtesting, Paper Trading. Entwickelt mit Claude Sonnet 4.6. Free Plan verfügbar.",
   keywords: [
-    "AI trading",
-    "algorithmic trading",
-    "LLM trading",
-    "trading dashboard",
-    "backtesting",
-    "paper trading",
+    "KI Trading",
+    "algorithmisches Trading",
+    "KI Handelssignale",
+    "Trading Dashboard",
+    "Backtesting",
+    "Paper Trading",
     "TradingAgents",
     "FinGPT",
     "Jesse",
     "Nautilus Trader",
-    "quantitative trading",
+    "quantitatives Trading",
   ],
   openGraph: {
-    title: "Neural Trading OS — AI-Powered Trading Dashboard",
+    title: "Neural Trading OS — KI-Trading Dashboard",
     description:
-      "AI-powered unified trading dashboard — 9 engines, one cockpit. Real-time signals, backtesting, risk management.",
+      "KI-gestütztes Trading Dashboard — 9 Engines, ein Cockpit. Echtzeit-Signale, Backtesting, Risikomanagement.",
     type: "website",
     siteName: "Neural Trading OS",
   },
@@ -28,7 +28,7 @@ export const landingMetadata: Metadata = {
     card: "summary_large_image",
     title: "Neural Trading OS",
     description:
-      "AI-powered unified trading dashboard — 9 engines, one cockpit",
+      "KI-gestütztes Trading Dashboard — 9 Engines, ein Cockpit",
   },
   robots: {
     index: true,

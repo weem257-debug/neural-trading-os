@@ -96,7 +96,7 @@ export function ExplanationModal({ open, onClose, content }: ExplanationModalPro
               </div>
               <button
                 onClick={onClose}
-                aria-label="Close explanation"
+                aria-label="Erklärung schließen"
                 className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-white/8"
                 style={{ color: "rgba(100,116,139,0.7)" }}
               >

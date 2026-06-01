@@ -1,14 +1,17 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
+// CAP_SERVER_URL is set during dev live-reload only.
+// In production static builds (MOBILE_BUILD=1) this is omitted so Capacitor
+// serves from the bundled `out/` folder instead of a remote URL.
+const devServerUrl = process.env.CAP_SERVER_URL;
+
 const config: CapacitorConfig = {
   appId: "com.neuraltrading.os",
   appName: "Neural Trading OS",
   webDir: "out",
-  server: {
-    // In development, point to the live server
-    url: "https://frontend-production-8a00.up.railway.app",
-    cleartext: false,
-  },
+  ...(devServerUrl
+    ? { server: { url: devServerUrl, cleartext: devServerUrl.startsWith("http://") } }
+    : {}),
   android: {
     backgroundColor: "#080B14",
     allowMixedContent: false,

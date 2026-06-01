@@ -18,8 +18,10 @@ import {
   BarChart2,
   Lightbulb,
   Target,
+  Search,
+  BookOpen,
 } from "lucide-react";
-import { API_BASE } from "@/lib/api";
+import { api } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -68,7 +70,7 @@ interface TradeLearning {
 interface LearningJob {
   id: number;
   job_type: string;
-  status: "pending" | "running" | "done" | "failed";
+  status: string;
   started_at: string | null;
   finished_at: string | null;
   items_processed: number;
@@ -79,24 +81,6 @@ interface LearningJob {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function authHeader(): HeadersInit {
-  const token = localStorage.getItem("auth_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function apiFetch(path: string, init?: RequestInit) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...authHeader(), ...init?.headers },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `HTTP ${res.status}`);
-  }
-  if (res.status === 204) return null;
-  return res.json();
-}
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "#FFD700",
@@ -187,7 +171,7 @@ function YoutubeInsightCard({ insight }: { insight: YoutubeInsight }) {
                 color: insight.confidence_score >= 0.7 ? "#00D4FF" : "#64748b",
               }}
             >
-              {(insight.confidence_score * 100).toFixed(0)}% confidence
+              {(insight.confidence_score * 100).toFixed(0)}% Konfidenz
             </span>
           </div>
         </div>
@@ -198,7 +182,7 @@ function YoutubeInsightCard({ insight }: { insight: YoutubeInsight }) {
         className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 mt-3 transition-colors"
       >
         {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-        {expanded ? "Weniger" : "Insight lesen"}
+        {expanded ? "Weniger" : "Mehr lesen"}
       </button>
 
       <AnimatePresence>
@@ -248,7 +232,7 @@ function TradeLearningCard({ learning }: { learning: TradeLearning }) {
         <div className="ml-auto flex items-center gap-3 text-xs">
           {learning.win_rate !== null && (
             <span style={{ color: winColor }}>
-              {pct(learning.win_rate)} Win
+              {pct(learning.win_rate)} Treffer
             </span>
           )}
           <span className="text-slate-600">n={learning.sample_count}</span>
@@ -279,10 +263,7 @@ function AddVideoPanel({ onAdded }: { onAdded: () => void }) {
     setLoading(true);
     setMsg("");
     try {
-      const data = await apiFetch("/api/learning/youtube/process", {
-        method: "POST",
-        body: JSON.stringify({ video_url: url.trim() }),
-      });
+      const data = await api.learning.processYoutube(url.trim());
       setMsg(`Job ${data.job_id} gestartet — Video wird analysiert...`);
       setUrl("");
       setTimeout(onAdded, 3000);
@@ -319,7 +300,7 @@ function AddVideoPanel({ onAdded }: { onAdded: () => void }) {
 // Page
 // ---------------------------------------------------------------------------
 
-type Tab = "overview" | "youtube" | "trades" | "jobs";
+type Tab = "overview" | "youtube" | "trades" | "jobs" | "kontext";
 
 export default function LearningPage() {
   const [tab, setTab] = useState<Tab>("overview");
@@ -334,10 +315,10 @@ export default function LearningPage() {
     setLoading(true);
     try {
       const [s, yi, tl, j] = await Promise.allSettled([
-        apiFetch("/api/learning/stats"),
-        apiFetch("/api/learning/youtube/insights?limit=20"),
-        apiFetch("/api/learning/trade-learnings?limit=30"),
-        apiFetch("/api/learning/jobs?limit=15"),
+        api.learning.stats(),
+        api.learning.youtubeInsights(20),
+        api.learning.tradeLearnings(30),
+        api.learning.jobs(15),
       ]);
       if (s.status === "fulfilled") setStats(s.value);
       if (yi.status === "fulfilled") setInsights(yi.value);
@@ -353,10 +334,7 @@ export default function LearningPage() {
   const triggerJob = async (jobType: string) => {
     setTriggering(jobType);
     try {
-      await apiFetch("/api/learning/jobs/trigger", {
-        method: "POST",
-        body: JSON.stringify({ job_type: jobType }),
-      });
+      await api.learning.triggerJob(jobType);
       setTimeout(loadAll, 2000);
     } finally {
       setTriggering(null);
@@ -368,6 +346,7 @@ export default function LearningPage() {
     { key: "youtube", label: "YouTube Insights", icon: Youtube },
     { key: "trades", label: "Trade-Lernkurve", icon: BarChart2 },
     { key: "jobs", label: "Jobs", icon: Clock },
+    { key: "kontext", label: "KI-Kontext", icon: BookOpen },
   ];
 
   return (
@@ -423,7 +402,7 @@ export default function LearningPage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <StatCard label="YouTube Insights" value={stats?.youtube_insights_total ?? 0} color="#FF4444" icon={Youtube} />
                 <StatCard label="Trade-Learnings" value={stats?.trade_learnings_total ?? 0} color="#00FF88" icon={TrendingUp} />
-                <StatCard label="Learning Jobs" value={stats?.learning_jobs_total ?? 0} color="#7B2FFF" icon={Brain} />
+                <StatCard label="Lern-Jobs" value={stats?.learning_jobs_total ?? 0} color="#7B2FFF" icon={Brain} />
               </div>
 
               {/* How it works */}
@@ -457,8 +436,8 @@ export default function LearningPage() {
                     {stats.top_performing_patterns.map((p, i) => (
                       <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-800/60 bg-slate-900/30 text-xs">
                         <span className="font-mono font-bold text-white">{p.ticker}</span>
-                        <span style={{ color: p.direction.includes("BUY") ? "#00FF88" : "#FF6B6B" }}>{p.direction}</span>
-                        <span className="text-neon-green">{(p.win_rate * 100).toFixed(0)}% Win</span>
+                        <span style={{ color: p.direction.includes("BUY") ? "#00FF88" : "#FF6B6B" }}>{{ STRONG_BUY: "S.Kauf", BUY: "Kauf", HOLD: "Halt", SELL: "Verk.", STRONG_SELL: "S.Verk." }[p.direction] ?? p.direction}</span>
+                        <span className="text-neon-green">{(p.win_rate * 100).toFixed(0)}% Treffer</span>
                         <span className="text-slate-500">n={p.sample_count}</span>
                         <span style={{ color: p.avg_return_pct >= 0 ? "#00FF88" : "#FF6B6B" }} className="ml-auto">
                           Ø {p.avg_return_pct >= 0 ? "+" : ""}{p.avg_return_pct.toFixed(2)}%
@@ -536,9 +515,9 @@ export default function LearningPage() {
                         style={{ color: statusColor, animation: j.status === "running" ? "spin 1s linear infinite" : undefined }}
                       />
                       <span className="font-mono text-slate-400">#{j.id}</span>
-                      <span className="font-medium text-white">{j.job_type.replace("_", " ")}</span>
-                      <span style={{ color: statusColor }}>{j.status}</span>
-                      <span className="text-slate-600">{j.items_processed} items</span>
+                      <span className="font-medium text-white">{{ youtube_batch: "YouTube-Batch", youtube_single: "YouTube-Video", trade_review: "Trade-Auswertung" }[j.job_type] ?? j.job_type}</span>
+                      <span style={{ color: statusColor }}>{{ pending: "Wartend", running: "Läuft", done: "Fertig", failed: "Fehler" }[j.status] ?? j.status}</span>
+                      <span className="text-slate-600">{j.items_processed} Einträge</span>
                       <span className="ml-auto text-slate-600">
                         {new Date(j.created_at).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
                       </span>
@@ -549,7 +528,137 @@ export default function LearningPage() {
               )}
             </div>
           )}
+
+          {/* KI-KONTEXT TAB */}
+          {tab === "kontext" && <KiKontextTab />}
         </>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// KiKontextTab — RAG Context Preview
+// ---------------------------------------------------------------------------
+
+function KiKontextTab() {
+  const [ticker, setTicker] = useState("AAPL");
+  const [query, setQuery] = useState("Handelsstrategie und Signalgeneration");
+  const [topN, setTopN] = useState(5);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ ticker: string; query: string; context: string; has_context: boolean; context_length: number } | null>(null);
+  const [error, setError] = useState("");
+
+  const fetchContext = async () => {
+    if (!ticker.trim()) return;
+    setLoading(true);
+    setError("");
+    try {
+      const data = await api.learning.context(ticker.trim().toUpperCase(), query.trim() || undefined, topN);
+      setResult(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Kontext konnte nicht geladen werden");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-slate-800/60 bg-slate-900/40 p-5">
+        <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-purple-400" />
+          RAG-Kontext Vorschau
+        </h3>
+        <p className="text-xs text-slate-500 mb-4">
+          Zeigt, welches Wissen die KI aus YouTube-Videos und Trade-Auswertungen für diesen Ticker gelernt hat und in die Signalgeneration einfließt.
+        </p>
+        <div className="grid grid-cols-3 gap-3 mb-3">
+          <div className="col-span-1">
+            <label className="block text-xs text-slate-500 mb-1">Ticker</label>
+            <input
+              value={ticker}
+              onChange={(e) => setTicker(e.target.value.toUpperCase())}
+              placeholder="AAPL"
+              maxLength={10}
+              className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-purple-500/50 uppercase"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs text-slate-500 mb-1">Suchanfrage</label>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Handelsstrategie und Signalgeneration"
+              className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-purple-500/50"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-slate-500">Top-N Treffer:</label>
+            <select
+              value={topN}
+              onChange={(e) => setTopN(Number(e.target.value))}
+              className="bg-slate-800/60 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"
+            >
+              {[3, 5, 8, 10].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+          </div>
+          <button
+            onClick={fetchContext}
+            disabled={loading || !ticker.trim()}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-black transition-opacity disabled:opacity-50"
+            style={{ background: "linear-gradient(135deg, #7B2FFF, #9B4FFF)" }}
+          >
+            {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+            Kontext abrufen
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/10 text-sm text-red-400">
+          <XCircle className="w-4 h-4 flex-shrink-0" />
+          {error}
+        </div>
+      )}
+
+      {result && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-purple-500/20 bg-slate-900/40 overflow-hidden"
+        >
+          <div className="px-5 py-3 border-b border-slate-800/60 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Brain className="w-4 h-4 text-purple-400" />
+              <span className="text-sm font-semibold text-white">{result.ticker}</span>
+              <span className="text-xs text-slate-500">— {result.query}</span>
+            </div>
+            <div className="flex items-center gap-3 text-xs">
+              {result.has_context ? (
+                <span className="text-purple-400">{result.context_length} Zeichen Kontext</span>
+              ) : (
+                <span className="text-slate-500">Kein Kontext gefunden</span>
+              )}
+            </div>
+          </div>
+          {result.has_context ? (
+            <pre className="p-5 text-xs text-slate-300 whitespace-pre-wrap font-mono leading-relaxed overflow-x-auto max-h-96 overflow-y-auto"
+              style={{ background: "rgba(0,0,0,0.3)" }}>
+              {result.context}
+            </pre>
+          ) : (
+            <div className="p-5 text-center text-slate-500 text-sm">
+              <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              Für <strong className="text-slate-400">{result.ticker}</strong> wurden noch keine Lernmuster gefunden.
+              <p className="text-xs mt-1 text-slate-600">
+                Verarbeite YouTube-Videos oder lass eine Trade-Auswertung laufen, um Wissen zu diesem Ticker aufzubauen.
+              </p>
+            </div>
+          )}
+        </motion.div>
       )}
     </div>
   );

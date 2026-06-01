@@ -1,79 +1,99 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  Check, Zap, Shield, Crown, TrendingUp, BarChart2,
-  Brain, ArrowRight, Star, Cpu,
+  Check, Zap, Shield, Crown, TrendingUp,
+  Brain, ArrowRight, ChevronDown, Cpu, BadgeCheck,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import Link from "next/link";
+import { useAuthStore } from "@/store/authStore";
 
 const PLANS = [
+  {
+    id: "free",
+    name: "Free",
+    price: 0,
+    period: "Mo.",
+    color: "green",
+    icon: Zap,
+    badge: null,
+    description: "Dauerhaft kostenlos. Keine Kreditkarte erforderlich.",
+    features: [
+      "3 KI-Signale pro Tag",
+      "Paper Trading (100k virtuell)",
+      "Portfolio-Tracking",
+      "Echtzeit WebSocket-Kurse",
+      "Signal-Marktplatz (Lesezugriff)",
+    ],
+    cta: "Kostenlos registrieren",
+    ctaHref: "/register",
+  },
   {
     id: "basic",
     name: "Basic",
     price: 29,
-    period: "mo",
+    period: "Mo.",
     color: "cyan",
     icon: TrendingUp,
     badge: null,
-    description: "For active retail traders getting started with AI signals.",
+    description: "Für aktive Retail-Trader, die mit KI-Signalen starten.",
     features: [
-      "5 watched tickers",
-      "10 AI signals per day",
-      "Paper trading (100k virtual)",
-      "Real-time WebSocket prices",
-      "Price alerts (DB-backed)",
-      "News sentiment analysis",
-      "Basic risk metrics (VaR, Drawdown)",
+      "5 beobachtete Ticker",
+      "10 KI-Signale täglich",
+      "Paper Trading (100k virtuell)",
+      "Echtzeit WebSocket-Kurse",
+      "Preisalarme (DB-gespeichert)",
+      "News-Sentiment-Analyse",
+      "Basis-Risikokennzahlen (VaR, Drawdown)",
     ],
-    cta: "Start Free Trial",
-    ctaHref: "/landing#waitlist",
+    cta: "Jetzt abonnieren",
+    ctaHref: "/billing",
   },
   {
     id: "pro",
     name: "Pro",
     price: 99,
-    period: "mo",
+    period: "Mo.",
     color: "purple",
     icon: Brain,
-    badge: "Most Popular",
-    description: "For serious traders who want the full AI toolkit.",
+    badge: "Beliebtester Plan",
+    description: "Für ernsthafte Trader, die das volle KI-Toolkit nutzen wollen.",
     features: [
-      "Unlimited tickers",
-      "50 AI signals per day (Claude Sonnet)",
+      "Unbegrenzte Ticker",
+      "50 KI-Signale täglich (Claude Sonnet)",
       "Backtesting: Jesse + Qlib + Vibe-Trading",
-      "Multi-portfolio (stocks, crypto, P2P)",
-      "Self-learning AI (RAG feedback loop)",
-      "P2P portfolio tracking (Mintos, Bondora)",
-      "Advanced risk: Sharpe, concentration alerts",
-      "Webhook integrations",
-      "Priority support",
+      "Multi-Portfolio (Aktien, Krypto, P2P)",
+      "Selbstlernende KI (RAG-Feedback-Loop)",
+      "P2P-Portfolio-Tracking (Mintos, Bondora)",
+      "Erweitertes Risiko: Sharpe, Konzentrations-Alerts",
+      "Webhook-Integrationen",
+      "Prioritäts-Support",
     ],
-    cta: "Start Free Trial",
-    ctaHref: "/landing#waitlist",
+    cta: "Jetzt abonnieren",
+    ctaHref: "/billing",
   },
   {
     id: "institutional",
     name: "Institutional",
     price: 299,
-    period: "mo",
+    period: "Mo.",
     color: "pink",
     icon: Crown,
     badge: "Enterprise",
-    description: "White-label API access for fintechs and trading desks.",
+    description: "White-Label-API-Zugang für FinTechs und Trading-Desks.",
     features: [
-      "Everything in Pro",
-      "REST API access (rate-limited)",
-      "White-label dashboard",
-      "Custom signal model fine-tuning",
-      "Live trading: Nautilus Trader (15+ brokers)",
-      "SLA 99.9% uptime",
-      "Dedicated onboarding",
-      "Custom integrations on request",
+      "Alles aus Pro",
+      "REST-API-Zugang (rate-limited)",
+      "White-Label-Dashboard",
+      "Custom Signal-Modell-Fine-Tuning",
+      "Live-Trading: Nautilus Trader (15+ Broker)",
+      "SLA 99,9 % Uptime",
+      "Dediziertes Onboarding",
+      "Individuelle Integrationen auf Anfrage",
     ],
-    cta: "Contact Sales",
+    cta: "Vertrieb kontaktieren",
     ctaHref: "mailto:weem257@gmail.com?subject=Neural Trading OS — Institutional",
   },
 ];
@@ -81,16 +101,23 @@ const PLANS = [
 const SIGNAL_MARKETPLACE = {
   price: 19,
   signals: 10,
-  tickers: ["AAPL", "MSFT", "NVDA", "TSLA", "META", "AMD", "BTC", "ETH"],
+  tickers: ["AAPL", "MSFT", "NVDA", "TSLA", "META", "AMD", "GOOGL", "AMZN", "BTC", "ETH", "SPY", "QQQ"],
   features: [
-    "10 AI signals/day (TradingAgents multi-agent consensus)",
-    "Win-rate, Sharpe, Max-Drawdown track record",
-    "No dashboard required — signals via API or email",
-    "Upsell path into full dashboard",
+    "10 KI-Signale/Tag (TradingAgents Multi-Agenten-Konsens)",
+    "Trefferquote, Sharpe, Max-Drawdown Track Record",
+    "Kein Dashboard erforderlich — Signale via API oder E-Mail",
+    "Upgrade-Pfad in das volle Dashboard",
   ],
 };
 
 const colorMap: Record<string, { border: string; glow: string; text: string; bg: string; badge: string }> = {
+  green: {
+    border: "rgba(0,255,136,0.3)",
+    glow: "0 0 30px rgba(0,255,136,0.08)",
+    text: "#00FF88",
+    bg: "rgba(0,255,136,0.07)",
+    badge: "rgba(0,255,136,0.15)",
+  },
   cyan: {
     border: "rgba(0,212,255,0.35)",
     glow: "0 0 40px rgba(0,212,255,0.1)",
@@ -114,9 +141,99 @@ const colorMap: Record<string, { border: string; glow: string; text: string; bg:
   },
 };
 
+const FAQ_ITEMS = [
+  {
+    q: "Gibt es einen kostenlosen Einstieg?",
+    a: "Ja — der Free-Plan ist dauerhaft kostenlos und enthält 3 KI-Signale pro Tag, Paper Trading und alle Dashboard-Funktionen. Keine Kreditkarte erforderlich. Jederzeit kostenpflichtig upgraden.",
+  },
+  {
+    q: "Welches KI-Modell steckt hinter den Signalen?",
+    a: "Claude Sonnet 4.6 (Tiefenanalyse) für Pro/Institutional, Claude Haiku 4.5 (schnell) für Basic. Beide nutzen den TradingAgents Multi-Agenten-Konsens: Fundamental-, Technisch-, Sentiment-, News- und Risiko-Agent arbeiten parallel.",
+  },
+  {
+    q: "Kann ich von Paper Trading auf Live Trading wechseln?",
+    a: "Ja — Live Trading ist auf Pro und Institutional via Nautilus Trader (15+ Broker) verfügbar. Ein Safety-Gate verhindert versehentliche Live-Ausführung.",
+  },
+  {
+    q: "Wie läuft die Abrechnung ab?",
+    a: "Monatlich oder jährlich (2 Monate gratis) via Stripe. Jederzeit kündbar — keine Mindestlaufzeit. Zahlungsdaten werden ausschließlich von Stripe gespeichert.",
+  },
+  {
+    q: "Welche Datenquellen werden genutzt?",
+    a: "Live-Kurse via yfinance (OHLCV), News-Sentiment via FinGPT NLP, P2P-Daten von Mintos, Bondora und PeerBerry, Broker-Integration via FinTS/Comdirect/BitPanda.",
+  },
+  {
+    q: "Ist das eine Anlageberatung?",
+    a: "Nein. Neural Trading OS ist ein Informations- und Analysetool. Alle Signale und Analysen dienen ausschließlich Informationszwecken und ersetzen keine individuelle Anlageberatung (§ 2 Abs. 1 WpHG).",
+  },
+];
+
+function FaqAccordion() {
+  const [open, setOpen] = useState<number | null>(null);
+
+  return (
+    <div className="space-y-2">
+      {FAQ_ITEMS.map(({ q, a }, i) => (
+        <div
+          key={i}
+          className="rounded-xl overflow-hidden"
+          style={{ border: "1px solid rgba(255,255,255,0.07)" }}
+        >
+          <button
+            onClick={() => setOpen(open === i ? null : i)}
+            className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-white/[0.02]"
+            style={{ background: "rgba(255,255,255,0.03)" }}
+          >
+            <span className="text-sm font-semibold text-white">{q}</span>
+            <ChevronDown
+              className="w-4 h-4 text-slate-500 flex-shrink-0 transition-transform duration-200"
+              style={{ transform: open === i ? "rotate(180deg)" : "rotate(0deg)" }}
+            />
+          </button>
+          <AnimatePresence initial={false}>
+            {open === i && (
+              <motion.div
+                key="content"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                style={{ overflow: "hidden" }}
+              >
+                <p className="px-4 pb-4 pt-1 text-sm text-slate-400 leading-relaxed">
+                  {a}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function PricingPage() {
-  const [annual, setAnnual] = useState(false);
+  const [annual, setAnnual] = useState(true);
   const discount = 0.17; // ~2 months free
+  const tier = useAuthStore((s) => s.tier);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
+
+  const getPlanCta = (planId: string): { label: string; href: string; current: boolean } => {
+    if (isAuthenticated && tier === planId) {
+      return { label: "Verwalten", href: "/billing", current: true };
+    }
+    if (planId === "free") {
+      return isAuthenticated
+        ? { label: "Dashboard öffnen", href: "/dashboard", current: false }
+        : { label: "Kostenlos registrieren", href: "/register", current: false };
+    }
+    if (planId === "institutional") {
+      return { label: "Vertrieb kontaktieren", href: "mailto:weem257@gmail.com?subject=Neural Trading OS — Institutional", current: false };
+    }
+    return isAuthenticated
+      ? { label: "Jetzt abonnieren", href: `/billing?plan=${planId}`, current: false }
+      : { label: "Registrieren & abonnieren", href: `/register?plan=${planId}`, current: false };
+  };
 
   return (
     <div className="min-h-screen p-6 md:p-10" style={{ background: "rgba(8,11,20,0.98)" }}>
@@ -133,11 +250,11 @@ export default function PricingPage() {
             <span className="text-xs font-semibold text-cyan-400 tracking-wider">NEURAL TRADING OS</span>
           </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
-            Pricing Plans
+            Preispläne
           </h1>
           <p className="text-slate-400 text-base max-w-xl mx-auto">
-            9 AI trading engines, live Claude signals, real-time WebSocket dashboard.
-            Start free — upgrade when you&apos;re ready.
+            9 KI-Trading-Engines, Live Claude-Signale, Echtzeit-WebSocket-Dashboard.
+            Kostenlos starten — jederzeit upgraden.
           </p>
         </motion.div>
 
@@ -148,7 +265,7 @@ export default function PricingPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          <span className={`text-sm font-medium ${!annual ? "text-white" : "text-slate-500"}`}>Monthly</span>
+          <span className={`text-sm font-medium ${!annual ? "text-white" : "text-slate-500"}`}>Monatlich</span>
           <button
             onClick={() => setAnnual((v) => !v)}
             className="relative w-11 h-6 rounded-full transition-colors duration-200"
@@ -160,7 +277,7 @@ export default function PricingPage() {
             />
           </button>
           <span className={`text-sm font-medium ${annual ? "text-white" : "text-slate-500"}`}>
-            Annual
+            Jährlich
             <span className="ml-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full"
               style={{ background: "rgba(0,255,136,0.15)", color: "#00FF88" }}>
               −17%
@@ -170,11 +287,13 @@ export default function PricingPage() {
       </div>
 
       {/* Plan cards */}
-      <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-5 mb-14">
+      <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-14">
         {PLANS.map((plan, i) => {
           const c = colorMap[plan.color];
           const Icon = plan.icon;
           const displayPrice = annual ? Math.round(plan.price * (1 - discount)) : plan.price;
+          const cta = getPlanCta(plan.id);
+          const isCurrent = cta.current;
 
           return (
             <motion.div
@@ -184,12 +303,23 @@ export default function PricingPage() {
               transition={{ delay: 0.1 + i * 0.1 }}
               className="relative flex flex-col rounded-2xl overflow-hidden"
               style={{
-                background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
-                border: `1px solid ${c.border}`,
-                boxShadow: c.glow,
+                background: isCurrent
+                  ? `linear-gradient(135deg, ${c.bg} 0%, rgba(255,255,255,0.02) 100%)`
+                  : "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
+                border: `1px solid ${isCurrent ? c.text : c.border}`,
+                boxShadow: isCurrent ? `${c.glow}, 0 0 0 1px ${c.border}` : c.glow,
               }}
             >
-              {plan.badge && (
+              {isCurrent && (
+                <div
+                  className="absolute top-3 right-3 flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full"
+                  style={{ background: c.badge, color: c.text, border: `1px solid ${c.border}` }}
+                >
+                  <BadgeCheck className="w-3 h-3" />
+                  Aktueller Plan
+                </div>
+              )}
+              {!isCurrent && plan.badge && (
                 <div
                   className="absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded-full"
                   style={{ background: c.badge, color: c.text }}
@@ -212,10 +342,19 @@ export default function PricingPage() {
 
                 {/* Price */}
                 <div className="mb-5">
-                  <span className="text-4xl font-bold text-white">€{displayPrice}</span>
-                  <span className="text-slate-500 text-sm ml-1">/{plan.period}</span>
-                  {annual && (
-                    <div className="text-xs text-slate-600 mt-0.5 line-through">€{plan.price}/mo</div>
+                  {plan.id === "free" ? (
+                    <>
+                      <span className="text-4xl font-bold text-white">€0</span>
+                      <span className="text-slate-500 text-sm ml-1">/dauerhaft</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-4xl font-bold text-white">€{displayPrice}</span>
+                      <span className="text-slate-500 text-sm ml-1">/{plan.period}</span>
+                      {annual && plan.price > 0 && (
+                        <div className="text-xs text-slate-600 mt-0.5 line-through">€{plan.price}/Mo.</div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -233,16 +372,18 @@ export default function PricingPage() {
               {/* CTA */}
               <div className="p-5 pt-0">
                 <Link
-                  href={plan.ctaHref}
+                  href={cta.href}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
                   style={{
-                    background: plan.id === "pro" ? c.text : c.bg,
+                    background: isCurrent ? c.bg : plan.id === "pro" ? c.text : c.bg,
                     border: `1px solid ${c.border}`,
-                    color: plan.id === "pro" ? "#fff" : c.text,
+                    color: isCurrent ? c.text : plan.id === "pro" ? "#fff" : c.text,
+                    opacity: isCurrent ? 0.85 : 1,
                   }}
                 >
-                  {plan.cta}
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  {isCurrent && <BadgeCheck className="w-3.5 h-3.5" />}
+                  {cta.label}
+                  {!isCurrent && <ArrowRight className="w-3.5 h-3.5" />}
                 </Link>
               </div>
             </motion.div>
@@ -266,11 +407,11 @@ export default function PricingPage() {
                   <span className="text-xs px-2 py-0.5 rounded-full bg-neon-green/10 text-neon-green font-semibold">Add-on</span>
                 </div>
                 <h3 className="text-lg font-bold text-white mb-1">
-                  Verified AI Signals — €{SIGNAL_MARKETPLACE.price}/mo
+                  Verifizierte KI-Signale — €{SIGNAL_MARKETPLACE.price}/Monat
                 </h3>
                 <p className="text-sm text-slate-400 mb-4">
-                  {SIGNAL_MARKETPLACE.signals} signals/day via TradingAgents multi-agent consensus (Fundamental + Technical + Sentiment + Risk).
-                  No full dashboard required.
+                  {SIGNAL_MARKETPLACE.signals} Signale/Tag via TradingAgents Multi-Agenten-Konsens (Fundamental + Technisch + Sentiment + Risiko).
+                  Kein vollständiges Dashboard erforderlich.
                 </p>
                 <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {SIGNAL_MARKETPLACE.features.map((f) => (
@@ -284,7 +425,7 @@ export default function PricingPage() {
 
               <div className="flex flex-col gap-3 min-w-[160px]">
                 <div>
-                  <div className="text-xs text-slate-500 mb-1">Covered tickers</div>
+                  <div className="text-xs text-slate-500 mb-1">Enthaltene Ticker</div>
                   <div className="flex flex-wrap gap-1">
                     {SIGNAL_MARKETPLACE.tickers.map((t) => (
                       <span key={t} className="text-xs px-1.5 py-0.5 rounded font-mono"
@@ -295,7 +436,7 @@ export default function PricingPage() {
                   </div>
                 </div>
                 <Link
-                  href="/landing#waitlist"
+                  href={isAuthenticated ? "/billing?plan=signals" : "/register?plan=signals"}
                   className="flex items-center justify-center gap-1.5 py-2 px-4 rounded-xl text-sm font-semibold transition-all duration-200"
                   style={{
                     background: "rgba(0,255,136,0.15)",
@@ -303,7 +444,7 @@ export default function PricingPage() {
                     color: "#00FF88",
                   }}
                 >
-                  Join Waitlist
+                  Abonnieren
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
@@ -319,43 +460,8 @@ export default function PricingPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
         >
-          <h2 className="text-lg font-bold text-white mb-5 text-center">Frequently Asked Questions</h2>
-          <div className="space-y-3">
-            {[
-              {
-                q: "Is there a free trial?",
-                a: "Yes — all plans start with a 14-day free trial. No credit card required during the trial period.",
-              },
-              {
-                q: "What AI model powers the signals?",
-                a: "Claude Sonnet 4.6 (deep analysis) for Pro/Institutional, Claude Haiku 4.5 (fast) for Basic daily signals. Both run TradingAgents multi-agent consensus: Fundamental + Technical + Sentiment + News + Risk agents.",
-              },
-              {
-                q: "Can I switch from paper trading to live trading?",
-                a: "Yes — live trading is available on Pro and Institutional via Nautilus Trader (15+ brokers). A safety-gated switch prevents accidental live execution.",
-              },
-              {
-                q: "How is billing handled?",
-                a: "Monthly or annual billing via Stripe. Cancel any time — no lock-in.",
-              },
-              {
-                q: "What data sources are used?",
-                a: "Live market data via yfinance (prices, OHLCV), news sentiment via FinGPT NLP, and P2P data from Mintos/Bondora/PeerBerry APIs.",
-              },
-            ].map(({ q, a }) => (
-              <div key={q} className="rounded-xl p-4"
-                style={{
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.07)",
-                }}>
-                <div className="flex items-start gap-2 mb-1.5">
-                  <Star className="w-3.5 h-3.5 mt-0.5 text-cyan-400 flex-shrink-0" />
-                  <span className="text-sm font-semibold text-white">{q}</span>
-                </div>
-                <p className="text-sm text-slate-400 ml-5.5 leading-relaxed">{a}</p>
-              </div>
-            ))}
-          </div>
+          <h2 className="text-lg font-bold text-white mb-5 text-center">Häufig gestellte Fragen</h2>
+          <FaqAccordion />
         </motion.div>
       </div>
 
@@ -372,13 +478,13 @@ export default function PricingPage() {
           }}
         >
           <Shield className="w-8 h-8 mx-auto mb-3 text-cyan-400" />
-          <h3 className="text-lg font-bold text-white mb-2">Ready to trade smarter?</h3>
+          <h3 className="text-lg font-bold text-white mb-2">Intelligenter handeln?</h3>
           <p className="text-sm text-slate-400 mb-5">
-            Join the waitlist for early-bird pricing — 30% off for the first 100 subscribers.
+            Starte kostenlos mit 3 KI-Signalen täglich — jederzeit upgraden. Monatliche Abrechnung, jederzeit kündbar.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
-              href="/landing#waitlist"
+              href="/register"
               className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-sm font-bold transition-all duration-200"
               style={{
                 background: "linear-gradient(135deg, #00D4FF, #7B2FFF)",
@@ -386,8 +492,8 @@ export default function PricingPage() {
                 boxShadow: "0 0 20px rgba(0,212,255,0.3)",
               }}
             >
-              <BarChart2 className="w-4 h-4" />
-              Join Waitlist — Early Bird 30% Off
+              <Zap className="w-4 h-4" />
+              Kostenlos registrieren
             </Link>
             <Link
               href="/dashboard"
@@ -397,7 +503,7 @@ export default function PricingPage() {
                 border: "1px solid rgba(255,255,255,0.1)",
               }}
             >
-              Explore Demo
+              Demo erkunden
             </Link>
           </div>
         </motion.div>

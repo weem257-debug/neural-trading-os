@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Risk Management — Neural Trading OS",
+  title: "Risikomanagement — Neural Trading OS",
   description:
-    "AI-powered risk management: real-time drawdown monitoring, VaR calculation, position sizing, stop-loss automation and portfolio stress testing.",
+    "KI-gestütztes Risikomanagement: Echtzeit-Drawdown-Monitoring, VaR-Berechnung, Positionsgrößen, Stop-Loss-Automation und Portfolio-Stress-Tests.",
   openGraph: {
-    title: "AI Risk Management — Neural Trading OS",
-    description: "Real-time drawdown, VaR, position sizing and stress testing for algorithmic trading.",
+    title: "KI-Risikomanagement — Neural Trading OS",
+    description: "Echtzeit-Drawdown, VaR, Positionsgrößen und Stress-Tests für algorithmisches Trading.",
     type: "website",
   },
 };

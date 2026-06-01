@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Strategy Backtesting — Neural Trading OS",
+  title: "Strategie-Backtesting — Neural Trading OS",
   description:
-    "Backtest AI trading strategies on historical data: walk-forward validation, Monte Carlo simulation, Sharpe/Sortino ratios and drawdown analytics.",
+    "KI-Handelsstrategien auf historischen Daten testen: Walk-Forward-Validierung, Monte-Carlo-Simulation, Sharpe/Sortino-Ratios und Drawdown-Analyse.",
   openGraph: {
-    title: "AI Strategy Backtesting — Neural Trading OS",
-    description: "Walk-forward validation, Monte Carlo simulation and multi-strategy comparison for AI-generated trading signals.",
+    title: "KI Strategie-Backtesting — Neural Trading OS",
+    description: "Walk-Forward-Validierung, Monte-Carlo-Simulation und Multi-Strategie-Vergleich für KI-Handelssignale.",
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "AI Backtesting — Neural Trading OS",
-    description: "Walk-forward validation + Monte Carlo simulation for AI trading strategies.",
+    title: "KI-Backtesting — Neural Trading OS",
+    description: "Walk-Forward-Validierung + Monte-Carlo-Simulation für KI-Handelsstrategien.",
   },
 };
 

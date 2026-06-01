@@ -23,6 +23,9 @@ import {
   Wallet,
   Brain,
   CreditCard,
+  Building2,
+  UserCircle,
+  Award,
 } from "lucide-react";
 import { LanguageToggle, useI18n } from "@/i18n/context";
 import { api } from "@/lib/api";
@@ -34,6 +37,7 @@ const navItems = [
   { href: "/portfolio",  labelKey: "nav.portfolio",  icon: Briefcase,       color: "purple" },
   { href: "/portfolios", labelKey: "nav.portfolios", icon: Briefcase,       color: "cyan" },
   { href: "/p2p",        labelKey: "nav.p2p",        icon: Landmark,        color: "purple" },
+  { href: "/brokers",    labelKey: "nav.brokers",    icon: Building2,       color: "cyan" },
   { href: "/networth",   labelKey: "nav.networth",   icon: Wallet,          color: "green" },
   { href: "/learning",   labelKey: "nav.learning",   icon: Brain,           color: "purple" },
   { href: "/analysis",   labelKey: "nav.analysis",   icon: Waves,           color: "purple" },
@@ -42,8 +46,10 @@ const navItems = [
   { href: "/risk",       labelKey: "nav.risk",       icon: Shield,          color: "pink" },
   { href: "/execution",  labelKey: "nav.execution",  icon: Zap,             color: "green" },
   { href: "/alerts",     labelKey: "nav.alerts",     icon: Bell,            color: "yellow" },
+  { href: "/performance", labelKey: "nav.performance", icon: Award,         color: "yellow" },
   { href: "/pricing",   labelKey: "nav.pricing",   icon: CreditCard,      color: "green" },
   { href: "/billing",   labelKey: "nav.billing",   icon: CreditCard,      color: "cyan"  },
+  { href: "/account",  labelKey: "nav.account",   icon: UserCircle,      color: "purple" },
 ];
 
 const colorMap: Record<string, { active: string; icon: string; glow: string; bar: string }> = {
@@ -89,7 +95,17 @@ function NavContent({ onNavClick }: { onNavClick?: () => void }) {
   const router = useRouter();
   const activeAlertCount = useActiveAlertCount();
   const { t } = useI18n();
-  const { username, logout } = useAuthStore((s) => ({ username: s.username, logout: s.logout }));
+  const { username, role, tier, logout } = useAuthStore((s) => ({ username: s.username, role: s.role, tier: s.tier, logout: s.logout }));
+
+  const tierBadge = (() => {
+    switch (tier) {
+      case "basic":        return { label: "BASIC",         bg: "rgba(0,212,255,0.15)",  border: "rgba(0,212,255,0.4)",  color: "#00D4FF" };
+      case "pro":          return { label: "PRO",           bg: "rgba(123,47,255,0.15)", border: "rgba(123,47,255,0.4)", color: "#7B2FFF" };
+      case "institutional":return { label: "INST",          bg: "rgba(236,72,153,0.15)", border: "rgba(236,72,153,0.4)", color: "#EC4899" };
+      case "signals":      return { label: "SIGNALS",       bg: "rgba(245,158,11,0.15)", border: "rgba(245,158,11,0.4)", color: "#F59E0B" };
+      default:             return { label: "FREE",          bg: "rgba(100,116,139,0.1)", border: "rgba(100,116,139,0.3)", color: "#64748B" };
+    }
+  })();
 
   const handleLogout = () => {
     logout();
@@ -123,7 +139,7 @@ function NavContent({ onNavClick }: { onNavClick?: () => void }) {
       {/* Nav */}
       <div className="flex-1 px-3 py-4 space-y-1">
         {navItems.map(({ href, labelKey, icon: Icon, color }) => {
-          const active = pathname.startsWith(href);
+          const active = pathname === href || pathname.startsWith(href + "/");
           const c = colorMap[color] ?? colorMap.cyan;
           const label = t(labelKey);
 
@@ -186,8 +202,32 @@ function NavContent({ onNavClick }: { onNavClick?: () => void }) {
 
       {/* Settings link + Language Toggle */}
       <div className="px-3 pb-2 space-y-1">
+        {/* Admin link — only for admin role */}
+        {role === "admin" && (() => {
+          const adminActive = pathname === "/admin" || pathname.startsWith("/admin/");
+          return (
+            <Link
+              href="/admin"
+              onClick={onNavClick}
+              aria-current={adminActive ? "page" : undefined}
+              aria-label="Admin"
+              className={`
+                group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm
+                font-medium transition-all duration-200 border
+                ${adminActive
+                  ? "border-amber-500/40 bg-amber-500/10 text-white"
+                  : "border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/5"
+                }
+              `}
+            >
+              <Shield className={`w-4 h-4 flex-shrink-0 transition-colors duration-200 ${adminActive ? "text-amber-400" : "text-slate-600 group-hover:text-slate-400"}`} />
+              <span className="truncate">Admin</span>
+            </Link>
+          );
+        })()}
+
         {(() => {
-          const settingsActive = pathname.startsWith("/settings");
+          const settingsActive = pathname === "/settings" || pathname.startsWith("/settings/");
           return (
             <Link
               href="/settings"
@@ -219,12 +259,16 @@ function NavContent({ onNavClick }: { onNavClick?: () => void }) {
         {username && (
           <button
             onClick={handleLogout}
-            className="group w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border border-transparent text-slate-500 hover:text-red-400 hover:bg-red-500/8"
-            aria-label="Log out"
+            className="group relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border border-transparent text-slate-500 hover:text-red-400 hover:bg-red-500/8"
+            aria-label="Abmelden"
           >
             <LogOut className="w-4 h-4 flex-shrink-0 text-slate-600 group-hover:text-red-400 transition-colors duration-200" />
-            <span className="truncate flex-1 text-left">{username}</span>
-            <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-red-400">Exit</span>
+            <span className="truncate flex-1 text-left min-w-0">{username}</span>
+            <span
+              className="text-[9px] font-bold px-1.5 py-0.5 rounded flex-shrink-0 group-hover:opacity-0 transition-opacity duration-150"
+              style={{ background: tierBadge.bg, border: `1px solid ${tierBadge.border}`, color: tierBadge.color }}
+            >{tierBadge.label}</span>
+            <span className="text-xs absolute right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-150 text-red-400">Raus</span>
           </button>
         )}
       </div>
@@ -271,7 +315,7 @@ function HamburgerButton({ open, onClick }: { open: boolean; onClick: () => void
   return (
     <button
       onClick={onClick}
-      aria-label={open ? "Close navigation" : "Open navigation"}
+      aria-label={open ? "Navigation schließen" : "Navigation öffnen"}
       className="fixed top-3 left-3 z-50 md:hidden flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200"
       style={{
         background: open ? "rgba(0,212,255,0.15)" : "rgba(8,11,20,0.9)",
@@ -331,7 +375,7 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
           <motion.div
             key="drawer"
             role="navigation"
-            aria-label="Main navigation"
+            aria-label="Hauptnavigation"
             initial={{ x: "-100%" }}
             animate={{ x: 0 }}
             exit={{ x: "-100%" }}
@@ -368,15 +412,24 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
 
-  if (pathname === "/landing" || pathname === "/login") return null;
+  const NO_SIDEBAR = new Set(["/", "/landing", "/login", "/register", "/forgot-password", "/reset-password", "/impressum", "/datenschutz", "/agb"]);
+  if (NO_SIDEBAR.has(pathname)) return null;
+
+  // Full-screen standalone landing (invite funnel) never renders dashboard chrome.
+  if (pathname.startsWith("/invite/")) return null;
+
+  // Public share surface: anonymous visitors arriving from a shared signal link
+  // get a clean page instead of a dashboard sidebar full of gated nav links.
+  if (!isAuthenticated && pathname.startsWith("/signals/view/")) return null;
 
   return (
     <>
       {/* ---- Desktop: always-visible sidebar (hidden on mobile) ---- */}
       <nav
         role="navigation"
-        aria-label="Main navigation"
+        aria-label="Hauptnavigation"
         className="hidden md:flex w-52 flex-shrink-0 flex-col border-r relative overflow-hidden"
         style={{
           background: "linear-gradient(180deg, rgba(8,11,20,0.95) 0%, rgba(13,17,23,0.95) 100%)",

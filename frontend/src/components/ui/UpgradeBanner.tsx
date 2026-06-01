@@ -8,11 +8,14 @@ import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
 const DISMISS_KEY = "upgrade_banner_dismissed_until";
-const DISMISS_DAYS = 3;
+const DISMISS_DAYS = 1;
+// Show only when >= 50% of daily quota is consumed
+const SHOW_THRESHOLD = 0.5;
 
 const SKIP_PATHS = new Set(["/pricing", "/billing", "/login", "/landing", "/"]);
 
 interface UsageInfo {
+  plan: string;
   signals_used_today: number;
   signals_limit: number;
 }
@@ -30,12 +33,19 @@ export function UpgradeBanner() {
     if (dismissedUntil && Date.now() < Number(dismissedUntil)) return;
 
     api.billing.usage().then((u) => {
-      if (u?.signals_limit > 0 && u?.signals_limit <= 10) {
-        setUsage({ signals_used_today: u.signals_used_today, signals_limit: u.signals_limit });
+      // Only show for limited plans (free=3, basic=10) when >= SHOW_THRESHOLD consumed
+      const isLimitedPlan = u?.signals_limit > 0 && u?.signals_limit <= 10;
+      const usageFraction = u?.signals_limit > 0 ? u.signals_used_today / u.signals_limit : 0;
+      if (isLimitedPlan && usageFraction >= SHOW_THRESHOLD) {
+        setUsage({
+          plan: u.plan,
+          signals_used_today: u.signals_used_today,
+          signals_limit: u.signals_limit,
+        });
         setShow(true);
       }
     }).catch(() => {
-      setShow(true);
+      // Don't show banner if usage can't be determined
     });
   }, [isAuthenticated, pathname]);
 
@@ -45,9 +55,14 @@ export function UpgradeBanner() {
     setShow(false);
   }
 
-  if (!show) return null;
+  if (!show || !usage) return null;
 
-  const isNearLimit = usage && usage.signals_used_today >= usage.signals_limit - 1;
+  const isAtLimit = usage.signals_used_today >= usage.signals_limit;
+  const isNearLimit = usage.signals_used_today >= usage.signals_limit - 1;
+  const isBasic = usage.plan === "basic";
+
+  const upgradeHref = isBasic ? "/billing?plan=pro" : "/billing?plan=basic";
+  const upgradeLabel = isBasic ? "Auf Pro upgraden" : "Ab €29/Monat upgraden";
 
   return (
     <div
@@ -55,33 +70,40 @@ export function UpgradeBanner() {
       style={{
         background: isNearLimit
           ? "linear-gradient(90deg, rgba(255,0,128,0.08) 0%, rgba(123,47,255,0.08) 100%)"
-          : "linear-gradient(90deg, rgba(0,212,255,0.08) 0%, rgba(123,47,255,0.08) 100%)",
-        border: `1px solid ${isNearLimit ? "rgba(255,0,128,0.25)" : "rgba(0,212,255,0.2)"}`,
+          : "linear-gradient(90deg, rgba(255,215,0,0.06) 0%, rgba(123,47,255,0.06) 100%)",
+        border: `1px solid ${isNearLimit ? "rgba(255,0,128,0.3)" : "rgba(255,215,0,0.2)"}`,
       }}
     >
       <div className="flex items-center gap-2 flex-wrap">
-        <Zap className={`w-3.5 h-3.5 shrink-0 ${isNearLimit ? "text-neon-pink" : "text-cyan-400"}`} />
+        <Zap
+          className="w-3.5 h-3.5 shrink-0"
+          style={{ color: isNearLimit ? "#FF0080" : "#FFD700" }}
+        />
         <span className="text-slate-300 font-medium">
-          {usage ? (
-            <>
-              <span className={isNearLimit ? "text-neon-pink" : "text-cyan-400"}>
-                {usage.signals_used_today}/{usage.signals_limit} signals used today
-              </span>
-              {" "}— Free plan limit.
-            </>
-          ) : (
-            <>You&apos;re on the <span className="text-cyan-400">Free plan</span> — limited to 3 signals/day.</>
-          )}
+          <span style={{ color: isAtLimit ? "#FF0080" : isNearLimit ? "#FF6098" : "#FFD700" }}>
+            {usage.signals_used_today}/{usage.signals_limit} Signale
+          </span>
+          {" "}heute genutzt
+          {isAtLimit
+            ? " — Tageslimit erreicht."
+            : isNearLimit
+            ? " — noch 1 Signal verfügbar."
+            : "."}
         </span>
-        <Link href="/signals/marketplace" className="text-neon-green hover:underline font-semibold">
-          Track record
-        </Link>
         <span className="text-slate-600">·</span>
-        <Link href="/pricing" className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 font-semibold">
-          Upgrade from €19/mo <ArrowRight className="w-3 h-3" />
+        <Link
+          href={upgradeHref}
+          className="flex items-center gap-1 font-semibold hover:underline transition-colors"
+          style={{ color: isNearLimit ? "#FF0080" : "#00D4FF" }}
+        >
+          {upgradeLabel} <ArrowRight className="w-3 h-3" />
         </Link>
       </div>
-      <button onClick={dismiss} className="shrink-0 text-slate-600 hover:text-slate-400 transition-colors" aria-label="Dismiss">
+      <button
+        onClick={dismiss}
+        className="shrink-0 text-slate-600 hover:text-slate-400 transition-colors"
+        aria-label="Banner schließen"
+      >
         <X className="w-3.5 h-3.5" />
       </button>
     </div>

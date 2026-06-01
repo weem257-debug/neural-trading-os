@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Market Analysis — Neural Trading OS",
+  title: "Marktanalyse — Neural Trading OS",
   description:
-    "Deep AI market analysis: multi-timeframe technical patterns, earnings impact scoring, sector rotation signals and macro overlay — powered by Claude Sonnet 4.6.",
+    "Tiefe KI-Marktanalyse: Multi-Timeframe-Muster, Earnings-Impact-Scoring, Sektorrotations-Signale und Makro-Overlay — powered by Claude Sonnet 4.6.",
   openGraph: {
-    title: "AI Market Analysis — Neural Trading OS",
-    description: "Multi-timeframe technicals, earnings scoring, sector rotation and macro overlay.",
+    title: "KI-Marktanalyse — Neural Trading OS",
+    description: "Multi-Timeframe-Technicals, Earnings-Scoring, Sektorrotation und Makro-Overlay.",
     type: "website",
   },
 };

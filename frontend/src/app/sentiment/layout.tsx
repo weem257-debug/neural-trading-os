@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Market Sentiment Analysis — Neural Trading OS",
+  title: "Marktstimmung — Neural Trading OS",
   description:
-    "Live AI market sentiment: news NLP, social media scanning, fear & greed index and sector rotation signals — powered by Claude Sonnet 4.6.",
+    "Live KI-Marktstimmung: News-NLP, Social-Media-Scanning, Fear-&-Greed-Index und Sektorrotationssignale — powered by Claude Sonnet 4.6.",
   openGraph: {
-    title: "AI Sentiment Analysis — Neural Trading OS",
-    description: "Real-time news NLP, social scanning and fear & greed index for smarter trading decisions.",
+    title: "KI-Sentiment-Analyse — Neural Trading OS",
+    description: "Echtzeit News-NLP, Social-Scanning und Fear-&-Greed-Index für bessere Handelsentscheidungen.",
     type: "website",
   },
 };

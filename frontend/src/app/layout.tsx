@@ -10,27 +10,40 @@ import { AuthGuard } from "@/components/ui/AuthGuard";
 import { UpgradeBanner } from "@/components/ui/UpgradeBanner";
 import { I18nProvider } from "@/i18n/context";
 import { PricesProvider } from "@/components/ui/PricesProvider";
+import { CookieConsent } from "@/components/ui/CookieConsent";
+import { OnboardingWizard } from "@/components/ui/OnboardingWizard";
+import { TokenRefresher } from "@/components/ui/TokenRefresher";
+
+const SITE_URL =
+  process.env.NEXT_PUBLIC_APP_URL ?? "https://neuraltrading.io";
 
 export const metadata: Metadata = {
-  title: "Neural Trading OS — AI-Powered Trading Dashboard",
+  metadataBase: new URL(SITE_URL),
+  title: "Neural Trading OS — KI-gestütztes Trading Dashboard",
   description:
-    "Unified AI trading cockpit: 9 engines, live Claude Sonnet 4.6 signals, real-time WebSocket prices, backtesting, paper trading and P2P portfolio tracking.",
+    "KI-Trading Cockpit mit 9 Engines: Live Claude Sonnet 4.6 Signale, Echtzeit WebSocket-Kurse, Backtesting, Paper Trading und P2P-Portfolio-Tracking.",
   keywords: [
-    "AI trading", "algorithmic trading", "LLM trading signals", "trading dashboard",
-    "Claude AI trading", "backtesting", "paper trading", "TradingAgents",
-    "neural trading", "stock signals", "crypto signals",
+    "KI Trading", "algorithmisches Trading", "KI Handelssignale", "Trading Dashboard",
+    "Claude AI Trading", "Backtesting", "Paper Trading", "TradingAgents",
+    "Neural Trading", "Aktien Signale", "Krypto Signale",
   ],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "NeuralOS",
+  },
   openGraph: {
-    title: "Neural Trading OS — AI-Powered Trading Dashboard",
-    description: "9 AI trading engines unified: TradingAgents, Jesse, FinGPT, Qlib, Nautilus Trader and more. Live Claude signals, real-time WebSocket dashboard.",
+    title: "Neural Trading OS — KI-Trading Dashboard",
+    description: "9 KI-Trading-Engines vereint: TradingAgents, Jesse, FinGPT, Qlib, Nautilus Trader und mehr. Live Claude Signale, Echtzeit WebSocket Dashboard.",
     type: "website",
     siteName: "Neural Trading OS",
-    url: "https://frontend-production-8a00.up.railway.app",
+    url: SITE_URL,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Neural Trading OS — AI Trading Dashboard",
-    description: "9 AI engines, live Claude signals, WebSocket prices, backtesting. FastAPI + Next.js + PostgreSQL.",
+    title: "Neural Trading OS — KI-Trading Dashboard",
+    description: "9 KI-Engines, Live Claude Signale, WebSocket-Kurse, Backtesting. FastAPI + Next.js + PostgreSQL.",
     creator: "@weem257",
   },
   robots: {
@@ -46,7 +59,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="de" className="dark">
       <body className="bg-base text-slate-200 min-h-screen overflow-hidden">
         {/* Neural grid background */}
         <div className="fixed inset-0 bg-neural-grid opacity-60 pointer-events-none z-0" />
@@ -72,6 +85,15 @@ export default function RootLayout({
 
         {/* Toast notification system */}
         <Notifications />
+
+        {/* DSGVO Cookie-Consent-Banner */}
+        <CookieConsent />
+
+        {/* First-login onboarding wizard */}
+        <OnboardingWizard />
+
+        {/* Silent JWT auto-refresh (every 30 min, triggers 2h before expiry) */}
+        <TokenRefresher />
 
         {/* i18n provider — wraps all children for DE/EN support */}
         <I18nProvider>

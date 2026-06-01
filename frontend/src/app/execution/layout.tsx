@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Trade Execution — Neural Trading OS",
-  description: "AI-assisted trade execution with real-time order management, slippage estimation and automated risk gates.",
+  title: "Order-Ausführung — Neural Trading OS",
+  description: "KI-gestützte Order-Ausführung mit Echtzeit-Orderverwaltung, Slippage-Schätzung und automatischen Risikoschranken.",
   robots: { index: false, follow: false },
 };
 

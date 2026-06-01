@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Cpu, Lock, User, AlertTriangle } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
@@ -10,6 +10,15 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const login = useAuthStore((s) => s.login);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      const redirectTo =
+        searchParams.get("next") ?? searchParams.get("from") ?? "/dashboard";
+      router.replace(redirectTo.startsWith("/") ? redirectTo : "/dashboard");
+    }
+  }, [isAuthenticated, router, searchParams]);
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -35,22 +44,35 @@ function LoginForm() {
         });
 
         if (!resp.ok) {
-          setError("Access Denied");
+          try {
+            const errData = await resp.json();
+            setError(errData.detail ?? "Falscher Benutzername oder Passwort");
+          } catch {
+            setError("Falscher Benutzername oder Passwort");
+          }
           setLoading(false);
           return;
         }
 
         const data = await resp.json();
         const token: string = data.access_token;
-        login(token, username.trim());
+        const expiresIn: number | undefined = data.expires_in;
+        // Fetch role + tier from /me
+        let role: string | undefined;
+        let tier: string | undefined;
+        try {
+          const meResp = await fetch(`${API_BASE}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+          if (meResp.ok) { const me = await meResp.json(); role = me.role; tier = me.tier; }
+        } catch { /* ignore */ }
+        login(token, username.trim(), role, expiresIn, tier);
         const next = searchParams.get("next");
         router.push(next && next.startsWith("/") ? next : "/dashboard");
       } catch {
-        setError("Access Denied");
+        setError("Zugriff verweigert");
         setLoading(false);
       }
     },
-    [username, password, login, router]
+    [username, password, login, router, searchParams]
   );
 
   return (
@@ -107,7 +129,7 @@ function LoginForm() {
               className="text-xs mt-1 tracking-wider"
               style={{ color: "rgba(100,116,139,0.7)" }}
             >
-              SECURE ACCESS PORTAL
+              SICHERER ZUGANG
             </p>
           </div>
 
@@ -154,7 +176,7 @@ function LoginForm() {
                   required
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Enter username"
+                  placeholder="Benutzername eingeben"
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm text-slate-200 placeholder-slate-600 outline-none transition-all duration-200"
                   style={{
                     background: "rgba(255,255,255,0.04)",
@@ -193,7 +215,7 @@ function LoginForm() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  placeholder="Passwort eingeben"
                   className="w-full pl-10 pr-10 py-2.5 rounded-lg text-sm text-slate-200 placeholder-slate-600 outline-none transition-all duration-200"
                   style={{
                     background: "rgba(255,255,255,0.04)",
@@ -212,7 +234,7 @@ function LoginForm() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? "Passwort ausblenden" : "Passwort anzeigen"}
                   style={{ color: "rgba(100,116,139,0.6)" }}
                 >
                   {showPassword ? (
@@ -260,20 +282,42 @@ function LoginForm() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                     />
                   </svg>
-                  AUTHENTICATING...
+                  ANMELDUNG LÄUFT...
                 </span>
               ) : (
-                "ACCESS SYSTEM"
+                "ANMELDEN"
               )}
             </button>
           </form>
 
-          {/* Footer */}
-          <p
-            className="text-center text-xs mt-6 font-mono"
-            style={{ color: "rgba(100,116,139,0.35)" }}
-          >
-            v0.7.0 — claude-sonnet-4-6
+          {/* Register link + forgot password */}
+          <p className="text-center text-xs mt-4" style={{ color: "rgba(100,116,139,0.5)" }}>
+            Noch kein Konto?{" "}
+            <a
+              href={(() => {
+                try {
+                  const next = searchParams.get("next") ?? "";
+                  const planParam = new URLSearchParams(next.split("?")[1] ?? "").get("plan");
+                  return planParam ? `/register?plan=${planParam}` : "/register";
+                } catch { return "/register"; }
+              })()}
+              className="hover:underline transition-colors font-semibold"
+              style={{ color: "rgba(0,212,255,0.7)" }}
+            >
+              Jetzt registrieren
+            </a>
+          </p>
+          <p className="text-center text-xs mt-2" style={{ color: "rgba(100,116,139,0.4)" }}>
+            <a href="/forgot-password" className="hover:underline transition-colors" style={{ color: "rgba(0,212,255,0.4)" }}>
+              Passwort vergessen?
+            </a>
+          </p>
+
+          {/* Back link */}
+          <p className="text-center text-xs mt-2" style={{ color: "rgba(100,116,139,0.4)" }}>
+            <a href="/landing" className="hover:underline transition-colors" style={{ color: "rgba(0,212,255,0.4)" }}>
+              ← Zurück zur Startseite
+            </a>
           </p>
         </div>
       </div>

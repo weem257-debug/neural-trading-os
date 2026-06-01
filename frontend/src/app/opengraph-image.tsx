@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "Neural Trading OS — AI-Powered Trading Dashboard";
+export const alt = "Neural Trading OS — KI-gestütztes Trading Dashboard";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -136,7 +136,8 @@ export default async function OGImage() {
             fontFamily: "monospace",
           }}
         >
-          frontend-production-8a00.up.railway.app
+          {(process.env.NEXT_PUBLIC_APP_URL ?? "https://neuraltrading.io")
+            .replace(/^https?:\/\//, "")}
         </div>
       </div>
     ),

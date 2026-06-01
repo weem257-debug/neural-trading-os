@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0A0E1E"/>
+      <stop offset="100%" style="stop-color:#0F1428"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00D4FF"/>
+      <stop offset="100%" style="stop-color:#7B2FFF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Grid lines -->
+  <g opacity="0.06" stroke="#00D4FF" stroke-width="1">
+    <line x1="0" y1="105" x2="1200" y2="105"/>
+    <line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="525" x2="1200" y2="525"/>
+    <line x1="150" y1="0" x2="150" y2="630"/>
+    <line x1="300" y1="0" x2="300" y2="630"/>
+    <line x1="450" y1="0" x2="450" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="750" y1="0" x2="750" y2="630"/>
+    <line x1="900" y1="0" x2="900" y2="630"/>
+    <line x1="1050" y1="0" x2="1050" y2="630"/>
+  </g>
+
+  <!-- Glow accent bar -->
+  <rect x="80" y="260" width="4" height="110" fill="url(#accent)" rx="2"/>
+
+  <!-- Main title -->
+  <text x="116" y="310" font-family="system-ui, -apple-system, sans-serif" font-size="56" font-weight="700" fill="white">Neural Trading OS</text>
+
+  <!-- Subtitle -->
+  <text x="116" y="360" font-family="system-ui, -apple-system, sans-serif" font-size="24" fill="#94A3B8">AI-Powered Trading Dashboard</text>
+
+  <!-- Feature pills -->
+  <rect x="116" y="400" width="160" height="36" rx="18" fill="rgba(0,212,255,0.12)" stroke="rgba(0,212,255,0.3)" stroke-width="1"/>
+  <text x="196" y="422" font-family="system-ui, sans-serif" font-size="14" fill="#00D4FF" text-anchor="middle">9 AI Engines</text>
+
+  <rect x="292" y="400" width="170" height="36" rx="18" fill="rgba(123,47,255,0.12)" stroke="rgba(123,47,255,0.3)" stroke-width="1"/>
+  <text x="377" y="422" font-family="system-ui, sans-serif" font-size="14" fill="#7B2FFF" text-anchor="middle">Live Signals</text>
+
+  <rect x="478" y="400" width="180" height="36" rx="18" fill="rgba(0,255,136,0.12)" stroke="rgba(0,255,136,0.3)" stroke-width="1"/>
+  <text x="568" y="422" font-family="system-ui, sans-serif" font-size="14" fill="#00FF88" text-anchor="middle">Broker Integration</text>
+
+  <!-- Right decoration: chart mockup -->
+  <g transform="translate(820, 180)">
+    <polyline points="0,200 60,160 120,180 180,100 240,120 300,60 360,80" fill="none" stroke="url(#accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="0,200 60,160 120,180 180,100 240,120 300,60 360,80 360,260 0,260" fill="rgba(0,212,255,0.06)" stroke="none"/>
+  </g>
+
+  <!-- Bottom domain -->
+  <text x="116" y="570" font-family="system-ui, sans-serif" font-size="18" fill="#475569">neuraltrading.os</text>
+</svg>

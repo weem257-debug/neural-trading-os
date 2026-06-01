@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "P2P Portfolio Tracker — Neural Trading OS",
+  title: "P2P-Portfolio — Neural Trading OS",
   description:
-    "Aggregate P2P lending portfolio across Mintos, Bondora and PeerBerry. Track invested capital, interest earned, default rate and net annual return in real time.",
+    "P2P-Lending-Portfolio aggregieren über Mintos, Bondora und PeerBerry. Investiertes Kapital, Zinsen, Ausfallrate und NAR in Echtzeit verfolgen.",
   openGraph: {
-    title: "P2P Lending Portfolio — Neural Trading OS",
-    description: "Aggregate Mintos, Bondora and PeerBerry in one dashboard. Real-time NAR, defaults and interest tracking.",
+    title: "P2P-Lending-Portfolio — Neural Trading OS",
+    description: "Mintos, Bondora und PeerBerry in einem Dashboard aggregieren. Echtzeit NAR, Ausfälle und Zinstracking.",
     type: "website",
   },
 };

@@ -10,8 +10,13 @@
     "type-check": "tsc --noEmit",
     "test:e2e": "playwright test",
     "android": "npx cap open android",
-    "android:sync": "npx cap sync android",
-    "android:build": "npx cap build android"
+    "android:export": "cross-env MOBILE_BUILD=1 next build",
+    "android:sync": "npm run android:export && npx cap sync android",
+    "android:build:apk": "npm run android:sync && npx cap build android --androidreleasetype APK",
+    "android:build:aab": "npm run android:sync && npx cap build android --androidreleasetype AAB",
+    "android:build": "npm run android:build:aab",
+    "android:open": "npx cap open android",
+    "android:dev": "cross-env CAP_SERVER_URL=http://10.0.2.2:3000 npx cap run android"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.4",
@@ -48,6 +53,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "cross-env": "^7.0.3",
     "eslint": "8.57.1",
     "eslint-config-next": "14.2.18"
   }

@@ -17,7 +17,7 @@ import {
   CheckCircle,
   AlertTriangle,
 } from "lucide-react";
-import { API_BASE } from "@/lib/api";
+import { api } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -26,12 +26,12 @@ import { API_BASE } from "@/lib/api";
 interface Portfolio {
   id: number;
   name: string;
-  portfolio_type: "stocks" | "crypto" | "p2p" | "mixed";
-  category: "private" | "business";
+  portfolio_type: string;
+  category: string;
   currency: string;
   color: string;
   is_default: boolean;
-  description?: string;
+  description?: string | null;
   created_at: string;
 }
 
@@ -67,22 +67,6 @@ const COLOR_PRESETS = [
   "#FFD700", "#FF8C00", "#00CED1", "#FF69B4",
 ];
 
-function authHeader(): HeadersInit {
-  const token = localStorage.getItem("auth_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function apiFetch(path: string, init?: RequestInit) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...authHeader(), ...init?.headers },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
 
 // ---------------------------------------------------------------------------
 // PortfolioCard
@@ -367,8 +351,7 @@ export default function PortfoliosPage() {
 
   const load = useCallback(async () => {
     try {
-      const data = await apiFetch("/api/portfolios/");
-      setPortfolios(data);
+      setPortfolios(await api.portfolios.list());
     } catch {
       // Auth error handled globally
     } finally {
@@ -379,27 +362,27 @@ export default function PortfoliosPage() {
   useEffect(() => { load(); }, [load]);
 
   const handleCreate = async (payload: CreatePayload) => {
-    await apiFetch("/api/portfolios/", { method: "POST", body: JSON.stringify(payload) });
+    await api.portfolios.create(payload);
     showToast("Portfolio erstellt");
     await load();
   };
 
   const handleEdit = async (payload: CreatePayload) => {
     if (!editTarget) return;
-    await apiFetch(`/api/portfolios/${editTarget.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+    await api.portfolios.update(editTarget.id, payload);
     showToast("Portfolio aktualisiert");
     await load();
   };
 
   const handleSetDefault = async (id: number) => {
-    await apiFetch(`/api/portfolios/${id}/default`, { method: "POST" });
+    await api.portfolios.setDefault(id);
     showToast("Standard-Portfolio gesetzt");
     await load();
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Portfolio wirklich löschen?")) return;
-    await apiFetch(`/api/portfolios/${id}`, { method: "DELETE" });
+    await api.portfolios.delete(id);
     showToast("Portfolio gelöscht");
     await load();
   };

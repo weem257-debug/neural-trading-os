@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Access — Neural Trading OS",
-  description: "Secure authentication portal for Neural Trading OS",
+  title: "Anmeldung — Neural Trading OS",
+  description: "Sicheres Authentifizierungsportal für Neural Trading OS",
 };
 
 export default function LoginLayout({

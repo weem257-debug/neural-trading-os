@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, X, RefreshCw, Eye } from "lucide-react";
+import { Plus, X, RefreshCw, Eye, Zap } from "lucide-react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { useTradingStore } from "@/store/tradingStore";
 
@@ -146,6 +147,16 @@ function WatchlistRow({
 
       {/* Sparkline */}
       <MiniSparkline data={entry.history} positive={positive} />
+
+      {/* Analyse — only visible on hover */}
+      <Link
+        href={`/signals?ticker=${entry.ticker}`}
+        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 w-5 h-5 flex items-center justify-center rounded"
+        style={{ color: "#7B2FFF" }}
+        title={`${entry.ticker} analysieren`}
+      >
+        <Zap className="w-3 h-3" />
+      </Link>
 
       {/* Remove button — only visible on hover */}
       <button
@@ -342,7 +353,7 @@ export function Watchlist() {
             disabled={loading}
             className="p-1.5 rounded transition-opacity disabled:opacity-40"
             style={{ color: "#00D4FF" }}
-            title="Refresh now"
+            title="Jetzt aktualisieren"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           </button>
@@ -357,7 +368,7 @@ export function Watchlist() {
                 color: "#00D4FF",
                 border: "1px solid rgba(0,212,255,0.3)",
               }}
-              title="Add ticker"
+              title="Ticker hinzufügen"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -383,7 +394,7 @@ export function Watchlist() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value.toUpperCase())}
                   onKeyDown={handleKeyDown}
-                  placeholder="TICKER (e.g. AMZN)"
+                  placeholder="TICKER (z.B. AMZN)"
                   maxLength={10}
                   className="flex-1 bg-transparent text-xs font-mono text-slate-200 outline-none px-2 py-1.5 rounded"
                   style={{

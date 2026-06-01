@@ -63,7 +63,7 @@ function CorrelationHeatmap({ matrix, tickers }: { matrix: Record<string, Record
         </tbody>
       </table>
       <p className="text-xs text-slate-600 mt-2">
-        Green = positive correlation &nbsp;|&nbsp; Red = negative correlation
+        Grün = positive Korrelation &nbsp;|&nbsp; Rot = negative Korrelation
       </p>
     </div>
   );
@@ -85,7 +85,7 @@ function AnalyticsPanel() {
     try {
       setData(await api.portfolio.analytics());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load analytics");
+      setError(err instanceof Error ? err.message : "Analytics konnten nicht geladen werden");
     } finally {
       setLoading(false);
     }
@@ -99,7 +99,7 @@ function AnalyticsPanel() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <BarChart2 className="w-4 h-4 text-purple-400" />
-          <SectionLabel>Portfolio Analytics — 30 Day</SectionLabel>
+          <SectionLabel>Portfolio-Analyse — 30 Tage</SectionLabel>
         </div>
         <div className="flex items-center gap-2">
           <InfoButton onClick={() => setShowExplain(true)} color="purple" />
@@ -116,7 +116,7 @@ function AnalyticsPanel() {
       {loading && !data && (
         <div className="flex items-center justify-center py-10">
           <RefreshCw className="w-5 h-5 animate-spin text-purple-400" />
-          <span className="ml-2 text-xs text-slate-500">Computing analytics via yfinance…</span>
+          <span className="ml-2 text-xs text-slate-500">Berechne Kennzahlen via yfinance…</span>
         </div>
       )}
 
@@ -129,11 +129,11 @@ function AnalyticsPanel() {
           {/* Key metrics row */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {[
-              { label: "Sharpe Ratio", value: data.sharpe_ratio.toFixed(3), color: data.sharpe_ratio >= 1 ? "#00FF88" : data.sharpe_ratio >= 0 ? "#FFD700" : "#FF0080", hint: "Annualised, rf=0" },
-              { label: "Beta vs SPY", value: data.beta.toFixed(3), color: "#00D4FF", hint: "Market sensitivity" },
-              { label: "Volatility 30d", value: `${(data.volatility_30d * 100).toFixed(1)}%`, color: "#7B2FFF", hint: "Annualised" },
-              { label: "Best Performer", value: data.best_performer.ticker, color: "#00FF88", hint: `+${data.best_performer.return_pct.toFixed(1)}%` },
-              { label: "Worst Performer", value: data.worst_performer.ticker, color: "#FF0080", hint: `${data.worst_performer.return_pct.toFixed(1)}%` },
+              { label: "Sharpe Ratio", value: data.sharpe_ratio.toFixed(3), color: data.sharpe_ratio >= 1 ? "#00FF88" : data.sharpe_ratio >= 0 ? "#FFD700" : "#FF0080", hint: "Annualisiert, rf=0" },
+              { label: "Beta vs SPY", value: data.beta.toFixed(3), color: "#00D4FF", hint: "Marktkorrelation" },
+              { label: "Volatilität 30T", value: `${(data.volatility_30d * 100).toFixed(1)}%`, color: "#7B2FFF", hint: "Annualisiert" },
+              { label: "Bester Wert", value: data.best_performer.ticker, color: "#00FF88", hint: `${data.best_performer.return_pct > 0 ? "+" : ""}${data.best_performer.return_pct.toFixed(1)}%` },
+              { label: "Schwächster Wert", value: data.worst_performer.ticker, color: "#FF0080", hint: `${data.worst_performer.return_pct.toFixed(1)}%` },
             ].map(({ label, value, color, hint }) => (
               <div
                 key={label}
@@ -155,7 +155,7 @@ function AnalyticsPanel() {
             style={{ background: "rgba(255,0,128,0.05)", border: "1px solid rgba(255,0,128,0.15)" }}>
             <TrendingDown className="w-4 h-4 text-pink-500 flex-shrink-0" />
             <div>
-              <p className="text-xs text-slate-500">Worst Performer (30d)</p>
+              <p className="text-xs text-slate-500">Schwächster Titel (30T)</p>
               <p className="font-bold font-mono text-pink-400">{data.worst_performer.ticker} &nbsp;
                 <span className="text-sm">{data.worst_performer.return_pct.toFixed(1)}%</span>
               </p>
@@ -164,7 +164,7 @@ function AnalyticsPanel() {
 
           {/* Correlation heatmap */}
           <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wider mb-3 font-semibold">Correlation Matrix</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wider mb-3 font-semibold">Korrelationsmatrix</p>
             <CorrelationHeatmap matrix={data.correlation_matrix} tickers={data.tickers} />
           </div>
         </div>
@@ -342,7 +342,7 @@ export default function PortfolioPage() {
               <Briefcase className="w-4 h-4" style={{ color: "#7B2FFF" }} />
             </div>
             <h1 className="text-2xl font-bold text-slate-100">Portfolio</h1>
-            <NeonBadge color="purple">{livePortfolio.positions.length} positions</NeonBadge>
+            <NeonBadge color="purple">{livePortfolio.positions.length} Positionen</NeonBadge>
             {isLiveData ? (
               <NeonBadge color="green">LIVE</NeonBadge>
             ) : (
@@ -352,28 +352,28 @@ export default function PortfolioPage() {
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-500">Nautilus Trader execution engine · Real-time P&L</p>
+          <p className="text-sm text-slate-500">Nautilus Trader Ausführungs-Engine · Echtzeit-P&L</p>
         </motion.div>
         <button onClick={load} className="flex items-center gap-2 text-xs px-3 py-2 rounded-xl transition-all"
           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#64748B" }}>
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          Aktualisieren
         </button>
       </div>
 
       {/* Hero stats */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Total Value",  value: livePortfolio.total_value,  prefix: "$", color: "#00D4FF", icon: DollarSign  },
+          { label: "Gesamtwert",   value: livePortfolio.total_value,  prefix: "$", color: "#00D4FF", icon: DollarSign  },
           { label: "Cash",         value: livePortfolio.cash,          prefix: "$", color: "#7B2FFF", icon: PieChart    },
-          { label: "Invested",     value: livePortfolio.invested,      prefix: "$", color: "#00D4FF", icon: Activity    },
+          { label: "Investiert",   value: livePortfolio.invested,      prefix: "$", color: "#00D4FF", icon: Activity    },
           {
-            label: "Total P&L",
+            label: "Gesamt-P&L",
             value: Math.abs(livePortfolio.total_pnl),
             prefix: pnlPos ? "+$" : "-$",
             color: pnlPos ? "#00FF88" : "#FF0080",
             icon: pnlPos ? TrendingUp : TrendingDown,
-            sub: `${pnlPos ? "+" : ""}${(livePortfolio.total_pnl_pct * 100).toFixed(2)}% all time`,
+            sub: `${pnlPos ? "+" : ""}${(livePortfolio.total_pnl_pct * 100).toFixed(2)}% gesamt`,
           },
         ].map(({ label, value, prefix, color, icon: Icon, sub }, i) => (
           <motion.div
@@ -403,11 +403,11 @@ export default function PortfolioPage() {
       {/* Equity Curve */}
       <GlassCard variant="cyan" delay={0.2}>
         <div className="flex items-center justify-between mb-4">
-          <SectionLabel>Equity Curve — 60 Days</SectionLabel>
+          <SectionLabel>Equity-Kurve — 60 Tage</SectionLabel>
           <div className="flex items-center gap-2">
             <InfoButton onClick={() => setExplainContent(EXPLAIN_EQUITY)} color="cyan" />
-            <span className="text-xs text-slate-500">Return:</span>
-            <span className="text-xs font-bold font-mono" style={{ color: "#00FF88" }}>+{(livePortfolio.total_pnl_pct * 100).toFixed(2)}%</span>
+            <span className="text-xs text-slate-500">Rendite:</span>
+            <span className="text-xs font-bold font-mono" style={{ color: "#00FF88" }}>{livePortfolio.total_pnl_pct > 0 ? "+" : ""}{(livePortfolio.total_pnl_pct * 100).toFixed(2)}%</span>
           </div>
         </div>
         <div style={{ height: "200px" }}>
@@ -438,7 +438,7 @@ export default function PortfolioPage() {
                   color: "#E2E8F0",
                   fontSize: "12px",
                 }}
-                formatter={(v: number) => [`$${v.toLocaleString()}`, "Portfolio Value"]}
+                formatter={(v: number) => [`$${v.toLocaleString()}`, "Portfoliowert"]}
               />
               <Area
                 type="monotone" dataKey="value"
@@ -455,7 +455,7 @@ export default function PortfolioPage() {
       {/* Positions Table */}
       <GlassCard delay={0.3} padding="p-4">
         <div className="flex items-center justify-between mb-4">
-          <SectionLabel>Open Positions</SectionLabel>
+          <SectionLabel>Offene Positionen</SectionLabel>
           <div className="flex items-center gap-2">
             {hasLivePrices && (
               <div className="flex items-center gap-1.5 text-xs" style={{ color: "#00FF88" }}>
@@ -463,14 +463,14 @@ export default function PortfolioPage() {
                 Live
               </div>
             )}
-            <NeonBadge color="purple">PAPER TRADING</NeonBadge>
+            <NeonBadge color="purple">DEMO-HANDEL</NeonBadge>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                {["Asset", "Qty", "Avg Entry", "Current", "Market Value", "Unr. P&L", "Weight"].map((h) => (
+                {["Asset", "Menge", "Ø Einstieg", "Aktuell", "Marktwert", "Unr. G/V", "Gewicht"].map((h) => (
                   <th key={h} className="text-left py-2 pr-4 text-xs text-slate-600 uppercase tracking-wider font-semibold">
                     {h}
                   </th>
@@ -512,7 +512,7 @@ export default function PortfolioPage() {
                           <div
                             className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                             style={{ background: "#00FF88", boxShadow: "0 0 4px #00FF88" }}
-                            title="Live price"
+                            title="Live-Kurs"
                           />
                         )}
                         <span className="font-mono text-slate-300 font-semibold">

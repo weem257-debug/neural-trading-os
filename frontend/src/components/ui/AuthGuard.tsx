@@ -4,7 +4,21 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/authStore";
 
-const PUBLIC_PATHS = new Set(["/", "/login", "/landing"]);
+const PUBLIC_PATHS = new Set([
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/landing",
+  "/pricing",
+  "/signals/marketplace",
+  "/performance",
+  "/impressum",
+  "/datenschutz",
+  "/agb",
+  "/unsubscribe",
+]);
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -20,7 +34,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     setMounted(true);
   }, []);
 
-  const isPublic = PUBLIC_PATHS.has(pathname);
+  const isPublic =
+    PUBLIC_PATHS.has(pathname) ||
+    pathname.startsWith("/signals/view/") ||
+    pathname.startsWith("/invite/");
 
   useEffect(() => {
     if (!mounted) return;

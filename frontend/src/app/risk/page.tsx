@@ -129,7 +129,7 @@ function TachometerGauge({
       <p className="text-sm font-semibold text-slate-300 mt-1">{label}</p>
       {isCrit && <NeonBadge color="pink">CRITICAL</NeonBadge>}
       {isWarn && <NeonBadge color="yellow">WARNING</NeonBadge>}
-      {!isCrit && !isWarn && <NeonBadge color="green">NORMAL</NeonBadge>}
+      {!isCrit && !isWarn && <NeonBadge color="green">OK</NeonBadge>}
     </motion.div>
   );
 }
@@ -207,7 +207,7 @@ const EXPLAIN_VAR: ExplanationContent = {
 };
 
 const EXPLAIN_EXPOSURE: ExplanationContent = {
-  title: "Portfolio Exposure",
+  title: "Portfolio-Exposure",
   subtitle: "Risiko-Konzentration & Leverage",
   color: "purple",
   theory:
@@ -294,7 +294,7 @@ export default function RiskPage() {
             >
               <Shield className="w-4 h-4" style={{ color: "#FF0080" }} />
             </div>
-            <h1 className="text-2xl font-bold text-slate-100">Risk Panel</h1>
+            <h1 className="text-2xl font-bold text-slate-100">Risiko-Panel</h1>
             <span
               className="text-xs px-3 py-1 rounded-full font-bold"
               style={{
@@ -304,7 +304,7 @@ export default function RiskPage() {
                 textShadow: `0 0 8px ${riskColor}`,
               }}
             >
-              {riskLevel} RISK
+              {riskLevel} RISIKO
             </span>
             {hasRealData ? (
               <NeonBadge color="green">LIVE</NeonBadge>
@@ -316,7 +316,7 @@ export default function RiskPage() {
             )}
           </div>
           <p className="text-sm text-slate-500">
-            Jesse risk module · TradingAgents Risk Agent · Real-time monitoring
+            Jesse Risikomodul · TradingAgents Risk Agent · Echtzeit-Überwachung
           </p>
         </motion.div>
 
@@ -330,7 +330,7 @@ export default function RiskPage() {
           }}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          Aktualisieren
         </button>
       </div>
 
@@ -349,7 +349,7 @@ export default function RiskPage() {
         >
           <AlertTriangle className="w-5 h-5 text-neon-pink flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-bold text-neon-pink mb-1">RISK ALERTS ACTIVE</p>
+            <p className="text-sm font-bold text-neon-pink mb-1">RISIKOALARME AKTIV</p>
             <ul className="space-y-1">
               {metrics.alerts.map((a, i) => (
                 <li key={i} className="text-sm text-slate-300 flex items-start gap-2">
@@ -364,14 +364,14 @@ export default function RiskPage() {
       {/* Tachometer Gauges row */}
       <GlassCard delay={0.1} padding="p-5">
         <div className="flex items-center justify-between">
-          <SectionLabel>Risk Gauges</SectionLabel>
+          <SectionLabel>Risikoanzeigen</SectionLabel>
           <InfoButton onClick={() => setExplainContent(EXPLAIN_VAR)} color="pink" className="-mt-2" />
         </div>
         <div className="grid grid-cols-4 gap-4 mt-4">
           <TachometerGauge
             value={metrics.current_drawdown}
             max={0.2}
-            label="Current Drawdown"
+            label="Akt. Drawdown"
             unit="%"
             warnAt={0.6}
             critAt={0.85}
@@ -379,7 +379,7 @@ export default function RiskPage() {
           <TachometerGauge
             value={metrics.concentration_risk}
             max={1}
-            label="Concentration"
+            label="Konzentration"
             unit="%"
             warnAt={0.5}
             critAt={0.75}
@@ -408,8 +408,8 @@ export default function RiskPage() {
         {[
           { label: "VaR 95%",      value: `$${metrics.portfolio_var_95.toLocaleString()}`, color: "#00D4FF", icon: BarChart2 },
           { label: "VaR 99%",      value: `$${metrics.portfolio_var_99.toLocaleString()}`, color: "#7B2FFF", icon: TrendingDown },
-          { label: "Max Drawdown", value: `${(metrics.max_drawdown * 100).toFixed(2)}%`,   color: "#FF0080", icon: Activity },
-          { label: "Beta",         value: metrics.beta?.toFixed(2) ?? "N/A",               color: "#FFD700", icon: Zap },
+          { label: "Max. Drawdown", value: `${(metrics.max_drawdown * 100).toFixed(2)}%`,  color: "#FF0080", icon: Activity },
+          { label: "Beta",         value: metrics.beta?.toFixed(2) ?? "k.A.",              color: "#FFD700", icon: Zap },
         ].map(({ label, value, color, icon: Icon }, i) => (
           <motion.div
             key={label}
@@ -438,36 +438,36 @@ export default function RiskPage() {
       <div className="grid grid-cols-2 gap-4">
         <GlassCard delay={0.3}>
           <div className="flex items-center justify-between">
-            <SectionLabel>Portfolio Exposure</SectionLabel>
+            <SectionLabel>Portfolio-Exposure</SectionLabel>
             <InfoButton onClick={() => setExplainContent(EXPLAIN_EXPOSURE)} color="purple" className="-mt-2" />
           </div>
           <div className="space-y-4 mt-3">
-            <RiskBar label="Concentration Risk (top-5)" value={metrics.concentration_risk} max={1} />
-            <RiskBar label="Current Drawdown" value={metrics.current_drawdown} max={0.2} />
+            <RiskBar label="Konzentrations-Risiko (Top 5)" value={metrics.concentration_risk} max={1} />
+            <RiskBar label="Akt. Drawdown" value={metrics.current_drawdown} max={0.2} />
             <RiskBar label="Leverage" value={metrics.leverage} max={3} unit="x" />
           </div>
         </GlassCard>
 
         <GlassCard delay={0.35}>
-          <SectionLabel>Configured Risk Limits</SectionLabel>
+          <SectionLabel>Konfigurierte Risikolimits</SectionLabel>
           <div className="space-y-3 mt-3">
             {limits ? (
               <>
-                <LimitRow label="Max Position Size" value={`${(limits.max_position_size_pct * 100).toFixed(0)}%`} />
-                <LimitRow label="Max Daily Loss" value={`${(limits.max_daily_loss_pct * 100).toFixed(0)}%`} />
-                <LimitRow label="Max Leverage" value={`${limits.max_leverage}×`} />
+                <LimitRow label="Max. Positionsgröße" value={`${(limits.max_position_size_pct * 100).toFixed(0)}%`} />
+                <LimitRow label="Max. Tagesverlust" value={`${(limits.max_daily_loss_pct * 100).toFixed(0)}%`} />
+                <LimitRow label="Max. Leverage" value={`${limits.max_leverage}×`} />
                 <LimitRow
-                  label="Live Trading"
-                  value={limits.enable_live_trading ? "Enabled" : "Disabled"}
+                  label="Live-Trading"
+                  value={limits.enable_live_trading ? "Aktiviert" : "Deaktiviert"}
                   valueColor={limits.enable_live_trading ? "#FF0080" : "#00FF88"}
                 />
               </>
             ) : (
               <>
-                <LimitRow label="Max Position Size" value="—" />
-                <LimitRow label="Max Daily Loss" value="—" />
-                <LimitRow label="Max Leverage" value="—" />
-                <LimitRow label="Live Trading" value="—" />
+                <LimitRow label="Max. Positionsgröße" value="—" />
+                <LimitRow label="Max. Tagesverlust" value="—" />
+                <LimitRow label="Max. Leverage" value="—" />
+                <LimitRow label="Live-Trading" value="—" />
               </>
             )}
           </div>

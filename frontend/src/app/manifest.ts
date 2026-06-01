@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Neural Trading OS",
     short_name: "NeuralTrade",
     description:
-      "AI-powered trading dashboard — 9 engines, Claude Sonnet 4.6 signals, real-time WebSocket prices.",
+      "KI-gestütztes Trading-Dashboard — 9 Agenten, Claude-Signale, Echtzeit-WebSocket-Kurse und Multi-Broker-Depots.",
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#080b14",
@@ -14,33 +14,33 @@ export default function manifest(): MetadataRoute.Manifest {
     categories: ["finance", "productivity"],
     icons: [
       {
-        src: "/icon-192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "maskable",
-      },
-      {
         src: "/icon-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
+      {
+        src: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
     ],
     shortcuts: [
       {
-        name: "Dashboard",
+        name: "Übersicht",
         url: "/dashboard",
-        description: "Open trading dashboard",
+        description: "Trading-Übersicht öffnen",
       },
       {
-        name: "Signals",
+        name: "KI-Signale",
         url: "/signals",
-        description: "View AI trading signals",
+        description: "KI-Handelssignale anzeigen",
       },
       {
-        name: "Marketplace",
+        name: "Marktplatz",
         url: "/signals/marketplace",
-        description: "Signal track record",
+        description: "Signal-Performance und Track Record",
       },
     ],
   };

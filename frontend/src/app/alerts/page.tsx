@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Bell,
   Plus,
@@ -10,8 +10,9 @@ import {
   Clock,
   Activity,
 } from "lucide-react";
-import { api, API_BASE } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { PriceAlertRecord } from "@/types";
+import { useAlertsStream } from "@/hooks/useWebSocket";
 import {
   ExplanationModal,
   InfoButton,
@@ -99,16 +100,6 @@ const EXPLAIN_RISK_ALERTS: ExplanationContent = {
     "Bei kritischen Risiko-Alarmen: sofort offene Positionen prüfen und Stop-Loss-Level nachziehen.",
 };
 
-// Safely swap only the protocol so path components containing "http" aren't mangled
-const WS_BASE = (() => {
-  try {
-    const u = new URL(API_BASE);
-    u.protocol = u.protocol === "https:" ? "wss:" : "ws:";
-    return u.toString().replace(/\/$/, "") + "/ws/alerts";
-  } catch {
-    return API_BASE.replace(/^https/, "wss").replace(/^http/, "ws") + "/ws/alerts";
-  }
-})();
 
 type AlertCondition = PriceAlertRecord["condition"];
 type AlertStatus = PriceAlertRecord["status"] | "expired";
@@ -157,7 +148,7 @@ export default function AlertsPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const [explainContent, setExplainContent] = useState<ExplanationContent | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const { events: wsEvents } = useAlertsStream();
 
   // Fetch price alerts
   const fetchAlerts = useCallback(async () => {
@@ -175,44 +166,27 @@ export default function AlertsPage() {
     fetchAlerts();
   }, [fetchAlerts]);
 
-  // WebSocket — handles both price_alert_fired and risk_alert events
+  // Process incoming WebSocket events (authenticated via TradingWebSocket + ?token=)
   useEffect(() => {
-    let ws: WebSocket;
-    try {
-      ws = new WebSocket(WS_BASE);
-      wsRef.current = ws;
-      ws.onmessage = (ev) => {
-        try {
-          const data = JSON.parse(ev.data);
-          if (data?.type === "price_alert_fired") {
-            // Refresh the price alerts table so status changes to "fired"
-            fetchAlerts();
-            return;
-          }
-          if (data?.type === "risk_alert") {
-            const alert: RiskAlert = {
-              id: `${Date.now()}-${Math.random()}`,
-              message: data.message ?? "",
-              level: (data.level ?? "warning").toLowerCase(),
-              timestamp: data.timestamp ?? new Date().toISOString(),
-            };
-            setRiskAlerts((prev) => [alert, ...prev].slice(0, MAX_RISK_ALERTS));
-          }
-        } catch {
-          // ignore parse errors
-        }
-      };
-    } catch {
-      // WebSocket not available
+    const latest = wsEvents[0];
+    if (!latest) return;
+    if (latest.type === "price_alert_fired") {
+      fetchAlerts();
+      return;
     }
-    return () => {
-      try {
-        wsRef.current?.close();
-      } catch {
-        // ignore
-      }
-    };
-  }, [fetchAlerts]);
+    if (latest.type === "risk_alert") {
+      const evt = latest as unknown as { message?: string; level?: string; timestamp?: string };
+      setRiskAlerts((prev) => [
+        {
+          id: `${Date.now()}-${Math.random()}`,
+          message: evt.message ?? "",
+          level: (evt.level ?? "warning").toLowerCase(),
+          timestamp: evt.timestamp ?? new Date().toISOString(),
+        },
+        ...prev,
+      ].slice(0, MAX_RISK_ALERTS));
+    }
+  }, [wsEvents, fetchAlerts]);
 
   const handleCreateAlert = useCallback(
     async (e: React.FormEvent) => {
@@ -220,11 +194,11 @@ export default function AlertsPage() {
       setFormError(null);
       const threshold = parseFloat(formThreshold);
       if (isNaN(threshold)) {
-        setFormError("Threshold must be a number");
+        setFormError("Schwellenwert muss eine Zahl sein");
         return;
       }
       if (!formTicker.trim()) {
-        setFormError("Ticker is required");
+        setFormError("Ticker ist erforderlich");
         return;
       }
       setCreating(true);
@@ -239,7 +213,7 @@ export default function AlertsPage() {
         setFormCondition("above");
         await fetchAlerts();
       } catch (err) {
-        setFormError(err instanceof Error ? err.message : "Failed to create alert");
+        setFormError(err instanceof Error ? err.message : "Alarm konnte nicht erstellt werden");
       } finally {
         setCreating(false);
       }
@@ -253,7 +227,7 @@ export default function AlertsPage() {
         await api.priceAlerts.delete(alertId);
         setAlerts((prev) => prev.filter((a) => a.alert_id !== alertId));
       } catch {
-        setError("Failed to delete alert");
+        setError("Alarm konnte nicht gelöscht werden");
       }
     },
     []
@@ -275,9 +249,9 @@ export default function AlertsPage() {
           <Bell className="w-4 h-4 text-yellow-400" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-white">Price Alerts</h1>
+          <h1 className="text-lg font-bold text-white">Kursalarme</h1>
           <p className="text-xs" style={{ color: "rgba(100,116,139,0.7)" }}>
-            {activeCount} active alert{activeCount !== 1 ? "s" : ""}
+            {activeCount} aktiver Alarm{activeCount !== 1 ? "e" : ""}
           </p>
         </div>
       </div>
@@ -302,7 +276,7 @@ export default function AlertsPage() {
       >
         <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
           <Plus className="w-4 h-4 text-cyan-400" />
-          Add Alert
+          Alarm hinzufügen
           <InfoButton onClick={() => setExplainContent(EXPLAIN_PRICE_ALERTS)} color="cyan" className="ml-1" />
         </h2>
         <form onSubmit={handleCreateAlert} className="flex flex-wrap gap-3 items-end">
@@ -329,7 +303,7 @@ export default function AlertsPage() {
           {/* Condition */}
           <div className="flex flex-col gap-1">
             <label className="text-xs tracking-wider" style={{ color: "rgba(100,116,139,0.7)" }}>
-              CONDITION
+              BEDINGUNG
             </label>
             <select
               value={formCondition}
@@ -340,16 +314,16 @@ export default function AlertsPage() {
                 border: "1px solid rgba(0,212,255,0.15)",
               }}
             >
-              <option value="above">Above</option>
-              <option value="below">Below</option>
-              <option value="change_pct">Change %</option>
+              <option value="above">Oberhalb</option>
+              <option value="below">Unterhalb</option>
+              <option value="change_pct">Änderung %</option>
             </select>
           </div>
 
           {/* Threshold */}
           <div className="flex flex-col gap-1 min-w-[120px]">
             <label className="text-xs tracking-wider" style={{ color: "rgba(100,116,139,0.7)" }}>
-              THRESHOLD
+              SCHWELLENWERT
             </label>
             <input
               type="number"
@@ -378,7 +352,7 @@ export default function AlertsPage() {
             }}
           >
             <Plus className="w-4 h-4" />
-            {creating ? "Creating..." : "Create Alert"}
+            {creating ? "Wird erstellt…" : "Alarm erstellen"}
           </button>
         </form>
         {formError && (
@@ -395,7 +369,7 @@ export default function AlertsPage() {
         }}
       >
         <div className="px-5 py-3" style={{ borderBottom: "1px solid rgba(0,212,255,0.08)" }}>
-          <h2 className="text-sm font-semibold text-white">All Alerts</h2>
+          <h2 className="text-sm font-semibold text-white">Alle Alarme</h2>
         </div>
 
         {loading ? (
@@ -409,7 +383,7 @@ export default function AlertsPage() {
           <div className="flex flex-col items-center justify-center h-24 gap-2">
             <Bell className="w-5 h-5" style={{ color: "rgba(100,116,139,0.4)" }} />
             <p className="text-xs" style={{ color: "rgba(100,116,139,0.5)" }}>
-              No alerts configured
+              Keine Alarme konfiguriert
             </p>
           </div>
         ) : (
@@ -417,7 +391,7 @@ export default function AlertsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: "1px solid rgba(0,212,255,0.06)" }}>
-                  {["Ticker", "Condition", "Threshold", "Status", "Created", ""].map((h) => (
+                  {["Ticker", "Bedingung", "Schwellenwert", "Status", "Erstellt", ""].map((h) => (
                     <th
                       key={h}
                       className="px-5 py-3 text-left text-xs tracking-wider"
@@ -437,7 +411,7 @@ export default function AlertsPage() {
                   >
                     <td className="px-5 py-3 font-bold text-white">{alert.ticker}</td>
                     <td className="px-5 py-3" style={{ color: "rgba(148,163,184,0.9)" }}>
-                      {alert.condition === "change_pct" ? "Change %" : alert.condition.charAt(0).toUpperCase() + alert.condition.slice(1)}
+                      {alert.condition === "change_pct" ? "Änderung %" : alert.condition === "above" ? "Oberhalb" : "Unterhalb"}
                     </td>
                     <td className="px-5 py-3 font-mono" style={{ color: "rgba(148,163,184,0.9)" }}>
                       {alert.condition === "change_pct"
@@ -457,7 +431,7 @@ export default function AlertsPage() {
                         onClick={() => handleDelete(alert.alert_id)}
                         className="p-1.5 rounded-lg transition-all duration-150 hover:bg-red-500/10"
                         style={{ color: "rgba(100,116,139,0.5)" }}
-                        aria-label="Delete alert"
+                        aria-label="Alarm löschen"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -484,7 +458,7 @@ export default function AlertsPage() {
         >
           <Activity className="w-4 h-4 text-yellow-400" />
           <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-            Live Risk Alerts
+            Live-Risikoalarme
             <InfoButton onClick={() => setExplainContent(EXPLAIN_RISK_ALERTS)} color="yellow" />
           </h2>
           <span
@@ -498,7 +472,7 @@ export default function AlertsPage() {
         {riskAlerts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-20 gap-2">
             <p className="text-xs" style={{ color: "rgba(100,116,139,0.5)" }}>
-              No risk alerts received yet — monitoring active
+              Noch keine Risikoalarme — Überwachung aktiv
             </p>
           </div>
         ) : (

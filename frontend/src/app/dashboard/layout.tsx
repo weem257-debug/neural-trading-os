@@ -3,10 +3,10 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Trading Dashboard — Neural Trading OS",
   description:
-    "AI-powered trading cockpit: live portfolio tracking, real-time signals, risk gauges, WebSocket prices and neural agent activity — all in one unified dashboard.",
+    "KI-Trading Cockpit: Live Portfolio-Tracking, Echtzeit-Signale, Risikoanzeigen, WebSocket-Kurse und KI-Agenten-Aktivität — alles in einem Dashboard.",
   openGraph: {
-    title: "AI Trading Dashboard — Neural Trading OS",
-    description: "Unified cockpit for AI trading: live portfolio, signals, risk and WebSocket market data.",
+    title: "KI-Trading Dashboard — Neural Trading OS",
+    description: "Unified Cockpit für KI-Trading: Live Portfolio, Signale, Risiko und WebSocket Marktdaten.",
     type: "website",
   },
   robots: { index: false, follow: false },

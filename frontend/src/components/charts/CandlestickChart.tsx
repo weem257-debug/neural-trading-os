@@ -304,7 +304,7 @@ export default function CandlestickChart({
         const bars: OHLCVBar[] = await api.portfolio.candles(ticker, "1mo", "1d", indParam);
 
         if (!bars || bars.length === 0) {
-          setError("No data returned for this ticker.");
+          setError("Keine Daten für diesen Ticker verfügbar.");
           return;
         }
 
@@ -345,7 +345,7 @@ export default function CandlestickChart({
           setLastChange(0);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load candles");
+        setError(err instanceof Error ? err.message : "Candlestick-Daten konnten nicht geladen werden");
       } finally {
         setLoading(false);
       }
@@ -425,7 +425,7 @@ export default function CandlestickChart({
                         color:      "#334155",
                       }
                 }
-                title={`Toggle ${label}`}
+                title={`${label} ein-/ausblenden`}
               >
                 {label}
               </button>
@@ -463,7 +463,7 @@ export default function CandlestickChart({
               background: "rgba(255,255,255,0.04)",
               border:     "1px solid rgba(255,255,255,0.08)",
             }}
-            title="Refresh chart"
+            title="Chart aktualisieren"
           >
             <RefreshCw
               className={`w-3.5 h-3.5 text-slate-500 ${loading ? "animate-spin" : ""}`}

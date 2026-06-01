@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "AI Trading Signals — Neural Trading OS",
+  title: "KI-Handelssignale — Neural Trading OS",
   description:
-    "Live Claude Sonnet 4.6 trading signals: BUY/SELL/HOLD for stocks and crypto. Multi-agent consensus from Fundamental, Technical, Sentiment and Risk engines.",
+    "Live Claude Sonnet 4.6 Handelssignale: KAUF/VERKAUF/HALTEN für Aktien und Krypto. Multi-Agenten-Konsens aus Fundamental-, Technisch-, Sentiment- und Risiko-Engines.",
   openGraph: {
-    title: "Live AI Trading Signals — Neural Trading OS",
-    description: "10 signals/day from Claude multi-agent consensus. Fundamental + Technical + Sentiment + Risk engines.",
+    title: "Live KI-Handelssignale — Neural Trading OS",
+    description: "10 Signale/Tag aus Claude Multi-Agenten-Konsens. Fundamental + Technisch + Sentiment + Risiko.",
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "AI Trading Signals — Neural Trading OS",
-    description: "Live Claude Sonnet 4.6 signals: BUY/SELL/HOLD with confidence scores and price targets.",
+    title: "KI-Handelssignale — Neural Trading OS",
+    description: "Live Claude Sonnet 4.6 Signale: KAUF/VERKAUF/HALTEN mit Konfidenzwerten und Kurszielen.",
   },
 };
 

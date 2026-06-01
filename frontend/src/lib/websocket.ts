@@ -4,6 +4,7 @@
  */
 
 import type { WSEvent } from "@/types";
+import { getAuthToken } from "@/lib/api";
 
 type EventHandler = (event: WSEvent) => void;
 
@@ -12,6 +13,8 @@ const WS_URL =
 
 const RECONNECT_BASE_MS = 1000;
 const RECONNECT_MAX_MS = 30_000;
+
+const DEBUG = process.env.NODE_ENV !== "production";
 
 export class TradingWebSocket {
   private ws: WebSocket | null = null;
@@ -31,24 +34,21 @@ export class TradingWebSocket {
     this.channel = channel;
   }
 
-  private getToken(): string {
-    try {
-      const raw = localStorage.getItem("neural-auth-storage");
-      return (JSON.parse(raw || "{}") as { state?: { token?: string } })?.state?.token ?? "";
-    } catch {
-      return "";
-    }
-  }
-
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN) return;
 
-    const token = this.getToken();
-    const url = `${WS_URL}/ws/${this.channel}${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    const token = getAuthToken() ?? "";
+    // Don't attempt connection without a token — backend returns 403 immediately
+    if (!token) {
+      this.shouldReconnect = false;
+      return;
+    }
+
+    const url = `${WS_URL}/ws/${this.channel}?token=${encodeURIComponent(token)}`;
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {
-      console.log(`[WS] Connected to channel: ${this.channel}`);
+      if (DEBUG) console.log(`[WS] Connected to channel: ${this.channel}`);
       this.reconnectAttempts = 0; // reset backoff on successful connect
       this.startPing();
     };
@@ -64,12 +64,12 @@ export class TradingWebSocket {
     };
 
     this.ws.onclose = () => {
-      console.log(`[WS] Disconnected from channel: ${this.channel}`);
+      if (DEBUG) console.log(`[WS] Disconnected from channel: ${this.channel}`);
       this.stopPing();
       if (this.shouldReconnect) {
         const delay = this.reconnectDelayMs;
         this.reconnectAttempts++;
-        console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+        if (DEBUG) console.log(`[WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
         this.reconnectTimer = setTimeout(() => this.connect(), delay);
       }
     };

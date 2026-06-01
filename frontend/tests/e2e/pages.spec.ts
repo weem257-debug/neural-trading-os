@@ -10,10 +10,10 @@ import { test, expect } from "@playwright/test";
 const ROUTES: Array<{ path: string; heading: RegExp }> = [
   { path: "/portfolio",  heading: /portfolio/i },
   { path: "/backtest",   heading: /backtest/i },
-  { path: "/risk",       heading: /risk panel|risikopanel/i },
+  { path: "/risk",       heading: /risiko-panel/i },
   { path: "/sentiment",  heading: /sentiment|stimmung/i },
-  { path: "/execution",  heading: /execution|ausf/i },
-  { path: "/alerts",     heading: /alerts|alarme/i },
+  { path: "/execution",  heading: /ausführung/i },
+  { path: "/alerts",     heading: /kursalarme/i },
 ];
 
 test.describe("Page smoke tests", () => {
@@ -30,7 +30,7 @@ test.describe("Page smoke tests", () => {
   test("risk page shows gauge section", async ({ page }) => {
     await page.goto("/risk");
     // The tachometer gauges section exists
-    const gaugesSection = page.getByText(/risk gauges/i, { exact: false });
+    const gaugesSection = page.getByText(/risikoanzeigen/i, { exact: false });
     await expect(gaugesSection).toBeVisible({ timeout: 10_000 });
   });
 

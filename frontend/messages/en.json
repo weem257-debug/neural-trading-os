@@ -15,7 +15,10 @@
     "alerts": "Alerts",
     "pricing": "Pricing",
     "billing": "Billing",
-    "settings": "Settings"
+    "performance": "AI Performance",
+    "brokers": "Brokers & Depots",
+    "settings": "Settings",
+    "account": "My Account"
   },
   "dashboard": {
     "title": "Overview",

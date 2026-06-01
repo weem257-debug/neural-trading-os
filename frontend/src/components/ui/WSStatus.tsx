@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { getAuthToken } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,9 +25,14 @@ const WS_BASE =
     ? (process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000")
     : "ws://localhost:8000";
 
-const WS_URL        = `${WS_BASE}/ws/prices`;
-const PING_INTERVAL = 5_000;   // ms between pings
-const RECONNECT_DELAY = 3_000; // ms before reconnect attempt
+const PING_INTERVAL = 5_000;
+const RECONNECT_DELAY = 3_000;
+
+function getWsUrl(): string | null {
+  const token = getAuthToken();
+  if (!token) return null;
+  return `${WS_BASE}/ws/prices?token=${encodeURIComponent(token)}`;
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -62,11 +68,18 @@ export function WSStatus() {
       wsRef.current = null;
     }
 
+    const wsUrl = getWsUrl();
+    if (!wsUrl) {
+      // Not logged in — stay disconnected, no auto-reconnect
+      setState((s) => ({ ...s, status: "disconnected" }));
+      return;
+    }
+
     setState((s) => ({ ...s, status: "connecting" }));
 
     let ws: WebSocket;
     try {
-      ws = new WebSocket(WS_URL);
+      ws = new WebSocket(wsUrl);
     } catch {
       // WebSocket constructor can throw in some environments
       setState((s) => ({ ...s, status: "disconnected" }));
@@ -222,7 +235,7 @@ export function WSStatus() {
       {status === "disconnected" && (
         <button
           onClick={handleReconnect}
-          title="Reconnect WebSocket"
+          title="WebSocket neu verbinden"
           className="p-0.5 rounded transition-all hover:opacity-80"
           style={{ color: "#FF0080" }}
         >

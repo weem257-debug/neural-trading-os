@@ -1,21 +1,23 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Key, TrendingUp, Bell, Info, Save, Eye, EyeOff,
   CheckCircle, AlertTriangle, Plus, Trash2, Webhook,
-  Play, Loader2, Activity, Landmark, Building, Send,
+  Play, Loader2, Activity, Landmark, Building, Send, Building2,
+  RefreshCw, ExternalLink, Lock, Mail,
 } from "lucide-react";
 import { GlassCard, SectionLabel } from "@/components/ui/GlassCard";
 import { api, API_BASE } from "@/lib/api";
+import { getPasswordStrength } from "@/lib/passwordStrength";
 import type { PriceAlertRecord, WebhookRecord, RepoPathEntry, ApiMetricsResponse } from "@/types";
 
 const WEBHOOK_EVENT_OPTIONS = [
-  { value: "signal.generated", label: "Signal Generated" },
-  { value: "alert.fired",      label: "Alert Fired" },
-  { value: "order.filled",     label: "Order Filled" },
-  { value: "risk.alert",       label: "Risk Alert" },
+  { value: "signal.generated", label: "Signal generiert" },
+  { value: "alert.fired",      label: "Alarm ausgelöst" },
+  { value: "order.filled",     label: "Order ausgeführt" },
+  { value: "risk.alert",       label: "Risikoalarm" },
 ];
 
 type AlertCondition = PriceAlertRecord["condition"];
@@ -48,7 +50,7 @@ function PriceAlertsSection() {
   async function handleCreate() {
     if (!ticker.trim() || !threshold) return;
     const parsed = parseFloat(threshold);
-    if (isNaN(parsed)) { setError("Threshold must be a number"); return; }
+    if (isNaN(parsed)) { setError("Schwellenwert muss eine Zahl sein"); return; }
     setError(null);
     setLoading(true);
     try {
@@ -61,7 +63,7 @@ function PriceAlertsSection() {
       setThreshold("");
       await fetchAlerts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create alert");
+      setError(err instanceof Error ? err.message : "Alarm konnte nicht erstellt werden");
     } finally {
       setLoading(false);
     }
@@ -77,9 +79,9 @@ function PriceAlertsSection() {
   }
 
   const conditionLabel: Record<AlertCondition, string> = {
-    above: "Price above",
-    below: "Price below",
-    change_pct: "Change % >=",
+    above: "Preis über",
+    below: "Preis unter",
+    change_pct: "Änderung % >=",
   };
 
   return (
@@ -90,7 +92,7 @@ function PriceAlertsSection() {
       >
         <div className="flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-amber-400" aria-hidden="true" />
-          <SectionLabel>Price Alerts</SectionLabel>
+          <SectionLabel>Preis-Alerts</SectionLabel>
         </div>
       </div>
 
@@ -100,7 +102,7 @@ function PriceAlertsSection() {
           type="text"
           value={ticker}
           onChange={(e) => setTicker(e.target.value.toUpperCase())}
-          placeholder="Ticker (e.g. AAPL)"
+          placeholder="Ticker (z.B. AAPL)"
           maxLength={10}
           className="flex-1 rounded-xl px-3 py-2 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,170,0,0.2)" }}
@@ -111,15 +113,15 @@ function PriceAlertsSection() {
           className="rounded-xl px-3 py-2 text-sm text-slate-200 outline-none"
           style={{ background: "rgba(30,30,40,0.95)", border: "1px solid rgba(255,170,0,0.2)" }}
         >
-          <option value="above">above</option>
-          <option value="below">below</option>
-          <option value="change_pct">change %</option>
+          <option value="above">über</option>
+          <option value="below">unter</option>
+          <option value="change_pct">Änderung %</option>
         </select>
         <input
           type="number"
           value={threshold}
           onChange={(e) => setThreshold(e.target.value)}
-          placeholder="Threshold"
+          placeholder="Schwellenwert"
           className="w-32 rounded-xl px-3 py-2 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,170,0,0.2)" }}
         />
@@ -134,7 +136,7 @@ function PriceAlertsSection() {
           }}
         >
           <Plus className="w-4 h-4" />
-          Add
+          Hinzufügen
         </button>
       </div>
 
@@ -142,7 +144,7 @@ function PriceAlertsSection() {
 
       {/* Alerts list */}
       {alerts.length === 0 ? (
-        <p className="text-xs text-slate-600 text-center py-4">No alerts configured.</p>
+        <p className="text-xs text-slate-600 text-center py-4">Keine Alerts konfiguriert.</p>
       ) : (
         <div className="space-y-2">
           {alerts.map((a) => (
@@ -160,13 +162,13 @@ function PriceAlertsSection() {
                 <span className="font-mono text-amber-400">{a.threshold}</span>
                 {a.status === "fired" && (
                   <span className="text-xs text-amber-300 bg-amber-900/30 px-2 py-0.5 rounded-full">
-                    Fired @ {a.fired_price?.toFixed(2)}
+                    Ausgelöst @ {a.fired_price?.toFixed(2)}
                   </span>
                 )}
               </div>
               <button
                 onClick={() => handleDelete(a.alert_id)}
-                aria-label={`Delete alert for ${a.ticker}`}
+                aria-label={`Alert für ${a.ticker} löschen`}
                 className="text-slate-600 hover:text-red-400 transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
@@ -184,7 +186,7 @@ function PriceAlertsSection() {
 // ---------------------------------------------------------------------------
 
 function TelegramSection() {
-  const [status, setStatus] = useState<{connected: boolean; username: string | null; configured: boolean} | null>(null);
+  const [status, setStatus] = useState<{connected: boolean; username: string | null; configured: boolean; webhook_url?: string} | null>(null);
   const [connectLink, setConnectLink] = useState<string | null>(null);
   const [connectCode, setConnectCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -193,29 +195,27 @@ function TelegramSection() {
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
   const [backendUrl, setBackendUrl] = useState("");
 
-  function getToken() {
-    try {
-      return (JSON.parse(localStorage.getItem("neural-auth-storage") || "{}") as {state?: {token?: string}})?.state?.token ?? "";
-    } catch { return ""; }
-  }
-
   useEffect(() => {
-    fetch(`${API_BASE}/api/telegram/status`, { headers: { Authorization: `Bearer ${getToken()}` } })
-      .then(r => r.json()).then(setStatus).catch(() => {});
+    api.telegram.status()
+      .then(data => {
+        setStatus(data);
+        if (data.webhook_url) setWebhookUrl(data.webhook_url);
+        if (data.webhook_url) setWebhookSetting("ok");
+      })
+      .catch(() => {});
   }, []);
 
   async function handleConnect() {
     setLoading(true);
     try {
-      const r = await fetch(`${API_BASE}/api/telegram/connect`, { method: "POST", headers: { Authorization: `Bearer ${getToken()}` } });
-      const data = await r.json();
+      const data = await api.telegram.connect();
       setConnectLink(data.bot_link);
       setConnectCode(data.code);
     } finally { setLoading(false); }
   }
 
   async function handleTest() {
-    await fetch(`${API_BASE}/api/telegram/test`, { method: "POST", headers: { Authorization: `Bearer ${getToken()}` } });
+    await api.telegram.test();
     setTestSent(true);
     setTimeout(() => setTestSent(false), 3000);
   }
@@ -233,6 +233,20 @@ function TelegramSection() {
       setTokenSaved(true);
       setStatus(s => s ? { ...s, configured: true } : s);
       setTimeout(() => setTokenSaved(false), 3000);
+      // Auto-setup webhook if not on localhost
+      const isLocal = API_BASE.includes("localhost") || API_BASE.includes("127.0.0.1");
+      if (!isLocal) {
+        setWebhookSetting("loading");
+        try {
+          const result = await api.telegram.setupWebhook();
+          setWebhookUrl(result.webhook_url);
+          setWebhookSetting("ok");
+          setStatus(s => s ? { ...s, webhook_url: result.webhook_url } : s);
+        } catch {
+          setWebhookSetting("error");
+          setTimeout(() => setWebhookSetting("idle"), 5000);
+        }
+      }
     } finally { setTokenSaving(false); }
   }
 
@@ -249,7 +263,7 @@ function TelegramSection() {
   }
 
   async function handleDisconnect() {
-    await fetch(`${API_BASE}/api/telegram/disconnect`, { method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` } });
+    await api.telegram.disconnect();
     setStatus(s => s ? {...s, connected: false, username: null} : s);
     setConnectLink(null);
   }
@@ -258,7 +272,7 @@ function TelegramSection() {
     <GlassCard padding="p-5">
       <div className="flex items-center gap-2 mb-4">
         <Send className="w-4 h-4 text-cyan-400" />
-        <SectionLabel>Telegram Notifications</SectionLabel>
+        <SectionLabel>Telegram-Benachrichtigungen</SectionLabel>
         {status?.configured === false && (
           <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(255,215,0,0.1)", color: "#FFD700" }}>
             Bot-Token nicht gesetzt
@@ -301,14 +315,25 @@ function TelegramSection() {
         </div>
       )}
 
-      {/* Webhook setup (shown when configured but webhook not yet registered) */}
+      {/* Webhook setup (shown when configured) */}
       {status?.configured && (
         <div className="mb-4 p-3 rounded-xl space-y-2" style={{ background: "rgba(0,212,255,0.04)", border: "1px solid rgba(0,212,255,0.12)" }}>
-          <p className="text-xs text-cyan-300 font-medium">Webhook registrieren (Schritt 2)</p>
-          <p className="text-xs text-slate-500">
-            Nur einmalig nötig — verbindet Telegram mit deinem Backend.
-            Bei Railway-Deployment die Backend-URL eintragen.
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-cyan-300 font-medium">Webhook (Schritt 2)</p>
+            {(webhookUrl || status.webhook_url) && (
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88" }}>
+                ✓ Aktiv
+              </span>
+            )}
+          </div>
+          {(webhookUrl || status.webhook_url) ? (
+            <p className="text-xs font-mono text-slate-500 break-all">{webhookUrl || status.webhook_url}</p>
+          ) : (
+            <p className="text-xs text-slate-500">
+              Nur einmalig nötig — verbindet Telegram mit deinem Backend.
+              Bei Railway-Deployment die Backend-URL eintragen.
+            </p>
+          )}
           <div className="flex gap-2">
             <input
               type="url"
@@ -348,10 +373,10 @@ function TelegramSection() {
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm" style={{ color: "#00FF88" }}>
             <CheckCircle className="w-4 h-4" />
-            Connected{status.username ? ` as @${status.username}` : ""}
+            Verbunden{status.username ? ` als @${status.username}` : ""}
           </div>
           <p className="text-xs text-slate-500">
-            You will receive price alert and signal notifications via Telegram.
+            Du erhältst Kursalarme und KI-Signale direkt in Telegram.
           </p>
           <div className="flex gap-2">
             <button
@@ -359,21 +384,21 @@ function TelegramSection() {
               className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
               style={{ background: "rgba(0,212,255,0.1)", color: "#00D4FF", border: "1px solid rgba(0,212,255,0.2)" }}
             >
-              {testSent ? "Sent!" : "Send Test"}
+              {testSent ? "Gesendet!" : "Test senden"}
             </button>
             <button
               onClick={handleDisconnect}
               className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
               style={{ background: "rgba(255,0,128,0.08)", color: "#FF0080", border: "1px solid rgba(255,0,128,0.2)" }}
             >
-              Disconnect
+              Trennen
             </button>
           </div>
         </div>
       ) : connectLink ? (
         <div className="space-y-3">
           <p className="text-sm text-slate-300">
-            Open this link and send <code className="text-cyan-400 bg-white/5 px-1 rounded">/start</code> to the bot:
+            Öffne diesen Link und sende <code className="text-cyan-400 bg-white/5 px-1 rounded">/start</code> an den Bot:
           </p>
           <a
             href={connectLink}
@@ -383,17 +408,17 @@ function TelegramSection() {
             style={{ background: "linear-gradient(135deg, #00D4FF22, #7B2FFF22)", border: "1px solid rgba(0,212,255,0.3)", color: "#00D4FF" }}
           >
             <Send className="w-3.5 h-3.5" />
-            Open Telegram Bot
+            Telegram Bot öffnen
           </a>
-          <p className="text-xs text-slate-600">Code: <span className="font-mono text-slate-400">{connectCode}</span> — valid for 10 minutes</p>
+          <p className="text-xs text-slate-600">Code: <span className="font-mono text-slate-400">{connectCode}</span> — gültig für 10 Minuten</p>
           <button onClick={() => window.location.reload()} className="text-xs text-cyan-400 underline">
-            I connected — refresh status
+            Verbunden — Status aktualisieren
           </button>
         </div>
       ) : (
         <div className="space-y-3">
           <p className="text-sm text-slate-400">
-            Get price alerts and AI signals directly in Telegram.
+            Erhalte Kursalarme und KI-Signale direkt in Telegram.
           </p>
           <button
             onClick={handleConnect}
@@ -402,7 +427,7 @@ function TelegramSection() {
             style={{ background: "rgba(0,212,255,0.1)", color: "#00D4FF", border: "1px solid rgba(0,212,255,0.25)" }}
           >
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            Connect Telegram
+            Telegram verbinden
           </button>
         </div>
       )}
@@ -446,11 +471,11 @@ function EngineStatusSection() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-cyan-400" aria-hidden="true" />
-            <SectionLabel>AI Engine Status</SectionLabel>
+            <SectionLabel>KI-Engine-Status</SectionLabel>
           </div>
           {!loading && repos && (
             <span className="text-xs font-mono" style={{ color: installedCount === entries.length ? "#00FF88" : "#FFD700" }}>
-              {installedCount}/{entries.length} installed
+              {installedCount}/{entries.length} installiert
             </span>
           )}
         </div>
@@ -492,13 +517,13 @@ function EngineStatusSection() {
                   border: `1px solid ${entry.exists ? "rgba(0,255,136,0.25)" : "rgba(100,116,139,0.15)"}`,
                 }}
               >
-                {entry.exists ? "READY" : "MISSING"}
+                {entry.exists ? "BEREIT" : "FEHLT"}
               </span>
             </div>
           ))}
         </div>
       ) : (
-        <p className="text-sm text-slate-500 text-center py-4">Could not load engine status — backend offline?</p>
+        <p className="text-sm text-slate-500 text-center py-4">Engine-Status konnte nicht geladen werden — Backend offline?</p>
       )}
     </GlassCard>
   );
@@ -538,12 +563,12 @@ function SystemMetricsSection() {
 
   const metricItems: { label: string; value: string; highlight?: boolean }[] = metrics
     ? [
-        { label: "Requests Total",       value: metrics.requests_total.toLocaleString() },
-        { label: "Avg Response",         value: `${metrics.avg_response_ms.toFixed(1)} ms` },
-        { label: "WS Connections",       value: String(metrics.ws_connections_active), highlight: metrics.ws_connections_active > 0 },
-        { label: "Signals Today",        value: String(metrics.signals_generated_today), highlight: metrics.signals_generated_today > 0 },
-        { label: "DB Size",              value: `${metrics.db_size_kb.toFixed(0)} KB` },
-        { label: "Uptime",               value: fmtUptime(metrics.uptime_seconds), highlight: true },
+        { label: "Anfragen Gesamt",       value: metrics.requests_total.toLocaleString() },
+        { label: "Ø Antwort",            value: `${metrics.avg_response_ms.toFixed(1)} ms` },
+        { label: "WS Verbindungen",      value: String(metrics.ws_connections_active), highlight: metrics.ws_connections_active > 0 },
+        { label: "Signale heute",        value: String(metrics.signals_generated_today), highlight: metrics.signals_generated_today > 0 },
+        { label: "DB Größe",             value: `${metrics.db_size_kb.toFixed(0)} KB` },
+        { label: "Laufzeit",             value: fmtUptime(metrics.uptime_seconds), highlight: true },
       ]
     : [];
 
@@ -553,7 +578,7 @@ function SystemMetricsSection() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-cyan-400" aria-hidden="true" />
-            <SectionLabel>System Metrics</SectionLabel>
+            <SectionLabel>System-Kennzahlen</SectionLabel>
           </div>
           {metrics && (
             <span className="text-xs font-mono text-slate-600">
@@ -590,9 +615,134 @@ function SystemMetricsSection() {
         </div>
       ) : (
         <p className="text-sm text-slate-500 text-center py-4">
-          Metrics unavailable — backend offline?
+          Kennzahlen nicht verfügbar — Backend offline?
         </p>
       )}
+    </GlassCard>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Change Password Section
+// ---------------------------------------------------------------------------
+
+function ChangePasswordSection() {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (next !== confirm) { setError("Passwörter stimmen nicht überein"); return; }
+    setLoading(true);
+    try {
+      await api.auth.changePassword(current, next);
+      setSuccess(true);
+      setCurrent(""); setNext(""); setConfirm("");
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Verbindungsfehler");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const pwStrength = useMemo(() => getPasswordStrength(next), [next]);
+  const inputCls = "w-full pl-10 pr-10 py-2.5 rounded-lg text-sm text-slate-200 placeholder-slate-600 outline-none transition-all duration-200";
+  const inputStyle = { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.15)" };
+
+  return (
+    <GlassCard variant="cyan" delay={0.3}>
+      <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ background: "rgba(0,212,255,0.06)", borderBottom: "1px solid rgba(0,212,255,0.1)" }}>
+        <div className="flex items-center gap-2">
+          <Lock className="w-4 h-4 text-cyan-400" aria-hidden="true" />
+          <SectionLabel>Passwort ändern</SectionLabel>
+        </div>
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4" style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)" }}>
+          <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+          <span className="text-xs text-red-400">{error}</span>
+        </div>
+      )}
+      {success && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4" style={{ background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.3)" }}>
+          <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+          <span className="text-xs text-green-400">Passwort erfolgreich geändert.</span>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-3">
+        {[
+          { id: "cp-cur", label: "AKTUELLES PASSWORT", val: current, set: setCurrent, auto: "current-password" },
+          { id: "cp-new", label: "NEUES PASSWORT", val: next, set: setNext, auto: "new-password" },
+          { id: "cp-con", label: "NEUES PASSWORT BESTÄTIGEN", val: confirm, set: setConfirm, auto: "new-password" },
+        ].map(({ id, label, val, set, auto }) => (
+          <div key={id}>
+            <label htmlFor={id} className="block text-xs font-semibold tracking-wider mb-1" style={{ color: "rgba(100,116,139,0.8)" }}>{label}</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "rgba(0,212,255,0.4)" }} />
+              <input
+                id={id}
+                type={showPw ? "text" : "password"}
+                autoComplete={auto}
+                required
+                minLength={id === "cp-cur" ? 1 : 8}
+                value={val}
+                onChange={(e) => set(e.target.value)}
+                className={inputCls}
+                style={inputStyle}
+              />
+              {id === "cp-new" && (
+                <button
+                  type="button"
+                  onClick={() => setShowPw((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  aria-label={showPw ? "Passwörter ausblenden" : "Passwörter anzeigen"}
+                  style={{ color: "rgba(100,116,139,0.5)" }}
+                >
+                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              )}
+            </div>
+            {id === "cp-new" && next.length > 0 && (
+              <div className="mt-1.5">
+                <div className="flex gap-1 mb-0.5">
+                  {[1, 2, 3, 4].map((seg) => (
+                    <div
+                      key={seg}
+                      className="h-1 flex-1 rounded-full transition-all duration-300"
+                      style={{ background: seg <= pwStrength.score ? pwStrength.color : "rgba(255,255,255,0.08)" }}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs" style={{ color: pwStrength.color }}>{pwStrength.label}</p>
+              </div>
+            )}
+          </div>
+        ))}
+
+        <button
+          type="submit"
+          disabled={loading || !current || !next || !confirm}
+          className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all"
+          style={{
+            background: "linear-gradient(135deg, rgba(0,212,255,0.15), rgba(123,47,255,0.1))",
+            border: "1px solid rgba(0,212,255,0.35)",
+            color: "#00D4FF",
+            opacity: (!current || !next || !confirm) ? 0.5 : 1,
+          }}
+        >
+          <Save className="w-4 h-4" />
+          {loading ? "Wird gespeichert…" : "Passwort speichern"}
+        </button>
+      </form>
     </GlassCard>
   );
 }
@@ -630,7 +780,7 @@ function WebhooksSection() {
       setUrl("");
       await fetchWebhooks();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create webhook");
+      setError(err instanceof Error ? err.message : "Webhook konnte nicht erstellt werden");
     } finally {
       setLoading(false);
     }
@@ -670,7 +820,7 @@ function WebhooksSection() {
       >
         <div className="flex items-center gap-2">
           <Webhook className="w-4 h-4 text-neon-purple" aria-hidden="true" />
-          <SectionLabel>Outbound Webhooks</SectionLabel>
+          <SectionLabel>Ausgehende Webhooks</SectionLabel>
         </div>
       </div>
 
@@ -711,7 +861,7 @@ function WebhooksSection() {
           }}
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          Register
+          Registrieren
         </button>
       </div>
 
@@ -719,7 +869,7 @@ function WebhooksSection() {
 
       {/* Webhook list */}
       {webhooks.length === 0 ? (
-        <p className="text-xs text-slate-600 text-center py-4">No webhooks registered.</p>
+        <p className="text-xs text-slate-600 text-center py-4">Keine Webhooks registriert.</p>
       ) : (
         <div className="space-y-2">
           {webhooks.map((wh) => {
@@ -742,11 +892,11 @@ function WebhooksSection() {
                     ))}
                   </div>
                   {wh.delivery_failures > 0 && (
-                    <p className="text-xs text-red-400 mt-1">{wh.delivery_failures} delivery failure(s)</p>
+                    <p className="text-xs text-red-400 mt-1">{wh.delivery_failures} Zustellungsfehler</p>
                   )}
                   {result && (
                     <p className={`text-xs mt-1 ${result.success ? "text-green-400" : "text-red-400"}`}>
-                      {result.success ? "Test delivered successfully" : "Test delivery failed"}
+                      {result.success ? "Test erfolgreich zugestellt" : "Test-Zustellung fehlgeschlagen"}
                     </p>
                   )}
                 </div>
@@ -754,7 +904,7 @@ function WebhooksSection() {
                   <button
                     onClick={() => handleTest(wh.id)}
                     disabled={isTestingThis}
-                    aria-label="Test webhook"
+                    aria-label="Webhook testen"
                     className="text-slate-500 hover:text-purple-400 transition-colors disabled:opacity-40"
                   >
                     {isTestingThis
@@ -764,7 +914,7 @@ function WebhooksSection() {
                   </button>
                   <button
                     onClick={() => handleDelete(wh.id)}
-                    aria-label="Delete webhook"
+                    aria-label="Webhook löschen"
                     className="text-slate-600 hover:text-red-400 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -784,8 +934,8 @@ function WebhooksSection() {
 // ---------------------------------------------------------------------------
 
 const P2P_FIELDS: Array<{ key: string; label: string; placeholder: string; type?: "password" }> = [
-  { key: "MINTOS_API_KEY",      label: "Mintos API Key",       placeholder: "Bearer token from developers.mintos.com" },
-  { key: "BONDORA_API_KEY",     label: "Bondora API Key",      placeholder: "Token from api.bondora.com" },
+  { key: "MINTOS_API_KEY",      label: "Mintos API Key",       placeholder: "Bearer-Token aus developers.mintos.com" },
+  { key: "BONDORA_API_KEY",     label: "Bondora API Key",      placeholder: "Token aus api.bondora.com" },
   { key: "PEERBERRY_EMAIL",     label: "PeerBerry E-Mail",     placeholder: "me@example.com" },
   { key: "PEERBERRY_PASSWORD",  label: "PeerBerry Passwort",   placeholder: "••••••••", type: "password" },
 ];
@@ -938,6 +1088,459 @@ function P2PCredentialsSection() {
 }
 
 // ---------------------------------------------------------------------------
+// Broker Credentials Section
+// ---------------------------------------------------------------------------
+
+type BrokerFieldDef = {
+  key: string;
+  label: string;
+  placeholder: string;
+  type?: "password";
+  group: string;
+};
+
+const BROKER_FIELDS: BrokerFieldDef[] = [
+  // Bitpanda
+  { key: "BITPANDA_API_KEY",          label: "Bitpanda API Key",            placeholder: "Bearer token aus bitpanda.com/de/account/api",                    type: "password", group: "Bitpanda" },
+  // Comdirect
+  { key: "COMDIRECT_CLIENT_ID",       label: "Comdirect Client ID",         placeholder: "Aus developer.comdirect.de — App registrieren",                    group: "Comdirect (OAuth2)" },
+  { key: "COMDIRECT_CLIENT_SECRET",   label: "Comdirect Client Secret",     placeholder: "Aus developer.comdirect.de",                                       type: "password", group: "Comdirect (OAuth2)" },
+  { key: "COMDIRECT_ACCESS_TOKEN",    label: "Comdirect Access Token",      placeholder: "Nach OAuth-Flow automatisch gesetzt — oder manuell eintragen",     type: "password", group: "Comdirect (OAuth2)" },
+  // DEGIRO
+  { key: "DEGIRO_USERNAME",           label: "DEGIRO Benutzername",         placeholder: "Login-E-Mail oder Username",                                        group: "DEGIRO" },
+  { key: "DEGIRO_PASSWORD",           label: "DEGIRO Passwort",             placeholder: "••••••••",                                                          type: "password", group: "DEGIRO" },
+  { key: "DEGIRO_TOTP_TOKEN",         label: "DEGIRO 2FA-Secret (TOTP)",    placeholder: "TOTP-Secret (optional, wenn 2FA aktiviert)",                       type: "password", group: "DEGIRO" },
+  // Flatex
+  { key: "FLATEX_FINTS_USER",         label: "Flatex FinTS-Login",          placeholder: "Dein Online-Banking-Login (z.B. 1234567890)",                       group: "Flatex (FinTS)" },
+  { key: "FLATEX_FINTS_ACCOUNT",      label: "Flatex IBAN (optional)",      placeholder: "DE89 370 400 440 532 013 000 (für Kontoabfrage)",                   group: "Flatex (FinTS)" },
+  // Trade Republic
+  { key: "TR_PHONE_NUMBER",           label: "Trade Republic Telefon",      placeholder: "+49151...",                                                          group: "Trade Republic" },
+  { key: "TR_PIN",                    label: "Trade Republic PIN",          placeholder: "4-stellige PIN aus der App",                                        type: "password", group: "Trade Republic" },
+  // WH SelfInvest
+  { key: "WH_CTRADER_CLIENT_ID",      label: "cTrader Client ID",           placeholder: "Aus dem cTrader Open API Portal",                                   group: "WH SelfInvest (cTrader)" },
+  { key: "WH_CTRADER_CLIENT_SECRET",  label: "cTrader Client Secret",       placeholder: "••••••••",                                                          type: "password", group: "WH SelfInvest (cTrader)" },
+  { key: "WH_CTRADER_ACCESS_TOKEN",   label: "cTrader Access Token",        placeholder: "Nach OAuth-Flow gesetzt",                                           type: "password", group: "WH SelfInvest (cTrader)" },
+  { key: "WH_CTRADER_ACCOUNT_ID",     label: "cTrader Account ID",          placeholder: "Konto-ID aus der cTrader-Anwendung",                                group: "WH SelfInvest (cTrader)" },
+  // Crowdestor
+  { key: "CROWDESTOR_EMAIL",          label: "Crowdestor E-Mail",           placeholder: "me@example.com",                                                    group: "Crowdestor" },
+  { key: "CROWDESTOR_PASSWORD",       label: "Crowdestor Passwort",         placeholder: "••••••••",                                                          type: "password", group: "Crowdestor" },
+];
+
+// Broker-Felder nach Gruppe zusammenfassen
+const BROKER_GROUPS = Array.from(new Set(BROKER_FIELDS.map((f) => f.group)));
+
+// ---------------------------------------------------------------------------
+// Flatex Session-PIN Block
+// ---------------------------------------------------------------------------
+
+function FlatexSyncBlock() {
+  const [pin, setPin] = useState("");
+  const [iban, setIban] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [result, setResult] = useState<{ balance?: number; currency?: string; is_demo?: boolean; error?: string; lib_missing?: boolean } | null>(null);
+  const [showPin, setShowPin] = useState(false);
+
+  async function handleSync() {
+    if (!pin.trim()) return;
+    setSyncing(true);
+    setResult(null);
+    try {
+      const data = await api.brokers.flatexSync(pin.trim(), iban.trim() || undefined);
+      setResult(data as { balance?: number; currency?: string; is_demo?: boolean; error?: string; lib_missing?: boolean });
+      setPin(""); // PIN sofort löschen nach Nutzung
+    } catch (err) {
+      setResult({ error: err instanceof Error ? err.message : "Fehler" });
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 rounded-xl p-3"
+      style={{ background: "rgba(123,47,255,0.06)", border: "1px solid rgba(123,47,255,0.2)" }}>
+      <p className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+        <Lock className="w-3.5 h-3.5 text-purple-400" />
+        Flatex Kontostand synchronisieren
+      </p>
+      <p className="text-xs text-slate-500">
+        PIN wird <strong className="text-slate-400">nicht gespeichert</strong> — gilt nur für diese Abfrage.
+      </p>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <input
+            type={showPin ? "text" : "password"}
+            value={pin}
+            onChange={(e) => setPin(e.target.value)}
+            placeholder="FinTS-PIN eingeben…"
+            autoComplete="one-time-code"
+            className="w-full rounded-xl px-3 py-2 pr-10 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(123,47,255,0.3)" }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSync(); }}
+          />
+          <button type="button" onClick={() => setShowPin((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors">
+            {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+        <button
+          onClick={handleSync}
+          disabled={syncing || !pin.trim()}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
+          style={{ background: "rgba(123,47,255,0.12)", border: "1px solid rgba(123,47,255,0.3)", color: "#9B5DFF" }}
+        >
+          {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+          Sync
+        </button>
+      </div>
+      {result && (
+        <div className="rounded-lg px-3 py-2 text-xs"
+          style={{
+            background: result.error ? "rgba(255,0,128,0.06)" : "rgba(0,255,136,0.06)",
+            border: `1px solid ${result.error ? "rgba(255,0,128,0.2)" : "rgba(0,255,136,0.2)"}`,
+          }}>
+          {result.error
+            ? <p className="text-red-400">{result.error}</p>
+            : result.lib_missing
+            ? <p className="text-amber-400">python-fints nicht installiert — <code className="bg-white/5 px-1 rounded">pip install python-fints</code></p>
+            : <p className="text-green-300">
+                Kontostand: <strong>{result.balance?.toLocaleString("de-DE", { minimumFractionDigits: 2 })} {result.currency ?? "EUR"}</strong>
+                {result.is_demo && " (Demo)"}
+              </p>
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Comdirect OAuth2 Flow Block
+// ---------------------------------------------------------------------------
+
+function ComdirectOAuthBlock({
+  hasClientId,
+  hasClientSecret,
+  hasAccessToken,
+  onTokenSaved,
+}: {
+  hasClientId: boolean;
+  hasClientSecret: boolean;
+  hasAccessToken: boolean;
+  onTokenSaved: () => void;
+}) {
+  const [initiating, setInitiating] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [oauthResult, setOauthResult] = useState<{ success: boolean; onetime_token?: string; next_step?: string; error?: string } | null>(null);
+  const [refreshResult, setRefreshResult] = useState<{ success: boolean; message?: string; error?: string; action?: string } | null>(null);
+
+  const credentialsReady = hasClientId && hasClientSecret;
+
+  async function handleInitiate() {
+    setInitiating(true);
+    setOauthResult(null);
+    try {
+      const data = await api.brokers.comdirectOauthInitiate();
+      setOauthResult(data);
+    } catch {
+      setOauthResult({ success: false, error: "Verbindungsfehler" });
+    } finally {
+      setInitiating(false);
+    }
+  }
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    setRefreshResult(null);
+    try {
+      const data = await api.brokers.comdirectOauthRefresh();
+      setRefreshResult(data);
+      if (data.success) onTokenSaved();
+    } catch {
+      setRefreshResult({ success: false, error: "Verbindungsfehler" });
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  if (!credentialsReady) {
+    return (
+      <div className="flex items-start gap-2 px-3 py-2 rounded-lg text-xs"
+        style={{ background: "rgba(100,116,139,0.08)", border: "1px solid rgba(100,116,139,0.15)" }}>
+        <Lock className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 mt-0.5" />
+        <span className="text-slate-500">
+          Client-ID und Client-Secret eintragen, dann OAuth-Flow starten.{" "}
+          <a href="https://developer.comdirect.de" target="_blank" rel="noopener noreferrer"
+            className="text-cyan-500 underline underline-offset-2 inline-flex items-center gap-0.5">
+            developer.comdirect.de <ExternalLink className="w-3 h-3" />
+          </a>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        {/* Initiate */}
+        {!hasAccessToken && (
+          <button
+            onClick={handleInitiate}
+            disabled={initiating}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
+            style={{ background: "rgba(0,212,255,0.1)", border: "1px solid rgba(0,212,255,0.3)", color: "#00D4FF" }}
+          >
+            {initiating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+            OAuth starten (PHOTO-TAN)
+          </button>
+        )}
+        {/* Refresh */}
+        {hasAccessToken && (
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
+            style={{ background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.25)", color: "#00FF88" }}
+          >
+            {refreshing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Token erneuern
+          </button>
+        )}
+      </div>
+
+      {/* OAuth-Initiate-Ergebnis */}
+      {oauthResult && (
+        <div className="rounded-lg px-3 py-2.5 text-xs space-y-1"
+          style={{
+            background: oauthResult.success ? "rgba(0,212,255,0.06)" : "rgba(255,0,128,0.06)",
+            border: `1px solid ${oauthResult.success ? "rgba(0,212,255,0.2)" : "rgba(255,0,128,0.2)"}`,
+          }}>
+          {oauthResult.success ? (
+            <>
+              <p className="font-semibold text-cyan-300">One-Time Token erhalten</p>
+              <code className="block text-slate-300 bg-white/5 px-2 py-1 rounded font-mono break-all">
+                {oauthResult.onetime_token}
+              </code>
+              <p className="text-slate-400">{oauthResult.next_step}</p>
+            </>
+          ) : (
+            <p className="text-red-400">{oauthResult.error}</p>
+          )}
+        </div>
+      )}
+
+      {/* Refresh-Ergebnis */}
+      {refreshResult && (
+        <div className="rounded-lg px-3 py-2 text-xs"
+          style={{
+            background: refreshResult.success ? "rgba(0,255,136,0.06)" : "rgba(255,170,0,0.06)",
+            border: `1px solid ${refreshResult.success ? "rgba(0,255,136,0.2)" : "rgba(255,170,0,0.2)"}`,
+          }}>
+          {refreshResult.success
+            ? <p className="text-green-300">{refreshResult.message}</p>
+            : <p className="text-amber-300">
+                {refreshResult.error}
+                {refreshResult.action === "initiate_oauth" && " → OAuth neu starten."}
+              </p>
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BrokerCredentialsSection() {
+  const [statuses, setStatuses] = useState<Record<string, "configured" | "not_set">>({});
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [saved, setSaved] = useState<Record<string, boolean>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [visible, setVisible] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    api.settings.credentials()
+      .then((s) => setStatuses(s))
+      .catch(() => {});
+  }, []);
+
+  async function handleSave(key: string) {
+    const val = values[key]?.trim();
+    if (!val) { setErrors((e) => ({ ...e, [key]: "Darf nicht leer sein" })); return; }
+    setSaving((s) => ({ ...s, [key]: true }));
+    setErrors((e) => ({ ...e, [key]: "" }));
+    try {
+      await api.settings.saveCredential(key, val);
+      setStatuses((s) => ({ ...s, [key]: "configured" }));
+      setValues((v) => ({ ...v, [key]: "" }));
+      setSaved((s) => ({ ...s, [key]: true }));
+      setTimeout(() => setSaved((s) => ({ ...s, [key]: false })), 2500);
+    } catch (err) {
+      setErrors((e) => ({ ...e, [key]: err instanceof Error ? err.message : "Fehler" }));
+    } finally {
+      setSaving((s) => ({ ...s, [key]: false }));
+    }
+  }
+
+  async function handleDelete(key: string) {
+    try {
+      await api.settings.deleteCredential(key);
+      setStatuses((s) => ({ ...s, [key]: "not_set" }));
+    } catch { /* ignore */ }
+  }
+
+  return (
+    <GlassCard variant="cyan" delay={0.165}>
+      <div
+        className="-m-4 mb-4 px-4 py-3 rounded-t-xl"
+        style={{ background: "rgba(0,212,255,0.06)", borderBottom: "1px solid rgba(0,212,255,0.1)" }}
+      >
+        <div className="flex items-center gap-2">
+          <Building2 className="w-4 h-4 text-cyan-400" aria-hidden="true" />
+          <SectionLabel>Broker & Depots — API-Keys</SectionLabel>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <p className="text-xs text-slate-500">
+          Credentials für alle 7 Broker-Integrationen. Werte werden ausschließlich serverseitig gespeichert.
+          Demo-Daten werden genutzt, solange keine echten Keys gesetzt sind.
+        </p>
+
+        {BROKER_GROUPS.map((group) => {
+          const fields = BROKER_FIELDS.filter((f) => f.group === group);
+          const configuredCount = fields.filter((f) => statuses[f.key] === "configured").length;
+          return (
+            <div key={group} className="space-y-3">
+              {/* Gruppen-Überschrift */}
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold text-slate-300">{group}</p>
+                {configuredCount > 0 && (
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88", border: "1px solid rgba(0,255,136,0.25)" }}
+                  >
+                    {configuredCount}/{fields.length} konfiguriert
+                  </span>
+                )}
+              </div>
+
+              {/* Flatex Session-PIN-Block */}
+              {group === "Flatex (FinTS)" && statuses["FLATEX_FINTS_USER"] === "configured" && (
+                <FlatexSyncBlock />
+              )}
+
+              {/* Comdirect OAuth-Flow-Block */}
+              {group === "Comdirect (OAuth2)" && (
+                <ComdirectOAuthBlock
+                  hasClientId={statuses["COMDIRECT_CLIENT_ID"] === "configured"}
+                  hasClientSecret={statuses["COMDIRECT_CLIENT_SECRET"] === "configured"}
+                  hasAccessToken={statuses["COMDIRECT_ACCESS_TOKEN"] === "configured"}
+                  onTokenSaved={() => setStatuses((s) => ({ ...s, COMDIRECT_ACCESS_TOKEN: "configured" }))}
+                />
+              )}
+
+              {fields.map(({ key, label, placeholder, type }) => {
+                const isConfigured = statuses[key] === "configured";
+                const isVisible = visible[key];
+                return (
+                  <div key={key} className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-slate-400 font-medium">{label}</label>
+                      <div className="flex items-center gap-2">
+                        {isConfigured && (
+                          <>
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                              style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88", border: "1px solid rgba(0,255,136,0.25)" }}
+                            >
+                              konfiguriert ✓
+                            </span>
+                            <button
+                              onClick={() => handleDelete(key)}
+                              aria-label={`${key} löschen`}
+                              className="text-slate-600 hover:text-red-400 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                        {!isConfigured && (
+                          <span
+                            className="text-xs px-2 py-0.5 rounded-full"
+                            style={{ background: "rgba(100,116,139,0.1)", color: "#64748B" }}
+                          >
+                            nicht gesetzt
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type={type === "password" && !isVisible ? "password" : "text"}
+                          value={values[key] ?? ""}
+                          onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+                          placeholder={isConfigured ? "Neuen Wert eingeben zum Überschreiben…" : placeholder}
+                          autoComplete="off"
+                          className="w-full rounded-xl px-3 py-2 pr-10 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
+                          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.2)" }}
+                          onKeyDown={(e) => { if (e.key === "Enter") handleSave(key); }}
+                        />
+                        {type === "password" && (
+                          <button
+                            type="button"
+                            onClick={() => setVisible((v) => ({ ...v, [key]: !v[key] }))}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                          >
+                            {isVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleSave(key)}
+                        disabled={saving[key] || !values[key]?.trim()}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
+                        style={{
+                          background: saved[key] ? "rgba(0,255,136,0.12)" : "rgba(0,212,255,0.1)",
+                          border: `1px solid ${saved[key] ? "rgba(0,255,136,0.3)" : "rgba(0,212,255,0.25)"}`,
+                          color: saved[key] ? "#00FF88" : "#00D4FF",
+                        }}
+                      >
+                        {saving[key]
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : saved[key]
+                          ? <CheckCircle className="w-3.5 h-3.5" />
+                          : <Save className="w-3.5 h-3.5" />
+                        }
+                        {saved[key] ? "Gespeichert" : "Speichern"}
+                      </button>
+                    </div>
+                    {errors[key] && <p className="text-xs text-red-400">{errors[key]}</p>}
+                  </div>
+                );
+              })}
+
+              {/* Trennlinie zwischen Gruppen */}
+              <div className="border-t border-white/5" />
+            </div>
+          );
+        })}
+
+        <div className="rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-3 py-2 text-xs text-cyan-400">
+          Flatex: Die FinTS-PIN wird <strong>niemals gespeichert</strong> und muss direkt als
+          Umgebungsvariable <code className="bg-white/5 px-1 rounded">FLATEX_FINTS_PIN</code> gesetzt werden.
+        </div>
+
+        <div className="rounded-lg border border-yellow-500/20 bg-yellow-500/5 px-3 py-2 text-xs text-yellow-400">
+          Demo-Daten werden automatisch genutzt, solange keine echten Credentials gesetzt sind.
+          Klicke auf &quot;Broker &amp; Depots&quot; in der Navigation um die aktuelle Verbindungsübersicht zu sehen.
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // SettingsState
 // ---------------------------------------------------------------------------
 
@@ -1000,7 +1603,7 @@ function MaskedInput({
     <div>
       <label htmlFor={id} className="text-xs text-slate-400 mb-1.5 block font-medium">
         {label}
-        <span className="ml-2 text-slate-600 font-normal">(stored in localStorage — not sent to server)</span>
+        <span className="ml-2 text-slate-600 font-normal">(im Browser gespeichert — nicht an Server gesendet)</span>
       </label>
       <div className="relative">
         <input
@@ -1008,7 +1611,7 @@ function MaskedInput({
           type={visible ? "text" : "password"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder ?? "Enter key..."}
+          placeholder={placeholder ?? "Key eingeben..."}
           autoComplete="off"
           className="w-full rounded-xl px-4 py-2.5 pr-12 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none transition-all"
           style={{
@@ -1021,7 +1624,7 @@ function MaskedInput({
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
-          aria-label={visible ? "Hide key" : "Show key"}
+          aria-label={visible ? "Key ausblenden" : "Key anzeigen"}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
         >
           {visible
@@ -1084,6 +1687,8 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS);
   const [saved, setSaved] = useState(false);
   const [backendKeyStatus, setBackendKeyStatus] = useState<"loading" | "configured" | "missing">("loading");
+  const [marketingEmails, setMarketingEmails] = useState(true);
+  const [emailPrefSaving, setEmailPrefSaving] = useState(false);
 
   useEffect(() => {
     setSettings(loadSettings());
@@ -1093,6 +1698,9 @@ export default function SettingsPage() {
         setBackendKeyStatus(status === "configured" ? "configured" : "missing");
       })
       .catch(() => setBackendKeyStatus("missing"));
+    api.auth.me()
+      .then((u) => { setMarketingEmails(!u.email_unsubscribed); })
+      .catch(() => {});
   }, []);
 
   function update<K extends keyof SettingsState>(key: K, value: SettingsState[K]) {
@@ -1114,6 +1722,18 @@ export default function SettingsPage() {
     setTimeout(() => setSaved(false), 2500);
   }
 
+  async function handleEmailPref(subscribed: boolean) {
+    setMarketingEmails(subscribed);
+    setEmailPrefSaving(true);
+    try {
+      await api.auth.emailPreferences(subscribed);
+    } catch {
+      setMarketingEmails(!subscribed);
+    } finally {
+      setEmailPrefSaving(false);
+    }
+  }
+
   const sectionHeaderStyle = {
     background: "rgba(0,212,255,0.06)",
     borderBottom: "1px solid rgba(0,212,255,0.1)",
@@ -1123,10 +1743,10 @@ export default function SettingsPage() {
     <div className="space-y-6 max-w-3xl">
       {/* Header */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <h1 className="text-2xl font-bold text-slate-100 mb-1">Settings</h1>
+        <h1 className="text-2xl font-bold text-slate-100 mb-1">Einstellungen</h1>
         <p className="text-sm text-slate-500">
-          Configure API keys, trading preferences and notifications.
-          All values persist in your browser&apos;s localStorage.
+          API-Keys, Trading-Präferenzen und Benachrichtigungen konfigurieren.
+          Alle Werte werden im Browser-localStorage gespeichert.
         </p>
       </motion.div>
 
@@ -1138,7 +1758,7 @@ export default function SettingsPage() {
         <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={sectionHeaderStyle}>
           <div className="flex items-center gap-2">
             <Key className="w-4 h-4 text-cyan-400" aria-hidden="true" />
-            <SectionLabel>API Configuration</SectionLabel>
+            <SectionLabel>API-Konfiguration</SectionLabel>
           </div>
         </div>
 
@@ -1204,7 +1824,7 @@ export default function SettingsPage() {
         <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ ...sectionHeaderStyle, background: "rgba(0,255,136,0.06)", borderBottomColor: "rgba(0,255,136,0.1)" }}>
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-neon-green" aria-hidden="true" />
-            <SectionLabel>Trading Preferences</SectionLabel>
+            <SectionLabel>Trading-Einstellungen</SectionLabel>
           </div>
         </div>
 
@@ -1212,8 +1832,8 @@ export default function SettingsPage() {
           {/* Watchlist */}
           <div>
             <label htmlFor="watchlist" className="text-xs text-slate-400 mb-1.5 block font-medium">
-              Default Watchlist
-              <span className="ml-2 text-slate-600 font-normal">comma-separated tickers</span>
+              Standard-Watchlist
+              <span className="ml-2 text-slate-600 font-normal">kommagetrennte Ticker</span>
             </label>
             <input
               id="watchlist"
@@ -1230,8 +1850,8 @@ export default function SettingsPage() {
 
           {/* Refresh interval */}
           <div>
-            <p className="text-xs text-slate-400 mb-2 font-medium">Refresh Interval</p>
-            <div className="flex gap-2" role="group" aria-label="Refresh interval">
+            <p className="text-xs text-slate-400 mb-2 font-medium">Aktualisierungsintervall</p>
+            <div className="flex gap-2" role="group" aria-label="Aktualisierungsintervall">
               {(["10", "30", "60"] as const).map((v) => (
                 <button
                   key={v}
@@ -1253,8 +1873,8 @@ export default function SettingsPage() {
 
           {/* Paper / Live toggle */}
           <div>
-            <p className="text-xs text-slate-400 mb-2 font-medium">Trading Mode</p>
-            <div className="flex gap-2" role="group" aria-label="Trading mode">
+            <p className="text-xs text-slate-400 mb-2 font-medium">Handelsmodus</p>
+            <div className="flex gap-2" role="group" aria-label="Handelsmodus">
               {(["paper", "live"] as const).map((mode) => (
                 <button
                   key={mode}
@@ -1274,13 +1894,13 @@ export default function SettingsPage() {
                       : "#64748B",
                   }}
                 >
-                  {mode === "paper" ? "Paper (Sim)" : "Live Trading"}
+                  {mode === "paper" ? "Paper (Sim)" : "Live-Handel"}
                 </button>
               ))}
             </div>
             {settings.tradingMode === "live" && (
               <p className="text-xs text-amber-500 mt-2">
-                Live mode requires a valid Alpaca API key and ENABLE_LIVE_TRADING=true in server .env.
+                Live-Modus erfordert einen gültigen Alpaca API Key und ENABLE_LIVE_TRADING=true in der Server-.env.
               </p>
             )}
           </div>
@@ -1292,37 +1912,71 @@ export default function SettingsPage() {
         <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ ...sectionHeaderStyle, background: "rgba(123,47,255,0.06)", borderBottomColor: "rgba(123,47,255,0.1)" }}>
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 text-neon-purple" aria-hidden="true" />
-            <SectionLabel>Notifications</SectionLabel>
+            <SectionLabel>Benachrichtigungen</SectionLabel>
           </div>
         </div>
 
         <div className="divide-y divide-white/5">
           <Toggle
             id="risk-alerts"
-            label="Risk Alerts"
-            description="Notify when portfolio VaR or drawdown exceeds thresholds"
+            label="Risikoalarme"
+            description="Benachrichtigung wenn Portfolio-VaR oder Drawdown Schwellenwerte überschreitet"
             checked={settings.riskAlerts}
             onChange={(v) => update("riskAlerts", v)}
           />
           <Toggle
             id="signal-notifications"
-            label="Signal Notifications"
-            description="Notify on new Buy / Strong Buy signals"
+            label="Signal-Benachrichtigungen"
+            description="Benachrichtigung bei neuen Kauf- / Starkem-Kauf-Signalen"
             checked={settings.signalNotifications}
             onChange={(v) => update("signalNotifications", v)}
           />
           <Toggle
             id="price-alerts"
-            label="Price Alerts"
-            description="Notify on significant price moves in watchlist"
+            label="Kurs-Alerts"
+            description="Benachrichtigung bei signifikanten Kursbewegungen in der Watchlist"
             checked={settings.priceAlerts}
             onChange={(v) => update("priceAlerts", v)}
           />
+          <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-2">
+              <Mail className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" aria-hidden="true" />
+              <div>
+                <label htmlFor="marketing-emails" className="text-sm text-slate-300 font-medium cursor-pointer">Marketing-E-Mails</label>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  {emailPrefSaving
+                    ? "Wird gespeichert…"
+                    : "Produkt-Updates, neue Features und Trading-Insights per E-Mail (DSGVO Art. 21)"}
+                </p>
+              </div>
+            </div>
+            <button
+              id="marketing-emails"
+              role="switch"
+              aria-checked={marketingEmails}
+              aria-label="Marketing-E-Mails"
+              disabled={emailPrefSaving}
+              onClick={() => handleEmailPref(!marketingEmails)}
+              className="relative flex-shrink-0 w-11 h-6 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50"
+              style={{
+                background: marketingEmails ? "rgba(0,212,255,0.4)" : "rgba(255,255,255,0.08)",
+                border: marketingEmails ? "1px solid rgba(0,212,255,0.6)" : "1px solid rgba(255,255,255,0.12)",
+              }}
+            >
+              <span
+                className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200"
+                style={{ transform: marketingEmails ? "translateX(20px)" : "translateX(0)" }}
+              />
+            </button>
+          </div>
         </div>
       </GlassCard>
 
       {/* ── Section 4: P2P API Keys ── */}
       <P2PCredentialsSection />
+
+      {/* ── Section 4b: Broker & Depots Credentials ── */}
+      <BrokerCredentialsSection />
 
       {/* ── Section 5: Bank Connections (FinTS) ── */}
       <GlassCard variant="green" delay={0.17}>
@@ -1372,7 +2026,7 @@ export default function SettingsPage() {
         <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={sectionHeaderStyle}>
           <div className="flex items-center gap-2">
             <Info className="w-4 h-4 text-cyan-400" aria-hidden="true" />
-            <SectionLabel>About</SectionLabel>
+            <SectionLabel>Über</SectionLabel>
           </div>
         </div>
 
@@ -1382,7 +2036,7 @@ export default function SettingsPage() {
             <p className="font-mono text-slate-300">v0.7.0</p>
           </div>
           <div>
-            <p className="text-xs text-slate-600 mb-0.5">AI Model</p>
+            <p className="text-xs text-slate-600 mb-0.5">KI-Modell</p>
             <p className="font-mono text-slate-300">claude-sonnet-4-6</p>
           </div>
           <div>
@@ -1394,9 +2048,9 @@ export default function SettingsPage() {
             <p className="font-mono text-slate-300">Next.js 15 · TypeScript</p>
           </div>
           <div className="col-span-2">
-            <p className="text-xs text-slate-600 mb-0.5">Trading Engines</p>
+            <p className="text-xs text-slate-600 mb-0.5">Trading-Engines</p>
             <p className="text-slate-400 text-xs leading-relaxed">
-              9 AI engines orchestrated — see Engine Status section for install paths
+              9 KI-Engines orchestriert — Installationspfade im Abschnitt Engine-Status
             </p>
           </div>
         </div>
@@ -1426,16 +2080,19 @@ export default function SettingsPage() {
             rel="noopener noreferrer"
             className="text-xs text-cyan-400 hover:text-cyan-300 underline underline-offset-2"
           >
-            Health Check
+            Systemstatus
           </a>
         </div>
       </GlassCard>
+
+      {/* ── Change Password ── */}
+      <ChangePasswordSection />
 
       {/* Save button */}
       <div className="flex justify-end pb-6">
         <button
           onClick={handleSave}
-          aria-label="Save settings"
+          aria-label="Einstellungen speichern"
           className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all"
           style={{
             background: saved ? "rgba(0,255,136,0.15)" : "linear-gradient(135deg, rgba(0,212,255,0.2), rgba(123,47,255,0.15))",
@@ -1445,9 +2102,9 @@ export default function SettingsPage() {
           }}
         >
           {saved ? (
-            <><CheckCircle className="w-4 h-4" aria-hidden="true" /> Saved</>
+            <><CheckCircle className="w-4 h-4" aria-hidden="true" /> Gespeichert</>
           ) : (
-            <><Save className="w-4 h-4" aria-hidden="true" /> Save Settings</>
+            <><Save className="w-4 h-4" aria-hidden="true" /> Einstellungen speichern</>
           )}
         </button>
       </div>

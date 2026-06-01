@@ -9,7 +9,7 @@ interface GlobalErrorProps {
 
 export default function GlobalError({ error, reset }: GlobalErrorProps) {
   return (
-    <html lang="en">
+    <html lang="de">
       <body
         style={{
           margin: 0,
@@ -53,10 +53,10 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
           </div>
 
           <h1 style={{ color: "#F1F5F9", fontSize: "1.5rem", fontWeight: "bold", marginBottom: "0.5rem" }}>
-            Critical System Fault
+            Kritischer Systemfehler
           </h1>
           <p style={{ color: "#94A3B8", fontSize: "0.875rem", marginBottom: "1.5rem" }}>
-            A fatal error occurred in the root layout. The application cannot recover automatically.
+            Ein schwerwiegender Fehler ist im Root-Layout aufgetreten. Die Anwendung kann sich nicht automatisch erholen.
           </p>
 
           {error.message && (
@@ -72,7 +72,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               }}
             >
               <p style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "rgba(255,0,60,0.9)" }}>
-                <span style={{ color: "#475569" }}>Error: </span>
+                <span style={{ color: "#475569" }}>Fehler: </span>
                 {error.message}
               </p>
             </div>
@@ -97,7 +97,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             }}
           >
             <RefreshCw style={{ width: "1rem", height: "1rem" }} />
-            Retry
+            Neu laden
           </button>
         </div>
       </body>

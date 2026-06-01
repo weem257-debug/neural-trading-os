@@ -15,7 +15,10 @@
     "alerts": "Alarme",
     "pricing": "Preise",
     "billing": "Abrechnung",
-    "settings": "Einstellungen"
+    "performance": "KI-Performance",
+    "brokers": "Broker & Depots",
+    "settings": "Einstellungen",
+    "account": "Mein Konto"
   },
   "dashboard": {
     "title": "Übersicht",

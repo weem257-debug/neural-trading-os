@@ -24,19 +24,19 @@ const SHORTCUTS: ShortcutGroup[] = [
   {
     group: "Navigation",
     entries: [
-      { keys: ["g", "d"], description: "Go to Dashboard" },
-      { keys: ["g", "s"], description: "Go to Signals" },
-      { keys: ["g", "p"], description: "Go to Portfolio" },
-      { keys: ["g", "b"], description: "Go to Backtest" },
-      { keys: ["g", "r"], description: "Go to Risk" },
-      { keys: ["g", "e"], description: "Go to Execution" },
+      { keys: ["g", "d"], description: "Zum Dashboard" },
+      { keys: ["g", "s"], description: "Zu Signale" },
+      { keys: ["g", "p"], description: "Zum Portfolio" },
+      { keys: ["g", "b"], description: "Zum Backtest" },
+      { keys: ["g", "r"], description: "Zum Risk-Management" },
+      { keys: ["g", "e"], description: "Zur Ausführung" },
     ],
   },
   {
-    group: "General",
+    group: "Allgemein",
     entries: [
-      { keys: ["?"], description: "Show this shortcuts panel" },
-      { keys: ["Esc"], description: "Close modal / cancel" },
+      { keys: ["?"], description: "Dieses Panel anzeigen" },
+      { keys: ["Esc"], description: "Modal schließen / abbrechen" },
     ],
   },
 ];
@@ -143,7 +143,7 @@ export function KeyboardShortcutsModal({ open, onClose }: KeyboardShortcutsModal
                     className="text-sm font-bold tracking-wide"
                     style={{ color: "#00D4FF" }}
                   >
-                    Keyboard Shortcuts
+                    Tastenkürzel
                   </h2>
                   <p className="text-xs text-slate-500">Neural Trading OS</p>
                 </div>
@@ -184,7 +184,7 @@ export function KeyboardShortcutsModal({ open, onClose }: KeyboardShortcutsModal
                             <span key={ki} className="flex items-center gap-1">
                               <KeyBadge label={k} />
                               {ki < entry.keys.length - 1 && (
-                                <span className="text-slate-600 text-xs">then</span>
+                                <span className="text-slate-600 text-xs">dann</span>
                               )}
                             </span>
                           ))}
@@ -201,14 +201,13 @@ export function KeyboardShortcutsModal({ open, onClose }: KeyboardShortcutsModal
               className="px-6 py-3 text-xs text-slate-600 text-center"
               style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
             >
-              Press{" "}
               <kbd
                 className="inline px-1.5 py-0.5 rounded text-xs font-mono"
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}
               >
                 Esc
               </kbd>{" "}
-              to close
+              zum Schließen
             </div>
           </motion.div>
         </motion.div>

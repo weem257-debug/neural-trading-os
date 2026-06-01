@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Home } from "lucide-react";
+import { Search, Home, LayoutDashboard } from "lucide-react";
 
 export default function NotFound() {
   return (
@@ -54,14 +54,14 @@ export default function NotFound() {
             404
           </p>
 
-          <h1 className="text-2xl font-bold text-slate-100 mb-2">Route Not Found</h1>
+          <h1 className="text-2xl font-bold text-slate-100 mb-2">Seite nicht gefunden</h1>
           <p className="text-sm text-slate-400 mb-8">
-            The requested endpoint does not exist in this system. Return to the dashboard to
-            resume normal operations.
+            Diese Seite existiert nicht oder ist nicht mehr verfügbar. Entdecke stattdessen
+            KI-Handelssignale — 3 Signale täglich, dauerhaft kostenlos.
           </p>
 
           <Link
-            href="/dashboard"
+            href="/landing"
             className="inline-flex items-center gap-2.5 px-8 py-3 rounded-xl text-sm font-bold transition-all duration-200"
             style={{
               background: "linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,212,255,0.08))",
@@ -72,10 +72,22 @@ export default function NotFound() {
             }}
           >
             <Home className="w-4 h-4" />
-            Return to Dashboard
+            Zur Startseite
           </Link>
 
-          <p className="text-xs text-slate-600 mt-6 font-mono">Neural Trading OS — Signal Lost</p>
+          <p className="text-xs text-slate-500 mt-5">
+            Bereits Mitglied?{" "}
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1 font-semibold hover:underline"
+              style={{ color: "rgba(0,212,255,0.8)" }}
+            >
+              <LayoutDashboard className="w-3 h-3" />
+              Zum Dashboard
+            </Link>
+          </p>
+
+          <p className="text-xs text-slate-600 mt-6 font-mono">Neural Trading OS — Signal verloren</p>
         </div>
       </div>
     </div>

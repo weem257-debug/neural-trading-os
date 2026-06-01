@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "Neural Trading OS — AI Trading Dashboard";
+export const alt = "Neural Trading OS — KI-Trading Dashboard";
 export const size = { width: 1200, height: 600 };
 export const contentType = "image/png";
 

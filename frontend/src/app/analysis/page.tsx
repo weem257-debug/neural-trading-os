@@ -84,7 +84,7 @@ function ElliottDiagramSVG() {
       {dot(pts.C, "C", "#FFD700")}
       {/* Labels */}
       <text x={2} y={175} fontSize={9} fill="#475569">← Impulse (1-2-3-4-5)</text>
-      <text x={300} y={175} fontSize={9} fill="#475569">Corrective (A-B-C) →</text>
+      <text x={300} y={175} fontSize={9} fill="#475569">Korrektiv (A-B-C) →</text>
     </svg>
   );
 }

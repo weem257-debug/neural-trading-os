@@ -27,7 +27,7 @@ import {
   Line,
   Legend,
 } from "recharts";
-import { API_BASE } from "@/lib/api";
+import { api } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -282,23 +282,16 @@ function AllocationChart({ platforms }: { platforms: PlatformData[] }) {
 // HistoryChart — line chart from snapshots
 // ---------------------------------------------------------------------------
 
-function HistoryTab({ token }: { token: string | null }) {
+function HistoryTab() {
   const [snapshots, setSnapshots] = useState<SnapshotRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/p2p/history?limit=120`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) setSnapshots(await res.json());
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [token]);
+    api.p2p.history(120)
+      .then(setSnapshots)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   if (loading) {
     return (
@@ -473,41 +466,25 @@ export default function P2PPage() {
   const [error, setError] = useState("");
   const [snapshotMsg, setSnapshotMsg] = useState("");
   const [tab, setTab] = useState<Tab>("overview");
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setToken(localStorage.getItem("auth_token"));
-    }
-  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/p2p/summary`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setSummary(await res.json());
+      setSummary(await api.p2p.summary());
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Fehler beim Laden");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
-  useEffect(() => {
-    if (token !== null) load();
-  }, [load, token]);
+  useEffect(() => { load(); }, [load]);
 
   const saveSnapshot = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_BASE}/api/p2p/snapshot`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.p2p.snapshot();
       setSnapshotMsg("Snapshot gespeichert!");
       setTimeout(() => setSnapshotMsg(""), 3000);
     } finally {
@@ -579,7 +556,7 @@ export default function P2PPage() {
       )}
 
       {tab === "history" ? (
-        <HistoryTab token={token} />
+        <HistoryTab />
       ) : loading ? (
         <div className="flex items-center justify-center py-24">
           <Loader2 className="w-8 h-8 text-neon-purple animate-spin" />

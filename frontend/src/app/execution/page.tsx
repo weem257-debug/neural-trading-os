@@ -60,7 +60,7 @@ function OrderBook({ ticker }: { ticker: string }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <SectionLabel>Order Book — {ticker}</SectionLabel>
+        <SectionLabel>Orderbuch — {ticker}</SectionLabel>
         <span className="text-xs text-slate-500">
           Spread: <span className="font-mono text-slate-300">${spread.toFixed(2)}</span>
           <span className="text-slate-600 ml-1">({spreadPct}%)</span>
@@ -157,7 +157,7 @@ function QuantitySlider({ value, onChange, max = 100 }: { value: number; onChang
 
 /* ============================================================ */
 const EXPLAIN_EXECUTION: ExplanationContent = {
-  title: "Order Execution",
+  title: "Order-Ausführung",
   subtitle: "Paper Trading · nautilus_trader Engine",
   color: "green",
   theory:
@@ -223,7 +223,7 @@ export default function ExecutionPage() {
       setLastOrder(order);
       addOrder(order);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Order failed");
+      setError(e instanceof Error ? e.message : "Order fehlgeschlagen");
     } finally {
       setSubmitting(false);
     }
@@ -245,13 +245,13 @@ export default function ExecutionPage() {
           >
             <Zap className="w-4 h-4" style={{ color: activeColor }} />
           </div>
-          <h1 className="text-2xl font-bold text-slate-100">Execution</h1>
+          <h1 className="text-2xl font-bold text-slate-100">Ausführung</h1>
           <NeonBadge color={isLive ? "pink" : "cyan"}>
             {isLive ? "LIVE" : "PAPER"}
           </NeonBadge>
         </div>
         <p className="text-sm text-slate-500">
-          Nautilus Trader · {isLive ? "Real funds at risk" : "Simulated trading mode"}
+          Nautilus Trader · {isLive ? "Echtes Kapital im Einsatz" : "Simulierter Handelsmodus"}
         </p>
       </motion.div>
 
@@ -273,12 +273,12 @@ export default function ExecutionPage() {
         )}
         <div>
           <p className="font-bold text-sm" style={{ color: isLive ? "#FF0080" : "#00D4FF" }}>
-            {isLive ? "LIVE TRADING — Real Capital at Risk" : "Paper Trading Mode — Simulation Active"}
+            {isLive ? "LIVE TRADING — Echtes Kapital im Einsatz" : "Paper Trading Modus — Simulation aktiv"}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">
             {isLive
-              ? "All orders execute with real funds. Use with caution."
-              : "All orders are simulated. Set ENABLE_LIVE_TRADING=true to go live."}
+              ? "Alle Orders werden mit echtem Kapital ausgeführt. Vorsicht geboten."
+              : "Alle Orders werden simuliert. Setze ENABLE_LIVE_TRADING=true für Live-Trading."}
           </p>
         </div>
         {isLive && (
@@ -340,7 +340,7 @@ export default function ExecutionPage() {
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-500 mb-1.5 block">Order Type</label>
+                <label className="text-xs text-slate-500 mb-1.5 block">Ordertyp</label>
                 <div className="relative">
                   <select
                     value={form.order_type}
@@ -392,7 +392,7 @@ export default function ExecutionPage() {
               <input
                 value={form.note}
                 onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-                placeholder="Signal from: NVDA technical breakout..."
+                placeholder="Signal von: NVDA technischer Ausbruch..."
                 className="w-full rounded-xl px-4 py-2.5 text-sm text-slate-300 outline-none placeholder-slate-700"
                 style={{
                   background: "rgba(255,255,255,0.03)",
@@ -427,9 +427,9 @@ export default function ExecutionPage() {
               }}
             >
               {submitting ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                <><Loader2 className="w-4 h-4 animate-spin" /> Wird übermittelt…</>
               ) : (
-                <><Zap className="w-4 h-4" /> {form.side === "buy" ? "Buy" : "Sell"} {form.ticker}</>
+                <><Zap className="w-4 h-4" /> {form.side === "buy" ? "Kaufen" : "Verkaufen"} {form.ticker}</>
               )}
             </button>
 
@@ -490,10 +490,10 @@ export default function ExecutionPage() {
           <GlassCard delay={0.2}>
             <div className="flex items-center gap-2 mb-3">
               <BookOpen className="w-4 h-4 text-cyan-400" />
-              <SectionLabel>Recent Orders ({recentOrders.length})</SectionLabel>
+              <SectionLabel>Aktuelle Orders ({recentOrders.length})</SectionLabel>
             </div>
             {!recentOrders.length ? (
-              <p className="text-sm text-slate-600 text-center py-6">No orders placed yet</p>
+              <p className="text-sm text-slate-600 text-center py-6">Noch keine Orders platziert</p>
             ) : (
               <div className="space-y-2">
                 {recentOrders.slice(0, 10).map((o) => {
@@ -538,7 +538,7 @@ export default function ExecutionPage() {
                                 : "#64748B",
                           }}
                         >
-                          {o.status.toUpperCase()}
+                          {({ filled: "AUSGEFÜHRT", rejected: "ABGELEHNT", pending: "AUSSTEHEND", canceled: "STORNIERT" } as Record<string, string>)[o.status] ?? o.status.toUpperCase()}
                         </span>
                       </div>
                     </div>
@@ -576,7 +576,7 @@ export default function ExecutionPage() {
               <div className="flex items-center gap-3 mb-4">
                 <AlertTriangle className="w-6 h-6" style={{ color: isLive ? "#FF0080" : "#00D4FF" }} />
                 <h3 className="text-lg font-bold" style={{ color: isLive ? "#FF0080" : "#00D4FF" }}>
-                  {isLive ? "Confirm Live Order" : "Confirm Order"}
+                  {isLive ? "Live Order bestätigen" : "Order bestätigen"}
                 </h3>
               </div>
 
@@ -589,23 +589,23 @@ export default function ExecutionPage() {
                 }}
               >
                 <p className="text-sm font-bold text-slate-200 font-mono">
-                  {form.side === "buy" ? "Buy" : "Sell"} {form.quantity}x{" "}
+                  {form.side === "buy" ? "Kaufen" : "Verkaufen"} {form.quantity}x{" "}
                   <span style={{ color: isLive ? "#FF0080" : "#00D4FF" }}>{form.ticker.toUpperCase()}</span>
                   {form.order_type === "limit" && form.limit_price
                     ? ` @ $${parseFloat(form.limit_price).toFixed(2)}`
-                    : " @ market price"}
+                    : " @ Marktpreis"}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
                   {isLive
-                    ? "Real capital at risk — this cannot be undone."
-                    : "Paper mode — simulated order, no real funds."}
+                    ? "Echtes Kapital im Einsatz — diese Aktion kann nicht rückgängig gemacht werden."
+                    : "Paper-Modus — simulierte Order, kein echtes Kapital."}
                 </p>
               </div>
 
               <p className="text-slate-400 text-sm mb-6">
                 {isLive
-                  ? "This will execute with real funds immediately."
-                  : "Are you sure you want to submit this simulated order?"}
+                  ? "Diese Order wird sofort mit echtem Kapital ausgeführt."
+                  : "Soll diese simulierte Order wirklich abgeschickt werden?"}
               </p>
 
               <div className="flex gap-3">
@@ -614,7 +614,7 @@ export default function ExecutionPage() {
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all hover:bg-white/10"
                   style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "#64748B" }}
                 >
-                  Cancel
+                  Abbrechen
                 </button>
                 <button
                   onClick={handleOrder}
@@ -625,7 +625,7 @@ export default function ExecutionPage() {
                     color: isLive ? "#FF0080" : "#00D4FF",
                   }}
                 >
-                  Confirm
+                  Bestätigen
                 </button>
               </div>
             </motion.div>

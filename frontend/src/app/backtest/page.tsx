@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { api, API_BASE } from "@/lib/api";
+import { api, API_BASE, getAuthToken } from "@/lib/api";
 import type { BacktestJob, BacktestStrategyEntry, BacktestCompareEntry, BacktestCompareResponse } from "@/types";
 import {
   BarChart2, Loader2, Play, CheckCircle, XCircle, Clock,
@@ -21,10 +21,10 @@ import {
 
 function JobStatusBadge({ status }: { status: BacktestJob["status"] }) {
   const config = {
-    queued:    { color: "#64748B", bg: "rgba(100,116,139,0.12)",  label: "QUEUED",    icon: Clock },
-    running:   { color: "#00D4FF", bg: "rgba(0,212,255,0.12)",    label: "RUNNING",   icon: Loader2 },
-    completed: { color: "#00FF88", bg: "rgba(0,255,136,0.12)",    label: "DONE",      icon: CheckCircle },
-    failed:    { color: "#FF0080", bg: "rgba(255,0,128,0.12)",    label: "FAILED",    icon: XCircle },
+    queued:    { color: "#64748B", bg: "rgba(100,116,139,0.12)",  label: "WARTEND",   icon: Clock },
+    running:   { color: "#00D4FF", bg: "rgba(0,212,255,0.12)",    label: "LÄUFT",     icon: Loader2 },
+    completed: { color: "#00FF88", bg: "rgba(0,255,136,0.12)",    label: "FERTIG",    icon: CheckCircle },
+    failed:    { color: "#FF0080", bg: "rgba(255,0,128,0.12)",    label: "FEHLER",    icon: XCircle },
   };
   const c = config[status];
   const Icon = c.icon;
@@ -47,7 +47,7 @@ function ResultMetrics({ result }: { result: NonNullable<BacktestJob["result"]> 
   const positive = result.total_return_pct >= 0;
   const metrics = [
     {
-      label: "Total Return",
+      label: "Gesamtrendite",
       value: `${positive ? "+" : ""}${result.total_return_pct.toFixed(2)}%`,
       color: positive ? "#00FF88" : "#FF0080",
     },
@@ -62,7 +62,7 @@ function ResultMetrics({ result }: { result: NonNullable<BacktestJob["result"]> 
       color: "#FF0080",
     },
     {
-      label: "Win Rate",
+      label: "Trefferquote",
       value: `${(result.win_rate * 100).toFixed(1)}%`,
       color: "#00FF88",
     },
@@ -72,7 +72,7 @@ function ResultMetrics({ result }: { result: NonNullable<BacktestJob["result"]> 
       color: "#FFD700",
     },
     {
-      label: "Annualised Return",
+      label: "Jährl. Rendite",
       value: `${result.annualized_return_pct.toFixed(2)}%`,
       color: "#7B2FFF",
     },
@@ -100,7 +100,7 @@ function ResultMetrics({ result }: { result: NonNullable<BacktestJob["result"]> 
       {/* Equity curve */}
       {result.equity_curve && result.equity_curve.length > 1 && (
         <div>
-          <p className="text-xs text-slate-500 mb-2">Equity Curve</p>
+          <p className="text-xs text-slate-500 mb-2">Equity-Kurve</p>
           <div style={{ height: "160px" }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={result.equity_curve}>
@@ -127,7 +127,7 @@ function ResultMetrics({ result }: { result: NonNullable<BacktestJob["result"]> 
                     borderRadius: "8px",
                     fontSize: "11px",
                   }}
-                  formatter={(v: number) => [`$${v.toLocaleString()}`, "Value"]}
+                  formatter={(v: number) => [`$${v.toLocaleString()}`, "Wert"]}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -204,7 +204,7 @@ function JobCard({ job, index, onDelete }: { job: BacktestJob; index: number; on
             <button
               onClick={handleDelete}
               disabled={deleting}
-              aria-label="Delete job"
+              aria-label="Job löschen"
               className="p-1.5 rounded-lg transition-all opacity-40 hover:opacity-100 disabled:opacity-20"
               style={{ color: "#FF0080" }}
             >
@@ -245,7 +245,7 @@ function JobCard({ job, index, onDelete }: { job: BacktestJob; index: number; on
           <div className="px-4 pb-4 flex items-center gap-2 text-cyan-400 text-sm"
             style={{ borderTop: "1px solid rgba(0,212,255,0.1)" }}>
             <Loader2 className="w-4 h-4 animate-spin mt-4" />
-            <span className="mt-4">Running backtest — polling every 2 s…</span>
+            <span className="mt-4">Backtest läuft — aktualisiert alle 2 Sek.…</span>
           </div>
         )}
       </div>
@@ -318,9 +318,9 @@ export default function BacktestPage() {
       } catch {
         // static fallback
         setStrategies([
-          { id: "ma_crossover",       name: "MA Crossover",        description: "Golden/death cross signal using fast (20) and slow (50) moving averages.", engines: ["jesse", "vibe_trading", "qlib"], default_params: {}, params_schema: {} },
-          { id: "rsi_mean_reversion", name: "RSI Mean Reversion",  description: "Buy when RSI < 30 (oversold), sell when RSI > 70 (overbought). Period: 14.",      engines: ["jesse", "vibe_trading"],        default_params: {}, params_schema: {} },
-          { id: "buy_and_hold",       name: "Buy & Hold",          description: "Baseline: buy on day 1, hold until end date. No rebalancing.",                     engines: ["jesse", "vibe_trading", "qlib"], default_params: {}, params_schema: {} },
+          { id: "ma_crossover",       name: "MA Crossover",        description: "Golden/Death-Cross-Signal mit schnellem (20) und langsamem (50) gleitenden Durchschnitt.", engines: ["jesse", "vibe_trading", "qlib"], default_params: {}, params_schema: {} },
+          { id: "rsi_mean_reversion", name: "RSI Mean Reversion",  description: "Kaufen wenn RSI < 30 (überverkauft), verkaufen wenn RSI > 70 (überkauft). Periode: 14.",      engines: ["jesse", "vibe_trading"],        default_params: {}, params_schema: {} },
+          { id: "buy_and_hold",       name: "Buy & Hold",          description: "Baseline: Am ersten Tag kaufen, bis Enddatum halten. Kein Rebalancing.",                     engines: ["jesse", "vibe_trading", "qlib"], default_params: {}, params_schema: {} },
         ]);
       }
     })();
@@ -409,7 +409,7 @@ export default function BacktestPage() {
       setJobs((prev) => [optimistic, ...prev]);
       pollJob(job_id);
     } catch (err) {
-      setRunError(err instanceof Error ? err.message : "Backtest failed");
+      setRunError(err instanceof Error ? err.message : "Backtest fehlgeschlagen");
     } finally {
       setSubmitting(false);
     }
@@ -427,7 +427,7 @@ export default function BacktestPage() {
       });
       setCompareResult(data);
     } catch (err) {
-      setCompareError(err instanceof Error ? err.message : "Comparison failed");
+      setCompareError(err instanceof Error ? err.message : "Vergleich fehlgeschlagen");
     } finally {
       setComparing(false);
     }
@@ -470,16 +470,27 @@ export default function BacktestPage() {
           </div>
           {jobs.some((j) => j.status === "completed") && (
             <button
-              onClick={() => {
+              onClick={async () => {
                 const completedJob = jobs.find((j) => j.status === "completed");
                 if (!completedJob) return;
-                const url = `${API_BASE}/api/backtest/export/${completedJob.id}`;
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `backtest_${completedJob.id.slice(0, 8)}.csv`;
-                a.click();
+                try {
+                  const token = getAuthToken();
+                  const res = await fetch(`${API_BASE}/api/backtest/export/${completedJob.id}`, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                  });
+                  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                  const blob = await res.blob();
+                  const objectUrl = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = objectUrl;
+                  a.download = `backtest_${completedJob.id.slice(0, 8)}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(objectUrl);
+                } catch (e) {
+                  console.error("[Backtest] CSV export failed:", e);
+                }
               }}
-              aria-label="Export latest completed backtest as CSV"
+              aria-label="Letzten abgeschlossenen Backtest als CSV exportieren"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
               style={{
                 background: "rgba(0,212,255,0.08)",
@@ -500,14 +511,14 @@ export default function BacktestPage() {
       {/* New backtest form */}
       <GlassCard variant="cyan" delay={0.1}>
         <div className="flex items-center justify-between">
-          <SectionLabel>New Backtest</SectionLabel>
+          <SectionLabel>Neuer Backtest</SectionLabel>
           <InfoButton onClick={() => setExplainOpen(true)} color="cyan" className="-mt-2" />
         </div>
         <div className="grid grid-cols-3 gap-3 mt-3">
 
           {/* Strategy dropdown — loaded from API */}
           <div>
-            <label className="text-xs text-slate-500 mb-1.5 block">Strategy</label>
+            <label className="text-xs text-slate-500 mb-1.5 block">Strategie</label>
             <select
               value={form.strategy_id}
               onChange={(e) => setForm((f) => ({ ...f, strategy_id: e.target.value }))}
@@ -535,7 +546,7 @@ export default function BacktestPage() {
 
           {/* Start date */}
           <div>
-            <label className="text-xs text-slate-500 mb-1.5 block">Start Date</label>
+            <label className="text-xs text-slate-500 mb-1.5 block">Startdatum</label>
             <input
               type="date"
               value={form.start_date}
@@ -546,7 +557,7 @@ export default function BacktestPage() {
 
           {/* End date */}
           <div>
-            <label className="text-xs text-slate-500 mb-1.5 block">End Date</label>
+            <label className="text-xs text-slate-500 mb-1.5 block">Enddatum</label>
             <input
               type="date"
               value={form.end_date}
@@ -557,7 +568,7 @@ export default function BacktestPage() {
 
           {/* Capital */}
           <div>
-            <label className="text-xs text-slate-500 mb-1.5 block">Capital ($)</label>
+            <label className="text-xs text-slate-500 mb-1.5 block">Startkapital ($)</label>
             <input
               type="number"
               value={form.initial_capital}
@@ -574,7 +585,7 @@ export default function BacktestPage() {
               onChange={(e) => setForm((f) => ({ ...f, engine: e.target.value as typeof form.engine }))}
               style={{ ...fieldStyle, cursor: "pointer" }}
             >
-              <option value="jesse"        style={{ background: "#0D1117" }}>Jesse (Crypto)</option>
+              <option value="jesse"        style={{ background: "#0D1117" }}>Jesse (Krypto)</option>
               <option value="vibe_trading" style={{ background: "#0D1117" }}>Vibe-Trading (452 Alpha)</option>
               <option value="qlib"         style={{ background: "#0D1117" }}>qlib (ML · Microsoft)</option>
             </select>
@@ -586,7 +597,7 @@ export default function BacktestPage() {
           <div className="grid grid-cols-2 gap-3 mt-3 pt-3" style={{ borderTop: "1px solid rgba(0,212,255,0.08)" }}>
             <div>
               <label className="text-xs text-slate-500 mb-1.5 block">
-                Fast Period <span className="text-slate-700">(5–100, default 20)</span>
+                Kurze Periode <span className="text-slate-700">(5–100, Standard 20)</span>
               </label>
               <input
                 type="number"
@@ -599,7 +610,7 @@ export default function BacktestPage() {
             </div>
             <div>
               <label className="text-xs text-slate-500 mb-1.5 block">
-                Slow Period <span className="text-slate-700">(10–200, default 50)</span>
+                Lange Periode <span className="text-slate-700">(10–200, Standard 50)</span>
               </label>
               <input
                 type="number"
@@ -612,7 +623,7 @@ export default function BacktestPage() {
             </div>
             {form.fast_period >= form.slow_period && (
               <p className="col-span-2 text-xs text-red-400">
-                Fast Period must be less than Slow Period.
+                Kurze Periode muss kleiner als Lange Periode sein.
               </p>
             )}
           </div>
@@ -623,7 +634,7 @@ export default function BacktestPage() {
           <div className="grid grid-cols-3 gap-3 mt-3 pt-3" style={{ borderTop: "1px solid rgba(0,212,255,0.08)" }}>
             <div>
               <label className="text-xs text-slate-500 mb-1.5 block">
-                RSI Period <span className="text-slate-700">(5–50, default 14)</span>
+                RSI-Periode <span className="text-slate-700">(5–50, Standard 14)</span>
               </label>
               <input
                 type="number"
@@ -636,7 +647,7 @@ export default function BacktestPage() {
             </div>
             <div>
               <label className="text-xs text-slate-500 mb-1.5 block">
-                Oversold <span className="text-slate-700">(10–45, default 30)</span>
+                Überverkauft <span className="text-slate-700">(10–45, Standard 30)</span>
               </label>
               <input
                 type="number"
@@ -649,7 +660,7 @@ export default function BacktestPage() {
             </div>
             <div>
               <label className="text-xs text-slate-500 mb-1.5 block">
-                Overbought <span className="text-slate-700">(55–90, default 70)</span>
+                Überkauft <span className="text-slate-700">(55–90, Standard 70)</span>
               </label>
               <input
                 type="number"
@@ -684,7 +695,7 @@ export default function BacktestPage() {
               }}
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-              {submitting ? "Queuing…" : "Run Backtest"}
+              {submitting ? "Wird gestartet…" : "Backtest starten"}
             </button>
 
             <button
@@ -699,7 +710,7 @@ export default function BacktestPage() {
             >
               {comparing
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Comparing…</>
-                : <><Zap className="w-4 h-4" /> Compare All Strategies</>
+                : <><Zap className="w-4 h-4" /> Alle Strategien vergleichen</>
               }
             </button>
           </div>
@@ -720,13 +731,13 @@ export default function BacktestPage() {
         {compareResult && (
           <div className="mt-5">
             <p className="text-xs text-slate-500 mb-3">
-              Strategy comparison — {compareResult.ticker} · 1y · sorted by return
+              Strategie-Vergleich — {compareResult.ticker} · 1 Jahr · sortiert nach Rendite
             </p>
             <div className="overflow-x-auto rounded-xl" style={{ border: "1px solid rgba(255,255,255,0.07)" }}>
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-                    {["Strategy", "Return %", "Sharpe", "Drawdown %", "Trades"].map((h) => (
+                    {["Strategie", "Rendite %", "Sharpe", "Drawdown %", "Trades"].map((h) => (
                       <th key={h} className="px-4 py-2 text-left text-xs text-slate-500 font-semibold">{h}</th>
                     ))}
                   </tr>
@@ -767,9 +778,9 @@ export default function BacktestPage() {
       {/* Engine info cards */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { name: "Jesse",        sub: "300+ crypto indicators", color: "#00D4FF", icon: TrendingUp,   tag: "Crypto" },
-          { name: "Vibe-Trading", sub: "452 alpha factors",       color: "#7B2FFF", icon: Zap,          tag: "Quant" },
-          { name: "qlib (ML)",    sub: "Microsoft AI framework",  color: "#00FF88", icon: TrendingDown, tag: "ML" },
+          { name: "Jesse",        sub: "300+ Krypto-Indikatoren",  color: "#00D4FF", icon: TrendingUp,   tag: "Crypto" },
+          { name: "Vibe-Trading", sub: "452 Alpha-Faktoren",       color: "#7B2FFF", icon: Zap,          tag: "Quant" },
+          { name: "qlib (ML)",    sub: "Microsoft KI-Framework",   color: "#00FF88", icon: TrendingDown, tag: "ML" },
         ].map(({ name, sub, color, icon: Icon, tag }, i) => (
           <motion.div
             key={name}
@@ -805,8 +816,8 @@ export default function BacktestPage() {
         {jobs.length === 0 ? (
           <GlassCard className="text-center py-12">
             <BarChart2 className="w-10 h-10 mx-auto mb-3 text-slate-700" />
-            <p className="text-slate-500">No backtest jobs yet</p>
-            <p className="text-sm text-slate-600 mt-1">Configure and run your first backtest above</p>
+            <p className="text-slate-500">Noch keine Backtest-Jobs</p>
+            <p className="text-sm text-slate-600 mt-1">Konfiguriere und starte deinen ersten Backtest oben</p>
           </GlassCard>
         ) : (
           jobs.map((j, i) => (

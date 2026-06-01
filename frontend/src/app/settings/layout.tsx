@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Settings — Neural Trading OS",
-  description: "Configure your Neural Trading OS account, API keys, notification preferences and trading parameters.",
+  title: "Einstellungen — Neural Trading OS",
+  description: "Neural Trading OS Account, API-Keys, Benachrichtigungseinstellungen und Trading-Parameter konfigurieren.",
   robots: { index: false, follow: false },
 };
 

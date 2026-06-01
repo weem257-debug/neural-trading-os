@@ -12,7 +12,8 @@ import {
   ResponsiveContainer, ReferenceLine,
 } from "recharts";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { api, API_BASE } from "@/lib/api";
+import { api } from "@/lib/api";
+import { useAuthStore } from "@/store/authStore";
 import Link from "next/link";
 import type { TradingSignal } from "@/types";
 
@@ -67,15 +68,16 @@ function buildEquityCurve(signals: TradingSignal[]): { idx: number; equity: numb
 }
 
 const FILTER_TABS: { label: string; value: DirectionFilter }[] = [
-  { label: "All", value: "ALL" },
-  { label: "Buy", value: "BUY" },
-  { label: "Sell", value: "SELL" },
-  { label: "Hold", value: "HOLD" },
+  { label: "Alle", value: "ALL" },
+  { label: "Kauf", value: "BUY" },
+  { label: "Verkauf", value: "SELL" },
+  { label: "Halten", value: "HOLD" },
 ];
 
 const FREE_ROWS = 3;
 
 export default function SignalMarketplacePage() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
   const [signals, setSignals] = useState<TradingSignal[]>([]);
   const [perf, setPerf] = useState<PerfData | null>(null);
   const [trending, setTrending] = useState<TrendingTicker[]>([]);
@@ -85,7 +87,7 @@ export default function SignalMarketplacePage() {
   useEffect(() => {
     Promise.all([
       api.signals.list().catch(() => [] as TradingSignal[]),
-      fetch(`${API_BASE}/api/signals/performance`).then((r) => r.json()).catch(() => null),
+      api.signals.performance().catch(() => null),
       api.signals.trending(10).catch(() => [] as TrendingTicker[]),
     ]).then(([sigs, p, t]) => {
       setSignals(sigs.slice(0, 50));
@@ -140,12 +142,12 @@ export default function SignalMarketplacePage() {
           <Zap className="w-5 h-5 text-neon-green" />
           <span className="text-xs font-bold text-neon-green tracking-widest uppercase">Signal Marketplace</span>
           <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-            style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88" }}>€19/mo</span>
+            style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88" }}>€19/Mo.</span>
         </div>
-        <h1 className="text-2xl font-bold text-white mb-1">AI Signal Track Record</h1>
+        <h1 className="text-2xl font-bold text-white mb-1">KI-Signal Track Record</h1>
         <p className="text-sm text-slate-400">
-          Live performance data from Claude Sonnet 4.6 multi-agent signals.
-          Fundamental + Technical + Sentiment + Risk consensus.
+          Live-Performance-Daten aus Claude Sonnet 4.6 Multi-Agent-Signalen.
+          Fundamental + Technisch + Sentiment + Risiko-Konsens.
         </p>
       </motion.div>
 
@@ -153,28 +155,28 @@ export default function SignalMarketplacePage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
           {
-            label: "Win Rate",
+            label: "Trefferquote",
             value: `${winRate}%`,
             icon: Target,
             color: "#00FF88",
-            sub: perf?.total_evaluated ? `${perf.total_evaluated} evaluated` : `${signals.length} signals`,
+            sub: perf?.total_evaluated ? `${perf.total_evaluated} ausgewertet` : `${signals.length} Signale`,
           },
           {
-            label: "Avg Confidence",
+            label: "Ø Konfidenz",
             value: `${avgConfidence}%`,
             icon: Brain,
             color: "#00D4FF",
-            sub: "multi-agent consensus",
+            sub: "Multi-Agent-Konsens",
           },
           {
-            label: "Simulated Return",
+            label: "Sim. Rendite",
             value: `${curveReturn >= 0 ? "+" : ""}${fmt(curveReturn)}%`,
             icon: curveReturn >= 0 ? TrendingUp : TrendingDown,
             color: curveReturn >= 0 ? "#00FF88" : "#FF0080",
-            sub: `${signals.length} signals`,
+            sub: `${signals.length} Signale`,
           },
           {
-            label: "Signals Today",
+            label: "Signale heute",
             value: String(signals.filter((s) => {
               const d = new Date(s.generated_at ?? "");
               const now = new Date();
@@ -182,7 +184,7 @@ export default function SignalMarketplacePage() {
             }).length || signals.slice(0, 6).length),
             icon: Zap,
             color: "#7B2FFF",
-            sub: "AAPL NVDA MSFT TSLA META AMD",
+            sub: "AAPL NVDA MSFT TSLA META AMD GOOGL AMZN BTC ETH SPY QQQ",
           },
         ].map((kpi, i) => {
           const Icon = kpi.icon;
@@ -219,8 +221,8 @@ export default function SignalMarketplacePage() {
           <GlassCard padding="p-4">
             <div className="flex items-center gap-2 mb-4">
               <Flame className="w-4 h-4 text-orange-400" />
-              <span className="text-sm font-bold text-white">Hot Tickers — Last 24h</span>
-              <span className="text-xs text-slate-500 ml-auto">Ranked by signal volume</span>
+              <span className="text-sm font-bold text-white">Hot Tickers — Letzte 24h</span>
+              <span className="text-xs text-slate-500 ml-auto">Ranking nach Signal-Volumen</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {trending.slice(0, 5).map((t, i) => {
@@ -261,7 +263,7 @@ export default function SignalMarketplacePage() {
                         style={{ width: `${bar}%`, background: color }}
                       />
                     </div>
-                    <p className="text-xs text-slate-600 mt-1">{t.count} sig{t.count !== 1 ? "s" : ""}</p>
+                    <p className="text-xs text-slate-600 mt-1">{t.count} Sig.</p>
                   </motion.div>
                 );
               })}
@@ -282,9 +284,9 @@ export default function SignalMarketplacePage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-cyan-400" />
-                <span className="text-sm font-semibold text-white">Simulated Equity Curve</span>
+                <span className="text-sm font-semibold text-white">Simulierte Equity-Kurve</span>
               </div>
-              <span className="text-xs text-slate-500">Starting capital: $10,000</span>
+              <span className="text-xs text-slate-500">Startkapital: $10.000</span>
             </div>
             <div className="h-40">
               <ResponsiveContainer width="100%" height="100%">
@@ -315,7 +317,7 @@ export default function SignalMarketplacePage() {
               </ResponsiveContainer>
             </div>
             <p className="text-xs text-slate-600 mt-2">
-              Simulated — based on signal direction × confidence × fixed position size. Past performance does not guarantee future results.
+              Simuliert — basierend auf Signal-Richtung × Konfidenz × fixer Positionsgröße. Vergangene Performance ist kein Indikator für zukünftige Ergebnisse.
             </p>
           </GlassCard>
         </motion.div>
@@ -327,17 +329,17 @@ export default function SignalMarketplacePage() {
           <GlassCard variant="green" padding="p-4">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-4 h-4 text-neon-green" />
-              <span className="text-xs font-bold text-neon-green uppercase tracking-wider">Best Signal</span>
+              <span className="text-xs font-bold text-neon-green uppercase tracking-wider">Bestes Signal</span>
             </div>
             <p className="text-xl font-bold text-white">{perf.best_signal.ticker}</p>
             <p className="text-sm text-slate-400">{perf.best_signal.direction}</p>
-            <p className="text-2xl font-bold text-neon-green mt-1">+{fmt(perf.best_signal.return_pct)}%</p>
+            <p className="text-2xl font-bold text-neon-green mt-1">{perf.best_signal.return_pct > 0 ? "+" : ""}{fmt(perf.best_signal.return_pct)}%</p>
           </GlassCard>
           {perf.worst_signal && (
             <GlassCard variant="pink" padding="p-4">
               <div className="flex items-center gap-2 mb-1">
                 <TrendingDown className="w-4 h-4 text-neon-pink" />
-                <span className="text-xs font-bold text-neon-pink uppercase tracking-wider">Worst Signal</span>
+                <span className="text-xs font-bold text-neon-pink uppercase tracking-wider">Schwächstes Signal</span>
               </div>
               <p className="text-xl font-bold text-white">{perf.worst_signal.ticker}</p>
               <p className="text-sm text-slate-400">{perf.worst_signal.direction}</p>
@@ -357,10 +359,10 @@ export default function SignalMarketplacePage() {
         {/* Filter tabs + header */}
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-white">Recent Signals</h2>
+            <h2 className="text-sm font-bold text-white">Aktuelle Signale</h2>
             {filteredSignals.length > FREE_ROWS && (
               <span className="text-xs text-slate-500">
-                Showing {FREE_ROWS} of {filteredSignals.length}
+                {FREE_ROWS} von {filteredSignals.length} sichtbar
               </span>
             )}
           </div>
@@ -382,8 +384,8 @@ export default function SignalMarketplacePage() {
                 </button>
               ))}
             </div>
-            <Link href="/signals" className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
-              View all <ArrowRight className="w-3 h-3" />
+            <Link href={isAuthenticated ? "/signals" : "/register"} className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+              Alle ansehen <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
         </div>
@@ -394,7 +396,7 @@ export default function SignalMarketplacePage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                    {["Ticker", "Direction", "Confidence", "Price Target", "Stop Loss", "Date"].map((h) => (
+                    {["Ticker", "Richtung", "Konfidenz", "Kursziel", "Stop Loss", "Datum"].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
                         {h}
                       </th>
@@ -404,9 +406,13 @@ export default function SignalMarketplacePage() {
                 <tbody>
                   <AnimatePresence mode="popLayout">
                     {filteredSignals.slice(0, 12).map((s, i) => {
-                      const DirIcon = DIRECTION_ICON[s.direction] ?? Activity;
-                      const color = DIRECTION_COLOR[s.direction] ?? "#94a3b8";
-                      const isBlurred = i >= FREE_ROWS;
+                      const isLocked = i >= FREE_ROWS;
+                      // Locked rows are the paid product — never expose real signal
+                      // data in the DOM. A CSS blur alone is trivially removed via
+                      // devtools, so we render masked placeholders for locked rows.
+                      const DirIcon = isLocked ? Activity : (DIRECTION_ICON[s.direction] ?? Activity);
+                      const color = isLocked ? "#475569" : (DIRECTION_COLOR[s.direction] ?? "#94a3b8");
+                      const confPct = Math.round((s.confidence ?? 0.5) * 100);
                       return (
                         <motion.tr
                           key={s.id ?? i}
@@ -417,16 +423,29 @@ export default function SignalMarketplacePage() {
                           className="transition-colors duration-150"
                           style={{
                             borderBottom: "1px solid rgba(255,255,255,0.03)",
-                            filter: isBlurred ? "blur(4px)" : "none",
-                            userSelect: isBlurred ? "none" : "auto",
-                            pointerEvents: isBlurred ? "none" : "auto",
+                            filter: isLocked ? "blur(4px)" : "none",
+                            userSelect: isLocked ? "none" : "auto",
+                            pointerEvents: isLocked ? "none" : "auto",
                           }}
+                          aria-hidden={isLocked}
                         >
-                          <td className="px-4 py-3 font-bold text-white font-mono">{s.ticker}</td>
+                          <td className="px-4 py-3 font-bold font-mono">
+                            {isLocked ? (
+                              <span className="text-slate-500">••••</span>
+                            ) : s.id ? (
+                              <Link href={`/signals/view/${s.id}`} className="text-white hover:text-cyan-400 transition-colors">
+                                {s.ticker}
+                              </Link>
+                            ) : (
+                              <span className="text-white">{s.ticker}</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1.5">
                               <DirIcon className="w-3.5 h-3.5" style={{ color }} />
-                              <span className="text-xs font-semibold" style={{ color }}>{s.direction}</span>
+                              <span className="text-xs font-semibold" style={{ color }}>
+                                {isLocked ? "•••" : s.direction}
+                              </span>
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -434,21 +453,23 @@ export default function SignalMarketplacePage() {
                               <div className="h-1.5 w-16 rounded-full bg-white/5 overflow-hidden">
                                 <div
                                   className="h-full rounded-full"
-                                  style={{ width: `${Math.round((s.confidence ?? 0.5) * 100)}%`, background: color }}
+                                  style={{ width: isLocked ? "50%" : `${confPct}%`, background: color }}
                                 />
                               </div>
-                              <span className="text-xs text-slate-300">{Math.round((s.confidence ?? 0.5) * 100)}%</span>
+                              <span className="text-xs text-slate-300">{isLocked ? "••%" : `${confPct}%`}</span>
                             </div>
                           </td>
                           <td className="px-4 py-3 text-xs text-slate-300 font-mono">
-                            {s.price_target ? `$${s.price_target.toFixed(2)}` : "—"}
+                            {isLocked ? "$•••" : s.price_target ? `$${s.price_target.toFixed(2)}` : "—"}
                           </td>
                           <td className="px-4 py-3 text-xs text-slate-400 font-mono">
-                            {s.stop_loss ? `$${s.stop_loss.toFixed(2)}` : "—"}
+                            {isLocked ? "$•••" : s.stop_loss ? `$${s.stop_loss.toFixed(2)}` : "—"}
                           </td>
                           <td className="px-4 py-3 text-xs text-slate-500">
-                            {s.generated_at
-                              ? new Date(s.generated_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+                            {isLocked
+                              ? "•••"
+                              : s.generated_at
+                              ? new Date(s.generated_at).toLocaleDateString("de-DE", { day: "numeric", month: "short" })
                               : "—"}
                           </td>
                         </motion.tr>
@@ -458,7 +479,7 @@ export default function SignalMarketplacePage() {
                   {filteredSignals.length === 0 && (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-center text-sm text-slate-500">
-                        No signals yet — the AI generates 6 signals daily at 15:00 UTC.
+                        Noch keine Signale — die KI generiert täglich Signale.
                       </td>
                     </tr>
                   )}
@@ -488,14 +509,14 @@ export default function SignalMarketplacePage() {
                   style={{ background: "rgba(123,47,255,0.15)", border: "1px solid rgba(123,47,255,0.3)", color: "#7B2FFF" }}
                 >
                   <Lock className="w-3 h-3" />
-                  {filteredSignals.length - FREE_ROWS} more signals hidden
+                  {filteredSignals.length - FREE_ROWS} Signale verborgen
                 </div>
-                <p className="text-sm font-bold text-white mb-1">Unlock all signals</p>
+                <p className="text-sm font-bold text-white mb-1">Alle Signale freischalten</p>
                 <p className="text-xs text-slate-400 mb-4">
-                  Subscribe for 10 AI signals/day with full history access
+                  10 KI-Signale/Tag mit vollständigem Signalarchiv
                 </p>
                 <Link
-                  href="/pricing"
+                  href={isAuthenticated ? "/billing?plan=signals" : "/register?plan=signals"}
                   className="inline-flex items-center gap-2 py-2 px-5 rounded-xl text-sm font-bold transition-all"
                   style={{
                     background: "linear-gradient(135deg, #00FF88, #00D4FF)",
@@ -504,7 +525,7 @@ export default function SignalMarketplacePage() {
                   }}
                 >
                   <Zap className="w-3.5 h-3.5" />
-                  Upgrade — from €19/mo
+                  {isAuthenticated ? "Upgrade — ab €19/Mo." : "Kostenlos registrieren"}
                 </Link>
               </motion.div>
             </div>
@@ -524,14 +545,14 @@ export default function SignalMarketplacePage() {
         }}
       >
         <Shield className="w-8 h-8 mx-auto mb-3 text-neon-green" />
-        <h3 className="text-lg font-bold text-white mb-2">Get these signals in your inbox</h3>
+        <h3 className="text-lg font-bold text-white mb-2">Signale täglich erhalten</h3>
         <p className="text-sm text-slate-400 mb-5 max-w-md mx-auto">
-          10 AI signals/day via TradingAgents multi-agent consensus.
-          Track record visible here, updated daily. Cancel any time.
+          10 KI-Signale/Tag via TradingAgents Multi-Agent-Konsens.
+          Track Record täglich aktualisiert. Jederzeit kündbar.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
-            href="/billing"
+            href={isAuthenticated ? "/billing?plan=signals" : "/register?plan=signals"}
             className="flex items-center justify-center gap-2 py-2.5 px-6 rounded-xl text-sm font-bold transition-all duration-200"
             style={{
               background: "linear-gradient(135deg, #00FF88, #00D4FF)",
@@ -540,19 +561,19 @@ export default function SignalMarketplacePage() {
             }}
           >
             <Zap className="w-4 h-4" />
-            Subscribe — €19/mo
+            {isAuthenticated ? "Abonnieren — €19/Mo." : "Kostenlos registrieren"}
           </Link>
           <Link
-            href="/signals"
+            href={isAuthenticated ? "/signals" : "/register"}
             className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white transition-all"
             style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
           >
             <Star className="w-4 h-4" />
-            Generate a signal
+            Signal generieren
           </Link>
         </div>
         <div className="flex items-center justify-center gap-4 mt-5 text-xs text-slate-600">
-          {["No lock-in — cancel any time", "14-day free trial", "Upgrade to full dashboard anytime"].map((t) => (
+          {["Keine Mindestlaufzeit — jederzeit kündbar", "Free Plan verfügbar", "Upgrade jederzeit möglich"].map((t) => (
             <div key={t} className="flex items-center gap-1">
               <CheckCircle className="w-3 h-3 text-neon-green" />
               {t}

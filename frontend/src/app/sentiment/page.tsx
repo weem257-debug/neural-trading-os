@@ -205,7 +205,7 @@ export default function SentimentPage() {
       setResults(res);
       setIsLiveData(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Sentiment analysis failed");
+      setError(e instanceof Error ? e.message : "Sentiment-Analyse fehlgeschlagen");
       setIsLiveData(false);
     } finally {
       setLoading(false);
@@ -245,7 +245,7 @@ export default function SentimentPage() {
           >
             <Newspaper className="w-4 h-4" style={{ color: "#FFD700" }} />
           </div>
-          <h1 className="text-2xl font-bold text-slate-100">News Sentiment</h1>
+          <h1 className="text-2xl font-bold text-slate-100">News-Sentiment</h1>
           <NeonBadge color="yellow">AI-Powered</NeonBadge>
           {isLiveData ? (
             <NeonBadge color="green">LIVE</NeonBadge>
@@ -262,13 +262,13 @@ export default function SentimentPage() {
             </span>
           )}
         </div>
-        <p className="text-sm text-slate-500">FinGPT + Claude Haiku — real-time news sentiment analysis</p>
+        <p className="text-sm text-slate-500">FinGPT + Claude Haiku — Echtzeit-News-Sentiment-Analyse</p>
       </motion.div>
 
       {/* Search */}
       <GlassCard variant="purple" delay={0.1}>
         <div className="flex items-center justify-between">
-          <SectionLabel>Analyze Tickers</SectionLabel>
+          <SectionLabel>Ticker analysieren</SectionLabel>
           <InfoButton onClick={() => setExplainOpen(true)} color="yellow" className="-mt-2" />
         </div>
         <div className="flex gap-3 mt-3">
@@ -295,14 +295,14 @@ export default function SentimentPage() {
             }}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Newspaper className="w-4 h-4" />}
-            {loading ? "Analyzing..." : "Analyze"}
+            {loading ? "Analysiere…" : "Analysieren"}
           </button>
         </div>
       </GlassCard>
 
       {/* Heatmap */}
       <GlassCard delay={0.15}>
-        <SectionLabel>Sentiment Heatmap</SectionLabel>
+        <SectionLabel>Sentiment-Heatmap</SectionLabel>
         <div className="grid grid-cols-6 gap-2 mt-3">
           {heatTickers.map((t, i) => (
             <motion.div
@@ -343,7 +343,7 @@ export default function SentimentPage() {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-slate-100">{r.ticker}</h2>
-                  <p className="text-xs text-slate-500">{r.news_count} articles analyzed</p>
+                  <p className="text-xs text-slate-500">{r.news_count} Artikel analysiert</p>
                 </div>
               </div>
               <SentimentBadge score={r.overall_score} />
@@ -357,7 +357,7 @@ export default function SentimentPage() {
             />
 
             <div className="mt-4 space-y-2">
-              <SectionLabel>Latest Headlines</SectionLabel>
+              <SectionLabel>Aktuelle Schlagzeilen</SectionLabel>
               {r.news_items.map((item, i) => (
                 <NewsCard key={item.id} item={item} index={i} />
               ))}

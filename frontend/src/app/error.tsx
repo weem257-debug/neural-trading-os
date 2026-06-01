@@ -74,13 +74,13 @@ export default function GlobalError({ error, reset }: ErrorPageProps) {
               className="inline-block w-1.5 h-1.5 rounded-full"
               style={{ background: "#FF003C", boxShadow: "0 0 6px #FF003C", animation: "pulse 1.2s ease-in-out infinite" }}
             />
-            System Error Detected
+            Systemfehler erkannt
           </div>
 
-          <h1 className="text-2xl font-bold text-slate-100 mb-2">Neural Core Fault</h1>
+          <h1 className="text-2xl font-bold text-slate-100 mb-2">Systemfehler</h1>
           <p className="text-sm text-slate-400 mb-6">
-            An unexpected exception interrupted the render cycle. The system state has been
-            preserved — retrying will restore normal operation.
+            Ein unerwarteter Fehler ist aufgetreten. Der Systemstatus ist gespeichert —
+            ein Neuladen behebt das Problem in den meisten Fällen.
           </p>
 
           {error.message && (
@@ -89,7 +89,7 @@ export default function GlobalError({ error, reset }: ErrorPageProps) {
               style={{ background: "rgba(255,0,60,0.06)", border: "1px solid rgba(255,0,60,0.2)" }}
             >
               <p className="text-xs font-mono leading-relaxed" style={{ color: "rgba(255,0,60,0.9)" }}>
-                <span className="text-slate-500">Error: </span>
+                <span className="text-slate-500">Fehler: </span>
                 {error.message}
               </p>
               {error.digest && (
@@ -123,11 +123,11 @@ export default function GlobalError({ error, reset }: ErrorPageProps) {
             }}
           >
             <RefreshCw className="w-4 h-4 transition-transform duration-300 group-hover:rotate-180" />
-            Reinitialize System
+            Neu laden
           </button>
 
           <p className="text-xs text-slate-600 mt-4 font-mono">
-            Neural Trading OS — If the error persists, clear browser cache.
+            Neural Trading OS — Bei anhaltenden Fehlern: Browser-Cache leeren.
           </p>
         </div>
       </div>

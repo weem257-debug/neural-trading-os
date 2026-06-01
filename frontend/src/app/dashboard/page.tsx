@@ -7,7 +7,7 @@ import {
   TrendingUp, TrendingDown, DollarSign, Shield,
   Activity, Zap, Brain, Target, AlertTriangle,
   ArrowUpRight, ArrowDownRight, Cpu, Radio,
-  CreditCard, BarChart2, ShoppingCart,
+  CreditCard, BarChart2, ShoppingCart, Copy, Check,
 } from "lucide-react";
 import Link from "next/link";
 import { GlassCard, SectionLabel, NeonBadge } from "@/components/ui/GlassCard";
@@ -18,7 +18,8 @@ import { Watchlist } from "@/components/trading/Watchlist";
 import { api } from "@/lib/api";
 import { useAlertsStream } from "@/hooks/useWebSocket";
 import { useTradingStore } from "@/store/tradingStore";
-import type { PortfolioSnapshot, RiskMetrics } from "@/types";
+import { useAuthStore } from "@/store/authStore";
+import type { PortfolioSnapshot, RiskMetrics, ApiMetricsResponse } from "@/types";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
 } from "recharts";
@@ -75,11 +76,11 @@ const MOCK_RISK: RiskMetrics = {
 };
 
 const AGENT_ACTIVITY = [
-  { name: "Fundamentals",  active: true,  load: 78, color: "#00D4FF" },
-  { name: "Sentiment",     active: true,  load: 92, color: "#00FF88" },
-  { name: "Technical",     active: false, load: 0,  color: "#7B2FFF" },
-  { name: "News",          active: true,  load: 45, color: "#FFD700" },
-  { name: "Risk Manager",  active: true,  load: 61, color: "#FF0080" },
+  { name: "Fundamental",    active: true,  load: 78, color: "#00D4FF" },
+  { name: "Sentiment",      active: true,  load: 92, color: "#00FF88" },
+  { name: "Technisch",      active: false, load: 0,  color: "#7B2FFF" },
+  { name: "News",           active: true,  load: 45, color: "#FFD700" },
+  { name: "Risiko-Manager", active: true,  load: 61, color: "#FF0080" },
 ];
 
 const DONUT_COLORS = ["#00D4FF", "#00FF88", "#7B2FFF", "#FFD700", "#FF0080"];
@@ -145,6 +146,19 @@ const EXPLAIN_AGENTS: ExplanationContent = {
 };
 
 /* ---- Direction helpers ---- */
+const DIR_LABELS_DE: Record<string, string> = {
+  STRONG_BUY: "Starker Kauf", BUY: "Kaufen", HOLD: "Halten",
+  SELL: "Verkaufen", STRONG_SELL: "Starker Verkauf",
+};
+function dirLabel(d: string) { return DIR_LABELS_DE[d] ?? d; }
+
+const SOURCE_LABELS_DE: Record<string, string> = {
+  Technical: "Technisch", Sentiment: "Sentiment", Fundamental: "Fundamental",
+  TradingAgents: "Multi-Agenten", Composite: "Komposit", News: "News",
+  "Risk Manager": "Risiko-Manager",
+};
+function srcLabel(s: string) { return SOURCE_LABELS_DE[s] ?? s; }
+
 function directionStyle(d: string) {
   if (d === "STRONG_BUY") return { bg: "rgba(0,255,136,0.15)", border: "rgba(0,255,136,0.4)", color: "#00FF88", label: "S.BUY" };
   if (d === "BUY")         return { bg: "rgba(0,255,136,0.08)", border: "rgba(0,255,136,0.25)", color: "#00DD77", label: "BUY" };
@@ -289,6 +303,54 @@ function KpiCard({
   );
 }
 
+/* ---- Market Status Badge ---- */
+function getMarketStatus(): { label: string; open: boolean; hint: string } {
+  const now = new Date();
+  // Convert to US Eastern Time using Intl (handles DST automatically)
+  const etStr = now.toLocaleString("en-US", { timeZone: "America/New_York" });
+  const et = new Date(etStr);
+  const day = et.getDay(); // 0=Sun, 6=Sat
+  const h = et.getHours();
+  const m = et.getMinutes();
+  const mins = h * 60 + m;
+  const isWeekday = day >= 1 && day <= 5;
+  const nyseOpen = isWeekday && mins >= 9 * 60 + 30 && mins < 16 * 60;
+  const premarket = isWeekday && mins >= 4 * 60 && mins < 9 * 60 + 30;
+  const afterhours = isWeekday && mins >= 16 * 60 && mins < 20 * 60;
+  if (nyseOpen) return { label: "NYSE Offen", open: true, hint: "NYSE/NASDAQ reguläre Handelszeit (09:30–16:00 ET)" };
+  if (premarket) return { label: "Vorbörslich", open: false, hint: "Vorbörslicher Handel aktiv (04:00–09:30 ET)" };
+  if (afterhours) return { label: "Nachbörslich", open: false, hint: "Nachbörslicher Handel (16:00–20:00 ET)" };
+  return { label: "NYSE Geschlossen", open: false, hint: isWeekday ? "NYSE außerhalb der Handelszeiten" : "NYSE — Wochenende" };
+}
+
+function MarketStatusBadge() {
+  const [status, setStatus] = useState(getMarketStatus);
+  useEffect(() => {
+    const id = setInterval(() => setStatus(getMarketStatus()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div
+      className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold"
+      style={{
+        background: status.open ? "rgba(0,255,136,0.06)" : "rgba(100,116,139,0.06)",
+        border: `1px solid ${status.open ? "rgba(0,255,136,0.2)" : "rgba(100,116,139,0.15)"}`,
+        color: status.open ? "#00FF88" : "#64748b",
+      }}
+      title={status.hint}
+    >
+      <span
+        className="w-1.5 h-1.5 rounded-full shrink-0"
+        style={{
+          background: status.open ? "#00FF88" : "#64748b",
+          boxShadow: status.open ? "0 0 4px #00FF88" : "none",
+        }}
+      />
+      {status.label}
+    </div>
+  );
+}
+
 /* ============================================================ */
 export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState<PortfolioSnapshot>(MOCK_PORTFOLIO);
@@ -301,15 +363,48 @@ export default function DashboardPage() {
   const [executionMode, setExecutionMode] = useState<"paper" | "live">("paper");
   const [explainContent, setExplainContent] = useState<ExplanationContent | null>(null);
   const [dailyStats, setDailyStats] = useState<{ total_today: number; buy: number; sell: number; hold: number } | null>(null);
+  const [quotaUsage, setQuotaUsage] = useState<{ signals_used_today: number; signals_limit: number; signals_remaining: number } | null>(null);
+  const [healthMetrics, setHealthMetrics] = useState<ApiMetricsResponse | null>(null);
+  const [firstRunDismissed, setFirstRunDismissed] = useState(() => {
+    try { return localStorage.getItem("neural_first_run_v1") === "1"; } catch { return false; }
+  });
   const { events: alertEvents } = useAlertsStream();
   const { signals, setSignals } = useTradingStore((s) => ({ signals: s.signals, setSignals: s.setSignals }));
+  const tier = useAuthStore((s) => s.tier);
+  const username = useAuthStore((s) => s.username);
+  const greeting = useMemo(() => {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return "Guten Morgen";
+    if (h >= 12 && h < 18) return "Guten Tag";
+    if (h >= 18 && h < 22) return "Guten Abend";
+    return "Hallo";
+  }, []);
 
-  // Use real signals when available, fall back to mock feed for visual richness
+  // DB history: loaded once on mount, used as fallback when session store is empty
+  const [dbHistory, setDbHistory] = useState<typeof MOCK_SIGNALS_FEED>([]);
+  useEffect(() => {
+    api.signals.history(10).then((rows) => {
+      if (rows.length > 0) {
+        setDbHistory(rows.map((r) => ({
+          id: r.id,
+          ticker: r.ticker,
+          direction: r.direction,
+          confidence: r.confidence,
+          source: r.source,
+          ts: new Date(r.generated_at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }),
+        })));
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Use real session signals first, then DB history, then mock feed
   const signalFeed = useMemo(
     () => signals.length > 0
       ? signals.slice(0, 10).map((s) => ({ ...s, ts: new Date(s.generated_at).toLocaleTimeString() }))
+      : dbHistory.length > 0
+      ? dbHistory
       : MOCK_SIGNALS_FEED,
-    [signals]
+    [signals, dbHistory]
   );
 
   const fetchPortfolio = useCallback(async (initial = false) => {
@@ -330,6 +425,23 @@ export default function DashboardPage() {
   const handleManualRefresh = useCallback(() => {
     fetchPortfolio(false);
   }, [fetchPortfolio]);
+
+  function dismissFirstRun() {
+    try { localStorage.setItem("neural_first_run_v1", "1"); } catch {}
+    setFirstRunDismissed(true);
+  }
+
+  const [referralCopied, setReferralCopied] = useState(false);
+  const [referralCount, setReferralCount] = useState<number | null>(null);
+  function copyReferralLink() {
+    if (!username) return;
+    const ref = btoa(username);
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? "";
+    navigator.clipboard.writeText(`${base}/invite/${ref}`).then(() => {
+      setReferralCopied(true);
+      setTimeout(() => setReferralCopied(false), 2000);
+    }).catch(() => {});
+  }
 
   // Refresh portfolio with micro-fluctuations for demo
   useEffect(() => {
@@ -352,10 +464,17 @@ export default function DashboardPage() {
     api.risk.metrics().then(setRisk).catch(() => {});
     api.execution.mode().then((m) => setExecutionMode(m.mode as "paper" | "live")).catch(() => {});
     api.signals.performance().then((d) => setWinRate(d.win_rate)).catch(() => {});
+    api.billing.usage().then(setQuotaUsage).catch(() => {});
     // Poll daily signal stats every 60s for live buy/sell/hold counts
     const fetchStats = () => api.signals.stats().then(setDailyStats).catch(() => {});
     fetchStats();
     const statsInterval = setInterval(fetchStats, 60_000);
+    // Poll system health metrics every 60s for live social-proof stats
+    const fetchHealth = () => api.health.metrics().then(setHealthMetrics).catch(() => {});
+    fetchHealth();
+    const healthInterval = setInterval(fetchHealth, 60_000);
+    // Load referral count once (requires auth — fails silently for guests)
+    api.auth.referralStats().then((s) => setReferralCount(s.referral_count)).catch(() => {});
     // Load existing signals; if store is empty, generate a demo batch to pre-populate the feed
     api.signals.list().then((existing) => {
       if (existing.length > 0) {
@@ -368,7 +487,7 @@ export default function DashboardPage() {
       }
     }).catch(() => {});
 
-    return () => { clearInterval(interval); clearInterval(statsInterval); };
+    return () => { clearInterval(interval); clearInterval(statsInterval); clearInterval(healthInterval); };
   }, [fetchPortfolio, setSignals]);
 
   const donutData = useMemo(
@@ -382,7 +501,7 @@ export default function DashboardPage() {
 
   const pnlPos = portfolio.total_pnl >= 0;
   const dayPos = portfolio.day_pnl >= 0;
-  const riskLabel = risk.current_drawdown > 0.15 ? "HIGH" : risk.current_drawdown > 0.05 ? "MEDIUM" : "LOW";
+  const riskLabel = risk.current_drawdown > 0.15 ? "HOCH" : risk.current_drawdown > 0.05 ? "MITTEL" : "NIEDRIG";
   const riskColor: "pink" | "purple" | "cyan" = risk.current_drawdown > 0.15 ? "pink" : risk.current_drawdown > 0.05 ? "purple" : "cyan";
 
   const activeAgentCount = AGENT_ACTIVITY.filter((a) => a.active).length;
@@ -394,10 +513,17 @@ export default function DashboardPage() {
     return { buy, sell, hold };
   }, [signalFeed]);
 
+  const topSignal = useMemo(() => {
+    if (!signalFeed.length) return null;
+    return signalFeed.reduce((best, s) =>
+      (s.confidence ?? 0) > (best.confidence ?? 0) ? s : best
+    );
+  }, [signalFeed]);
+
   // ---- Skeleton loading state ----
   if (initialLoading) {
     return (
-      <div className="space-y-5" aria-busy="true" aria-label="Loading dashboard...">
+      <div className="space-y-5" aria-busy="true" aria-label="Dashboard wird geladen...">
         {/* Header skeleton */}
         <div className="flex items-start justify-between">
           <div className="space-y-2">
@@ -437,6 +563,11 @@ export default function DashboardPage() {
       >
         <div>
           <p className="section-label">NEURAL TRADING OS</p>
+          {username && (
+            <p className="text-xs mt-0.5" style={{ color: "rgba(100,116,139,0.6)" }}>
+              {greeting}, {username}
+            </p>
+          )}
           <div className="flex items-baseline gap-3 mt-1">
             <h1
               className="text-4xl font-bold font-mono"
@@ -455,7 +586,7 @@ export default function DashboardPage() {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Total portfolio value — updated live
+            Gesamtportfoliowert — live aktualisiert
           </p>
         </div>
 
@@ -473,7 +604,7 @@ export default function DashboardPage() {
               style={isApiOnline ? {} : { background: "#EF4444", boxShadow: "0 0 6px #EF4444" }}
             />
             <span style={{ color: isApiOnline ? "#00FF88" : "#EF4444" }}>
-              {isApiOnline ? "Systems Online" : "API Offline"}
+              {isApiOnline ? "Systeme Online" : "API Offline"}
             </span>
           </div>
           <div
@@ -488,9 +619,10 @@ export default function DashboardPage() {
               style={{ color: executionMode === "live" ? "#FF0080" : "#00D4FF" }}
             />
             <span style={{ color: executionMode === "live" ? "#FF0080" : "#00D4FF" }}>
-              {executionMode === "live" ? "LIVE MODE" : "PAPER MODE"}
+              {executionMode === "live" ? "LIVE-MODUS" : "PAPER-MODUS"}
             </span>
           </div>
+          <MarketStatusBadge />
           <button
             onClick={handleManualRefresh}
             disabled={isRefreshing}
@@ -501,7 +633,7 @@ export default function DashboardPage() {
               color: "#7B2FFF",
               cursor: isRefreshing ? "not-allowed" : "pointer",
             }}
-            title="Refresh portfolio data"
+            title="Portfolio-Daten aktualisieren"
           >
             <Activity
               className="w-3 h-3"
@@ -509,43 +641,99 @@ export default function DashboardPage() {
                 animation: isRefreshing ? "spin 1s linear infinite" : "none",
               }}
             />
-            <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
+            <span>{isRefreshing ? "Aktualisiert..." : "Aktualisieren"}</span>
           </button>
         </div>
       </motion.div>
 
+      {/* ---- First-Run Activation Banner ---- */}
+      {!firstRunDismissed && dbHistory.length === 0 && !initialLoading && (
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+          className="relative overflow-hidden rounded-2xl p-5"
+          style={{
+            background: "linear-gradient(135deg, rgba(0,212,255,0.07), rgba(123,47,255,0.05))",
+            border: "1px solid rgba(0,212,255,0.2)",
+          }}
+        >
+          {/* Glow */}
+          <div className="absolute top-0 left-0 w-72 h-24 pointer-events-none"
+            style={{ background: "radial-gradient(ellipse, rgba(0,212,255,0.12) 0%, transparent 70%)" }} />
+          <div className="flex items-center justify-between gap-6 relative">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                style={{ background: "rgba(0,212,255,0.12)", border: "1px solid rgba(0,212,255,0.3)" }}>
+                <Zap className="w-5 h-5" style={{ color: "#00D4FF" }} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-100 mb-0.5">Willkommen! Generiere dein erstes KI-Signal</p>
+                <p className="text-xs text-slate-400 max-w-xl">
+                  Gib einen Ticker ein (z.B. AAPL, BTC, NVDA) und lass das Multi-Agenten-System eine vollständige
+                  Elliott-Wave- und Sentiment-Analyse erstellen — kostenlos, dauerhaft.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <Link
+                href="/signals"
+                onClick={dismissFirstRun}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
+                style={{
+                  background: "rgba(0,212,255,0.18)",
+                  border: "1px solid rgba(0,212,255,0.45)",
+                  color: "#00D4FF",
+                }}
+              >
+                <Zap className="w-4 h-4" />
+                Erstes Signal generieren
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Link>
+              <button
+                onClick={dismissFirstRun}
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors px-2 py-1"
+                title="Banner schließen"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* ---- KPI Cards ---- */}
       <div className="grid grid-cols-4 gap-4">
         <KpiCard
-          label="Total P&L"
+          label="Gesamt P&L"
           value={<span style={{ color: pnlPos ? "#00FF88" : "#FF0080" }}>
             {pnlPos ? "+" : ""}${Math.abs(portfolio.total_pnl).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>}
-          sub={`${pnlPos ? "+" : ""}${(portfolio.total_pnl_pct * 100).toFixed(2)}% all time`}
+          sub={`${pnlPos ? "+" : ""}${(portfolio.total_pnl_pct * 100).toFixed(2)}% gesamt`}
           color={pnlPos ? "green" : "pink"}
           icon={pnlPos ? TrendingUp : TrendingDown}
           delay={0.05}
         />
         <KpiCard
-          label="Today P&L"
+          label="Heute P&L"
           value={<span style={{ color: dayPos ? "#00FF88" : "#FF0080" }}>
             {dayPos ? "+" : ""}${Math.abs(portfolio.day_pnl).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>}
-          sub={`${dayPos ? "+" : ""}${(portfolio.day_pnl_pct * 100).toFixed(2)}% today`}
+          sub={`${dayPos ? "+" : ""}${(portfolio.day_pnl_pct * 100).toFixed(2)}% heute`}
           color={dayPos ? "green" : "pink"}
           icon={dayPos ? ArrowUpRight : ArrowDownRight}
           delay={0.1}
         />
         <KpiCard
-          label="Win Rate"
+          label="Trefferquote"
           value={<span>{winRate !== null ? `${(winRate * 100).toFixed(1)}%` : "—"}</span>}
-          sub="Evaluated signals"
+          sub="Bewertete Signale"
           color="cyan"
           icon={Target}
           delay={0.15}
         />
         <KpiCard
-          label="Risk Score"
+          label="Risikograd"
           value={<span>{riskLabel}</span>}
           sub={`VaR 95%: $${risk.portfolio_var_95.toLocaleString()}`}
           color={riskColor}
@@ -561,7 +749,7 @@ export default function DashboardPage() {
           {/* Donut */}
           <GlassCard variant="cyan" delay={0.25}>
             <div className="flex items-center justify-between">
-              <SectionLabel>Asset Allocation</SectionLabel>
+              <SectionLabel>Asset-Allokation</SectionLabel>
               <InfoButton onClick={() => setExplainContent(EXPLAIN_PORTFOLIO)} color="cyan" className="-mt-1" />
             </div>
             <div className="flex items-center gap-4">
@@ -615,7 +803,7 @@ export default function DashboardPage() {
 
           {/* Top Holdings sparklines */}
           <GlassCard delay={0.3}>
-            <SectionLabel>Top Holdings</SectionLabel>
+            <SectionLabel>Top Positionen</SectionLabel>
             <div className="space-y-3">
               {portfolio.positions.slice(0, 4).map((p, i) => {
                 const pos = p.unrealized_pnl >= 0;
@@ -649,7 +837,7 @@ export default function DashboardPage() {
         <div className="col-span-4">
           <GlassCard variant="green" padding="p-4" delay={0.2} className="h-full">
             <div className="flex items-center justify-between mb-3">
-              <SectionLabel>Live Signal Feed</SectionLabel>
+              <SectionLabel>Live-Signal-Feed</SectionLabel>
               <div className="flex items-center gap-2">
                 <InfoButton onClick={() => setExplainContent(EXPLAIN_SIGNALS)} color="green" />
                 <div className="flex items-center gap-1.5">
@@ -690,7 +878,7 @@ export default function DashboardPage() {
                             {ds.label}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500">{s.source}</p>
+                        <p className="text-xs text-slate-500">{srcLabel(s.source)}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-xs font-mono font-bold" style={{ color: ds.color }}>
@@ -716,7 +904,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-neon-purple" />
-                <SectionLabel>Neural Activity</SectionLabel>
+                <SectionLabel>KI-Aktivität</SectionLabel>
               </div>
               <InfoButton onClick={() => setExplainContent(EXPLAIN_AGENTS)} color="purple" />
             </div>
@@ -736,7 +924,7 @@ export default function DashboardPage() {
                       <span className="text-xs text-slate-400">{a.name}</span>
                     </div>
                     <span className="text-xs font-mono" style={{ color: a.active ? a.color : "#334155" }}>
-                      {a.active ? `${a.load}%` : "IDLE"}
+                      {a.active ? `${a.load}%` : "INAKTIV"}
                     </span>
                   </div>
                   <div className="w-full bg-white/5 rounded-full h-1 overflow-hidden">
@@ -751,9 +939,27 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <div className="mt-3 pt-3 flex items-center gap-2" style={{ borderTop: "1px solid rgba(123,47,255,0.2)" }}>
-              <Cpu className="w-3.5 h-3.5 text-neon-purple" />
-              <span className="text-xs text-slate-500">{activeAgentCount}/{AGENT_ACTIVITY.length} agents active</span>
+            <div className="mt-3 pt-3 space-y-1.5" style={{ borderTop: "1px solid rgba(123,47,255,0.2)" }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Cpu className="w-3.5 h-3.5 text-neon-purple" />
+                  <span className="text-xs text-slate-500">{activeAgentCount}/{AGENT_ACTIVITY.length} Agenten aktiv</span>
+                </div>
+                {healthMetrics && (
+                  <span className="text-xs font-mono text-neon-green">{healthMetrics.signals_generated_today} Signals heute</span>
+                )}
+              </div>
+              {healthMetrics && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Radio className="w-3 h-3 text-neon-cyan" />
+                    <span className="text-xs text-slate-500">{healthMetrics.ws_connections_active} Verbindungen aktiv</span>
+                  </div>
+                  <span className="text-xs text-slate-600">
+                    Up {Math.floor(healthMetrics.uptime_seconds / 86400)}d {Math.floor((healthMetrics.uptime_seconds % 86400) / 3600)}h
+                  </span>
+                </div>
+              )}
             </div>
           </GlassCard>
 
@@ -762,7 +968,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-neon-pink" />
-                <SectionLabel>Risk Snapshot</SectionLabel>
+                <SectionLabel>Risiko-Übersicht</SectionLabel>
               </div>
               <InfoButton onClick={() => setExplainContent(EXPLAIN_RISK)} color="pink" />
             </div>
@@ -786,12 +992,12 @@ export default function DashboardPage() {
               {risk.alerts.length > 0 ? (
                 <>
                   <AlertTriangle className="w-3.5 h-3.5" style={{ color: "#FF0080" }} />
-                  <span className="text-xs" style={{ color: "#FF0080" }}>{risk.alerts.length} active alert{risk.alerts.length !== 1 ? "s" : ""}</span>
+                  <span className="text-xs" style={{ color: "#FF0080" }}>{risk.alerts.length} aktive{risk.alerts.length !== 1 ? " Alarme" : " Alarm"}</span>
                 </>
               ) : (
                 <>
                   <Activity className="w-3.5 h-3.5 text-neon-green" />
-                  <span className="text-xs" style={{ color: "#00FF88" }}>Risk within limits</span>
+                  <span className="text-xs" style={{ color: "#00FF88" }}>Risiko im Rahmen</span>
                 </>
               )}
             </div>
@@ -801,7 +1007,7 @@ export default function DashboardPage() {
           <GlassCard variant="cyan" delay={0.4}>
             <div className="flex items-center gap-2 mb-2">
               <Zap className="w-4 h-4 text-cyan-400" />
-              <SectionLabel>Signals Today</SectionLabel>
+              <SectionLabel>Signale heute</SectionLabel>
             </div>
             <div className="text-3xl font-bold font-mono text-center py-2" style={{ color: "#00D4FF", textShadow: "0 0 20px rgba(0,212,255,0.5)" }}>
               {dailyStats?.total_today ?? (INITIAL_SIGNALS_COUNT + signals.length)}
@@ -809,24 +1015,55 @@ export default function DashboardPage() {
             <div className="flex justify-around text-center mt-1">
               <div>
                 <p className="text-xs font-bold" style={{ color: "#00FF88" }}>{dailyStats?.buy ?? signalCounts.buy}</p>
-                <p className="text-xs text-slate-500">Buy</p>
+                <p className="text-xs text-slate-500">Kauf</p>
               </div>
               <div>
                 <p className="text-xs font-bold" style={{ color: "#FFD700" }}>{dailyStats?.hold ?? signalCounts.hold}</p>
-                <p className="text-xs text-slate-500">Hold</p>
+                <p className="text-xs text-slate-500">Halten</p>
               </div>
               <div>
                 <p className="text-xs font-bold" style={{ color: "#FF0080" }}>{dailyStats?.sell ?? signalCounts.sell}</p>
-                <p className="text-xs text-slate-500">Sell</p>
+                <p className="text-xs text-slate-500">Verkauf</p>
               </div>
             </div>
+            {quotaUsage && quotaUsage.signals_limit > 0 && (
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(0,212,255,0.15)" }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-slate-500">Tageskontingent</span>
+                  <span
+                    className="text-xs font-mono font-bold"
+                    style={{
+                      color: quotaUsage.signals_remaining === 0 ? "#FF0080"
+                        : quotaUsage.signals_remaining <= 1 ? "#FFD700"
+                        : "#00D4FF",
+                    }}
+                  >
+                    {quotaUsage.signals_used_today}/{quotaUsage.signals_limit}
+                  </span>
+                </div>
+                <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{
+                      width: `${Math.min((quotaUsage.signals_used_today / quotaUsage.signals_limit) * 100, 100)}%`,
+                      background: quotaUsage.signals_remaining === 0 ? "#FF0080"
+                        : quotaUsage.signals_remaining <= 1 ? "#FFD700"
+                        : "#00D4FF",
+                    }}
+                  />
+                </div>
+                {quotaUsage.signals_remaining === 0 && (
+                  <p className="text-xs mt-1 text-center" style={{ color: "#FF0080" }}>Kontingent aufgebraucht · Reset 00:00 UTC</p>
+                )}
+              </div>
+            )}
           </GlassCard>
 
           {/* Quick Actions */}
           <GlassCard delay={0.45}>
             <div className="flex items-center gap-2 mb-3">
               <Zap className="w-4 h-4 text-neon-green" />
-              <SectionLabel>Quick Actions</SectionLabel>
+              <SectionLabel>Schnellzugriff</SectionLabel>
             </div>
             <div className="space-y-2">
               <Link
@@ -836,7 +1073,7 @@ export default function DashboardPage() {
               >
                 <div className="flex items-center gap-2">
                   <BarChart2 className="w-3.5 h-3.5 text-cyan-400" />
-                  <span className="text-xs text-slate-300 group-hover:text-cyan-400 transition-colors">Signal Track Record</span>
+                  <span className="text-xs text-slate-300 group-hover:text-cyan-400 transition-colors">Signal-Bilanz</span>
                 </div>
                 <ArrowUpRight className="w-3 h-3 text-slate-600 group-hover:text-cyan-400 transition-colors" />
               </Link>
@@ -847,7 +1084,7 @@ export default function DashboardPage() {
               >
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-3.5 h-3.5 text-neon-purple" />
-                  <span className="text-xs text-slate-300 group-hover:text-neon-purple transition-colors">Upgrade Plan</span>
+                  <span className="text-xs text-slate-300 group-hover:text-neon-purple transition-colors">Plan upgraden</span>
                 </div>
                 <ArrowUpRight className="w-3 h-3 text-slate-600 group-hover:text-neon-purple transition-colors" />
               </Link>
@@ -858,26 +1095,148 @@ export default function DashboardPage() {
               >
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-3.5 h-3.5 text-neon-green" />
-                  <span className="text-xs text-slate-300 group-hover:text-neon-green transition-colors">Manage Subscription</span>
+                  <span className="text-xs text-slate-300 group-hover:text-neon-green transition-colors">Abo verwalten</span>
                 </div>
                 <ArrowUpRight className="w-3 h-3 text-slate-600 group-hover:text-neon-green transition-colors" />
               </Link>
             </div>
           </GlassCard>
+
+          {/* Referral Widget */}
+          {username && tier !== "demo" && (
+            <GlassCard delay={0.46}>
+              <div className="flex items-center gap-2 mb-2">
+                <ArrowUpRight className="w-4 h-4" style={{ color: "#00FF88" }} />
+                <SectionLabel>Freunde einladen</SectionLabel>
+              </div>
+              <p className="text-xs text-slate-500 mb-3">Teile Neural Trading OS mit deinem Netzwerk.</p>
+              <button
+                onClick={copyReferralLink}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all"
+                style={{
+                  background: referralCopied ? "rgba(0,255,136,0.08)" : "rgba(0,212,255,0.05)",
+                  border: `1px solid ${referralCopied ? "rgba(0,255,136,0.3)" : "rgba(0,212,255,0.12)"}`,
+                }}
+              >
+                <span className="text-xs font-mono text-slate-400 truncate max-w-[140px]">
+                  /invite/{btoa(username)}
+                </span>
+                {referralCopied
+                  ? <Check className="w-3.5 h-3.5 shrink-0 ml-2" style={{ color: "#00FF88" }} />
+                  : <Copy className="w-3.5 h-3.5 shrink-0 ml-2 text-slate-500" />
+                }
+              </button>
+              <p className="text-xs text-center mt-1.5" style={{ color: referralCopied ? "#00FF88" : "#475569" }}>
+                {referralCopied ? "Link kopiert!" : "Klicken zum Kopieren"}
+              </p>
+              {referralCount !== null && (
+                <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: "1px solid rgba(0,255,136,0.1)" }}>
+                  <span className="text-xs text-slate-600">Eingeladene Nutzer</span>
+                  <span className="text-xs font-bold font-mono" style={{ color: referralCount > 0 ? "#00FF88" : "#475569" }}>
+                    {referralCount > 0 ? `✓ ${referralCount}` : "0"}
+                  </span>
+                </div>
+              )}
+            </GlassCard>
+          )}
+
+          {/* Upgrade CTA für Free/Demo-User */}
+          {(tier === "free" || tier === "demo" || tier === null) && (
+            <GlassCard delay={0.48}>
+              <div
+                className="rounded-xl p-4 text-center"
+                style={{
+                  background: "linear-gradient(135deg, rgba(123,47,255,0.1), rgba(0,212,255,0.06))",
+                  border: "1px solid rgba(123,47,255,0.25)",
+                }}
+              >
+                <p className="text-xs font-bold text-violet-400 tracking-wider uppercase mb-1">Free Plan</p>
+                <p className="text-sm font-semibold text-white mb-3">3 Signale/Tag · Upgrade für mehr</p>
+                <Link
+                  href="/billing?plan=basic"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all"
+                  style={{
+                    background: "rgba(123,47,255,0.2)",
+                    border: "1px solid rgba(123,47,255,0.4)",
+                    color: "#a78bfa",
+                  }}
+                >
+                  <ShoppingCart className="w-3.5 h-3.5" />
+                  Jetzt upgraden
+                  <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              </div>
+            </GlassCard>
+          )}
+
+          {/* Top Signal des Tages */}
+          {topSignal && (
+            <GlassCard delay={0.5}>
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="w-4 h-4 text-neon-green" />
+                <SectionLabel>Stärkstes Signal</SectionLabel>
+              </div>
+              <Link href="/signals" className="block group">
+                <div
+                  className="rounded-xl p-3 transition-all group-hover:brightness-110"
+                  style={{
+                    background: topSignal.direction.includes("BUY")
+                      ? "rgba(0,255,136,0.06)"
+                      : topSignal.direction.includes("SELL")
+                      ? "rgba(255,0,128,0.06)"
+                      : "rgba(255,215,0,0.06)",
+                    border: `1px solid ${topSignal.direction.includes("BUY") ? "rgba(0,255,136,0.2)" : topSignal.direction.includes("SELL") ? "rgba(255,0,128,0.2)" : "rgba(255,215,0,0.2)"}`,
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-black text-slate-100 font-mono">{topSignal.ticker}</span>
+                    <span
+                      className="text-xs font-bold px-2 py-0.5 rounded-md"
+                      style={{
+                        color: topSignal.direction.includes("BUY") ? "#00FF88" : topSignal.direction.includes("SELL") ? "#FF0080" : "#FFD700",
+                        background: topSignal.direction.includes("BUY") ? "rgba(0,255,136,0.12)" : topSignal.direction.includes("SELL") ? "rgba(255,0,128,0.12)" : "rgba(255,215,0,0.12)",
+                      }}
+                    >
+                      {dirLabel(topSignal.direction)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full" style={{ background: "rgba(255,255,255,0.06)" }}>
+                      <div
+                        className="h-1.5 rounded-full"
+                        style={{
+                          width: `${Math.round((topSignal.confidence ?? 0) * 100)}%`,
+                          background: topSignal.direction.includes("BUY") ? "#00FF88" : topSignal.direction.includes("SELL") ? "#FF0080" : "#FFD700",
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs text-slate-400 font-mono flex-shrink-0">
+                      {Math.round((topSignal.confidence ?? 0) * 100)}%
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600 mt-2 text-right group-hover:text-slate-500 transition-colors">
+                  Alle Signale ansehen →
+                </p>
+              </Link>
+            </GlassCard>
+          )}
         </div>
       </div>
 
       {/* ---- Positions Table ---- */}
       <GlassCard delay={0.45} padding="p-4">
         <div className="flex items-center justify-between mb-4">
-          <SectionLabel>Open Positions ({portfolio.positions.length})</SectionLabel>
-          <NeonBadge color="cyan">PAPER</NeonBadge>
+          <SectionLabel>Offene Positionen ({portfolio.positions.length})</SectionLabel>
+          <NeonBadge color={executionMode === "live" ? "pink" : "cyan"}>
+            {executionMode === "live" ? "LIVE" : "PAPER"}
+          </NeonBadge>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                {["Ticker", "Qty", "Entry", "Current", "Value", "P&L %", "Weight"].map((h) => (
+                {["Ticker", "Menge", "Kaufkurs", "Aktuell", "Wert", "P&L %", "Gewicht"].map((h) => (
                   <th key={h} className="text-left py-2 pr-4 text-xs text-slate-600 uppercase tracking-wider font-semibold first:pl-0">
                     {h}
                   </th>

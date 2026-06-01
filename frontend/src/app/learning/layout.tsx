@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "AI Learning Hub — Neural Trading OS",
+  title: "KI-Lernzentrum — Neural Trading OS",
   description:
-    "AI-curated trading knowledge: YouTube video insights, trade retrospectives and pattern learning powered by Claude Sonnet 4.6.",
+    "KI-kuratiertes Trading-Wissen: YouTube-Video-Insights, Trade-Retrospektiven und Musterlern-System — powered by Claude Sonnet 4.6.",
   openGraph: {
-    title: "AI Learning Hub — Neural Trading OS",
-    description: "YouTube insights + trade retrospectives curated by Claude AI.",
+    title: "KI-Lernzentrum — Neural Trading OS",
+    description: "YouTube-Insights + Trade-Retrospektiven, kuratiert von Claude AI.",
     type: "website",
   },
   robots: { index: false, follow: false },

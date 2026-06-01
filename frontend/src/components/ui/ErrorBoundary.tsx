@@ -120,16 +120,16 @@ export class ErrorBoundary extends React.Component<Props, State> {
                   animation: "pulse 1.2s ease-in-out infinite",
                 }}
               />
-              System Error Detected
+              Systemfehler erkannt
             </div>
 
             {/* Heading */}
             <h1 className="text-2xl font-bold text-slate-100 mb-2">
-              Neural Core Fault
+              Schwerwiegender Fehler
             </h1>
             <p className="text-sm text-slate-400 mb-6">
-              An unexpected exception interrupted the render cycle. The system state
-              has been preserved — a reload will restore normal operation.
+              Ein unerwarteter Fehler hat den Render-Zyklus unterbrochen. Der System-Status
+              wurde gesichert — ein Neu-Laden stellt den normalen Betrieb wieder her.
             </p>
 
             {/* Error message */}
@@ -145,12 +145,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
                   className="text-xs font-mono leading-relaxed"
                   style={{ color: "rgba(255,0,60,0.9)" }}
                 >
-                  <span className="text-slate-500">Error: </span>
+                  <span className="text-slate-500">Fehler: </span>
                   {error.message}
                 </p>
                 {error.name && error.name !== "Error" && (
                   <p className="text-xs font-mono mt-1" style={{ color: "rgba(255,100,100,0.6)" }}>
-                    <span className="text-slate-600">Type: </span>
+                    <span className="text-slate-600">Typ: </span>
                     {error.name}
                   </p>
                 )}
@@ -182,12 +182,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
               <RefreshCw
                 className="w-4 h-4 transition-transform duration-300 group-hover:rotate-180"
               />
-              Reinitialize System
+              Neu laden
             </button>
 
             {/* Footer hint */}
             <p className="text-xs text-slate-600 mt-4 font-mono">
-              Neural Trading OS v0.7.0 — If the error persists, clear browser cache.
+              Neural Trading OS v0.7.0 — Falls der Fehler anhält, Browser-Cache leeren.
             </p>
           </div>
         </div>
