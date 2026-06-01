@@ -70,6 +70,11 @@ pytest-asyncio==0.24.0
 # Type checking
 mypy==1.11.0
 
+# ---- Broker Integrations ----
+# degiro-connector>=2.0.0   # DEGIRO community lib (optional — install separately)
+# pytr>=0.3.0               # Trade Republic WebSocket (optional — install separately)
+# python-fints already declared above
+
 # ---- Optional: install only if using the specific repo ----
 # nautilus_trader==1.200.0   # requires C compilation on Windows
 # jesse                       # pip install jesse

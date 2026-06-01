@@ -29,9 +29,9 @@ async def get_multi_sentiment(
     import asyncio
     ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     if not ticker_list:
-        raise HTTPException(status_code=422, detail="No valid tickers provided")
+        raise HTTPException(status_code=422, detail="Keine gültigen Ticker angegeben")
     if len(ticker_list) > 10:
-        raise HTTPException(status_code=422, detail="Max 10 tickers per request")
+        raise HTTPException(status_code=422, detail="Maximal 10 Ticker pro Anfrage")
 
     try:
         raw = await asyncio.gather(
@@ -40,7 +40,7 @@ async def get_multi_sentiment(
         )
         return [r for r in raw if isinstance(r, SentimentSummary)]
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Sentiment analysis failed")
+        raise HTTPException(status_code=500, detail="Sentiment-Analyse fehlgeschlagen")
 
 
 @async_cached(ttl_seconds=300)
@@ -73,4 +73,4 @@ async def get_sentiment(
         return await _cached_sentiment(ticker.upper())
     except Exception as e:
         logger.error("Sentiment analysis error for %s: %s", ticker, e)
-        raise HTTPException(status_code=500, detail="Sentiment analysis failed")
+        raise HTTPException(status_code=500, detail="Sentiment-Analyse fehlgeschlagen")

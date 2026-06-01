@@ -22,11 +22,12 @@ import re
 from datetime import datetime, UTC
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.auth import get_current_user, UserInfo
+from app.core.rate_limits import limiter
 from app.db.database import get_session
 from app.db.models import YoutubeInsight, TradeLearning, LearningJob
 
@@ -69,7 +70,7 @@ def _extract_video_id(url_or_id: str) -> str:
         return m.group(1)
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        detail="Could not extract a valid YouTube video ID from the URL.",
+        detail="Konnte keine gültige YouTube-Video-ID aus der URL extrahieren.",
     )
 
 
@@ -78,9 +79,11 @@ def _extract_video_id(url_or_id: str) -> str:
 # ---------------------------------------------------------------------------
 
 @router.post("/youtube/process", status_code=202)
+@limiter.limit("5/minute")
 async def process_youtube_video(
+    request: Request,
     body: YoutubeProcessRequest,
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> dict:
     """
     Trigger processing of a YouTube video.
@@ -91,6 +94,7 @@ async def process_youtube_video(
     # Create a job record
     async with get_session() as session:
         job = LearningJob(
+            owner_username=user.username,
             job_type="youtube_single",
             status="pending",
             created_at=datetime.now(UTC),
@@ -190,12 +194,15 @@ async def list_trade_learnings(
     min_win_rate: Optional[float] = Query(None, ge=0.0, le=1.0),
     min_samples: int = Query(3, ge=1),
     limit: int = Query(50, ge=1, le=200),
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> list[dict]:
     async with get_session() as session:
         q = (
             select(TradeLearning)
-            .where(TradeLearning.sample_count >= min_samples)
+            .where(
+                TradeLearning.owner_username == user.username,
+                TradeLearning.sample_count >= min_samples,
+            )
             .order_by(TradeLearning.last_updated.desc())
             .limit(limit)
         )
@@ -257,11 +264,12 @@ async def trigger_job_endpoint(
 @router.get("/jobs")
 async def list_jobs(
     limit: int = Query(20, ge=1, le=100),
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> list[dict]:
     async with get_session() as session:
         result = await session.execute(
             select(LearningJob)
+            .where(LearningJob.owner_username == user.username)
             .order_by(LearningJob.created_at.desc())
             .limit(limit)
         )
@@ -285,15 +293,18 @@ async def list_jobs(
 @router.get("/jobs/{job_id}")
 async def get_job(
     job_id: int,
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> dict:
     async with get_session() as session:
         result = await session.execute(
-            select(LearningJob).where(LearningJob.id == job_id)
+            select(LearningJob).where(
+                LearningJob.id == job_id,
+                LearningJob.owner_username == user.username,
+            )
         )
         j = result.scalar_one_or_none()
     if not j:
-        raise HTTPException(status_code=404, detail="Job not found")
+        raise HTTPException(status_code=404, detail="Job nicht gefunden")
     return {
         "id": j.id,
         "job_type": j.job_type,
@@ -342,16 +353,26 @@ async def preview_context(
 
 @router.get("/stats")
 async def learning_stats(
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> dict:
     from sqlalchemy import func
     async with get_session() as session:
         yt_count = await session.execute(select(func.count(YoutubeInsight.id)))
-        tl_count = await session.execute(select(func.count(TradeLearning.id)))
-        job_count = await session.execute(select(func.count(LearningJob.id)))
+        tl_count = await session.execute(
+            select(func.count(TradeLearning.id))
+            .where(TradeLearning.owner_username == user.username)
+        )
+        job_count = await session.execute(
+            select(func.count(LearningJob.id))
+            .where(LearningJob.owner_username == user.username)
+        )
         best_learnings = await session.execute(
             select(TradeLearning)
-            .where(TradeLearning.win_rate >= 0.6, TradeLearning.sample_count >= 5)
+            .where(
+                TradeLearning.owner_username == user.username,
+                TradeLearning.win_rate >= 0.6,
+                TradeLearning.sample_count >= 5,
+            )
             .order_by(TradeLearning.win_rate.desc())
             .limit(5)
         )

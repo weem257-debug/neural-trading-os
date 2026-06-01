@@ -1,8 +1,9 @@
 """
 /api/backtest — Strategy backtesting via Jesse, Vibe-Trading, or qlib.
 """
-from fastapi import APIRouter, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
+from app.api.auth import get_current_user, UserInfo
 from app.models.schemas import (
     BacktestRequest, BacktestResult, ErrorResponse,
     BacktestJobDeleteResponse, BacktestJobStartResponse, BacktestJobStatus,
@@ -32,7 +33,10 @@ _jobs: dict[str, dict] = {}
 )
 @limiter.limit("10/minute")
 async def start_backtest(
-    request: Request, req: BacktestRequest, background_tasks: BackgroundTasks
+    request: Request,
+    req: BacktestRequest,
+    background_tasks: BackgroundTasks,
+    _: UserInfo = Depends(get_current_user),
 ) -> BacktestJobStartResponse:
     """
     Start an async backtest job.
@@ -74,7 +78,7 @@ async def _run_backtest_task(job_id: str, req: BacktestRequest) -> None:
         elif engine == "qlib":
             result = await _qlib_backtest(req)
         else:
-            raise ValueError(f"Unknown engine: {engine}. Use jesse/vibe_trading/qlib")
+            raise ValueError(f"Unbekannte Engine: {engine}. Erlaubt: jesse / vibe_trading / qlib")
 
         _jobs[job_id]["status"] = "completed"
         _jobs[job_id]["result"] = result.model_dump()
@@ -347,7 +351,7 @@ def _run_dual_momentum_sync(req: BacktestRequest) -> BacktestResult:
     response_model=BacktestCompareResponse,
     summary="Run multiple strategies in parallel and return comparison table",
 )
-async def compare_strategies(body: dict) -> BacktestCompareResponse:
+async def compare_strategies(body: dict, _: UserInfo = Depends(get_current_user)) -> BacktestCompareResponse:
     """
     POST /api/backtest/compare
 
@@ -384,7 +388,7 @@ async def compare_strategies(body: dict) -> BacktestCompareResponse:
     strategy_ids = list(body.get("strategies", ["ma_crossover", "rsi_mean_reversion", "buy_and_hold"]))
 
     if not strategy_ids:
-        raise HTTPException(status_code=422, detail="strategies list must not be empty")
+        raise HTTPException(status_code=422, detail="Strategie-Liste darf nicht leer sein")
 
     # Map strategy slug → BacktestRequest parameters
     _STRATEGY_MAP: dict[str, dict] = {
@@ -524,12 +528,12 @@ async def export_backtest(job_id: str) -> StreamingResponse:
     Returns 404 if job not found, 409 if job not yet completed.
     """
     if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+        raise HTTPException(status_code=404, detail=f"Job {job_id} nicht gefunden")
     job = _jobs[job_id]
     if job["status"] == "failed":
-        raise HTTPException(status_code=409, detail=f"Job {job_id} failed: {job.get('error', 'unknown')}")
+        raise HTTPException(status_code=409, detail=f"Job {job_id} fehlgeschlagen: {job.get('error', 'unbekannt')}")
     if job["status"] != "completed":
-        raise HTTPException(status_code=409, detail=f"Job {job_id} not yet completed (status: {job['status']})")
+        raise HTTPException(status_code=409, detail=f"Job {job_id} noch nicht abgeschlossen (Status: {job['status']})")
 
     result = job.get("result") or {}
     output = io.StringIO()
@@ -589,20 +593,20 @@ async def get_result(job_id: str) -> BacktestResult:
     completed or failed.
     """
     if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+        raise HTTPException(status_code=404, detail=f"Job {job_id} nicht gefunden")
     job = _jobs[job_id]
     if job["status"] == "failed":
         raise HTTPException(
             status_code=409,
-            detail=f"Job {job_id} failed: {job.get('error', 'unknown error')}",
+            detail=f"Job {job_id} fehlgeschlagen: {job.get('error', 'unbekannter Fehler')}",
         )
     if job["status"] != "completed":
         raise HTTPException(
             status_code=409,
-            detail=f"Job {job_id} is not yet completed (status: {job['status']})",
+            detail=f"Job {job_id} noch nicht abgeschlossen (Status: {job['status']})",
         )
     if job.get("result") is None:
-        raise HTTPException(status_code=500, detail="Job completed but result is missing")
+        raise HTTPException(status_code=500, detail="Job abgeschlossen, aber Ergebnis fehlt")
     return BacktestResult(**job["result"])
 
 
@@ -611,7 +615,7 @@ async def get_result(job_id: str) -> BacktestResult:
     response_model=list[BacktestJobStatus],
     summary="List all backtest jobs",
 )
-async def list_jobs() -> list[BacktestJobStatus]:
+async def list_jobs(_: UserInfo = Depends(get_current_user)) -> list[BacktestJobStatus]:
     return [BacktestJobStatus(**j) for j in _jobs.values()]
 
 
@@ -622,7 +626,7 @@ async def list_jobs() -> list[BacktestJobStatus]:
 )
 async def get_job(job_id: str) -> BacktestJobStatus:
     if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+        raise HTTPException(status_code=404, detail=f"Job {job_id} nicht gefunden")
     return BacktestJobStatus(**_jobs[job_id])
 
 
@@ -631,8 +635,8 @@ async def get_job(job_id: str) -> BacktestJobStatus:
     response_model=BacktestJobDeleteResponse,
     summary="Delete a backtest job",
 )
-async def delete_job(job_id: str) -> BacktestJobDeleteResponse:
+async def delete_job(job_id: str, _: UserInfo = Depends(get_current_user)) -> BacktestJobDeleteResponse:
     if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+        raise HTTPException(status_code=404, detail=f"Job {job_id} nicht gefunden")
     del _jobs[job_id]
     return BacktestJobDeleteResponse(deleted=job_id)

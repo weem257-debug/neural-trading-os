@@ -300,7 +300,7 @@ def _placeholder_signal(ticker: str, analysis_date: str, reason: str) -> Trading
         ticker=ticker.upper(),
         direction=SignalDirection.HOLD,
         confidence=0.0,
-        reasoning=f"Signal unavailable — reason: {reason}",
+        reasoning=f"Signal nicht verfügbar — Ursache: {reason}",
         source="TradingAgents[unavailable]",
         generated_at=datetime.now(UTC),
     )

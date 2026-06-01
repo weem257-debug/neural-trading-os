@@ -10,15 +10,20 @@ import csv
 import io
 import logging
 import random
+import smtplib
 import uuid
 from collections import deque
 from datetime import datetime, UTC
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.api.auth import UserInfo, get_current_user, get_current_user_optional
+from app.core.config import settings
 from app.models.schemas import (
     TradingSignal, SignalRequest, SignalDirection, ErrorResponse,
     SignalPerformanceResponse, SignalPerformanceEntry, ClearCacheResponse,
@@ -29,8 +34,278 @@ from app.core.rate_limits import limiter
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/signals", tags=["Signals"])
 
+# Plan signal limits — kept in sync with billing.py PLAN_META
+_PLAN_LIMITS: dict[str, int] = {
+    "free": 3,
+    "basic": 10,
+    "pro": 50,
+    "signals": 10,
+    "institutional": -1,  # unlimited
+}
+
+
+# In-memory de-dup: "username:YYYY-MM-DD" → already sent quota-exhaustion email/telegram today
+_quota_notified: set[str] = set()
+_quota_telegram_notified: set[str] = set()
+# In-memory de-dup: "username:YYYY-MM-DD" → 80%-approaching email already sent today
+_quota_approaching_notified: set[str] = set()
+
+
+async def _send_quota_notification(username: str, email: str, plan: str, limit: int) -> None:
+    """Fire-and-forget: notify user when their daily signal quota is exhausted."""
+    from datetime import date as _date
+    key = f"{username}:{_date.today().isoformat()}"
+    if key in _quota_notified:
+        return
+    _quota_notified.add(key)
+
+    upgrade_plan = "basic" if plan == "free" else "pro"
+    upgrade_limits = {"basic": 10, "pro": 50}
+    upgrade_limit = upgrade_limits.get(upgrade_plan, 10)
+
+    if not settings.SMTP_HOST:
+        logger.info("[DEV] Quota notification would be sent to %s (%s) plan=%s", username, email, plan)
+        return
+
+    from app.api.auth import _unsubscribe_url
+    unsub_url = _unsubscribe_url(username)
+    sender = settings.SMTP_FROM or settings.SMTP_USER
+    subject = f"Tageskontingent aufgebraucht — Neural Trading OS"
+    html = f"""
+<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">
+<div style="max-width:480px;margin:0 auto">
+  <h2 style="color:#00D4FF;margin-bottom:8px">Dein Tageskontingent ist aufgebraucht</h2>
+  <p>Hallo <strong>{username}</strong>,</p>
+  <p>Du hast heute alle <strong>{limit} Signale</strong> deines {plan.capitalize()}-Plans genutzt.</p>
+  <p style="color:#64748b">Dein Kontingent wird täglich um <strong>00:00 Uhr UTC</strong> zurückgesetzt.</p>
+  <div style="margin:24px 0;padding:16px;background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:12px">
+    <p style="margin:0 0 8px;font-weight:600;color:#00D4FF">Mehr Signale mit einem Upgrade:</p>
+    <p style="margin:0;color:#94a3b8">{upgrade_plan.capitalize()}: {upgrade_limit} Signale/Tag · mehr KI-Analyse-Tiefe</p>
+  </div>
+  <a href="{settings.FRONTEND_URL}/billing?plan={upgrade_plan}"
+     style="display:inline-block;padding:12px 24px;background:rgba(0,212,255,0.15);border:1px solid rgba(0,212,255,0.4);border-radius:8px;color:#00D4FF;text-decoration:none;font-weight:600">
+    Jetzt auf {upgrade_plan.capitalize()} upgraden →
+  </a>
+  <p style="margin-top:24px;font-size:12px;color:#475569">Neural Trading OS · <a href="{settings.FRONTEND_URL}/datenschutz" style="color:#475569">Datenschutz</a></p>
+</div>
+</body></html>"""
+    text = f"Hallo {username},\ndein Tageskontingent von {limit} Signalen ({plan}) ist aufgebraucht.\nUpgrade: {settings.FRONTEND_URL}/billing?plan={upgrade_plan}"
+
+    def _send_sync() -> None:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = sender
+        msg["To"] = email
+        msg["List-Unsubscribe"] = f"<{unsub_url}>"
+        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+        msg.attach(MIMEText(text, "plain"))
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
+            if settings.SMTP_HOST != "localhost":
+                srv.starttls()
+            if settings.SMTP_USER:
+                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
+            srv.sendmail(sender, [email], msg.as_string())
+
+    try:
+        await asyncio.to_thread(_send_sync)
+    except Exception as exc:
+        logger.warning("quota_notification_failed for %s: %s", username, exc)
+
+
+async def _send_quota_telegram_nudge(username: str, plan: str, limit: int) -> None:
+    """Fire-and-forget: send Telegram upgrade nudge when daily quota is exhausted."""
+    from datetime import date as _date
+    key = f"{username}:{_date.today().isoformat()}"
+    if key in _quota_telegram_notified:
+        return
+    _quota_telegram_notified.add(key)
+
+    try:
+        from app.db.database import get_session
+        from app.db.models import TelegramChat
+        from sqlalchemy import select
+        from app.services.telegram.client import send_message, inline_keyboard, is_configured_async
+
+        if not await is_configured_async():
+            return
+
+        async with get_session() as session:
+            result = await session.execute(
+                select(TelegramChat).where(TelegramChat.user_id == username)
+            )
+            chat = result.scalar_one_or_none()
+
+        if not chat:
+            return
+
+        upgrade_plan = "basic" if plan == "free" else "pro"
+        upgrade_limits = {"basic": 10, "pro": 50}
+        upgrade_limit = upgrade_limits.get(upgrade_plan, 10)
+        billing_url = f"{settings.FRONTEND_URL}/billing?plan={upgrade_plan}"
+
+        await send_message(
+            chat.chat_id,
+            (
+                f"🚫 <b>Tageslimit erreicht!</b>\n\n"
+                f"Du hast heute alle <b>{limit} Signale</b> deines {plan.capitalize()}-Plans verbraucht.\n\n"
+                f"⬆️ <b>{upgrade_plan.capitalize()}-Plan</b>: {upgrade_limit} Signale/Tag\n"
+                f"<i>Kontingent wird täglich um 00:00 UTC zurückgesetzt.</i>"
+            ),
+            reply_markup=inline_keyboard(
+                [{"text": f"⬆️ Jetzt auf {upgrade_plan.capitalize()} upgraden", "url": billing_url}]
+            ),
+        )
+        logger.info("quota_telegram_nudge_sent", extra={"username": username, "plan": plan})
+    except Exception as exc:
+        logger.debug("quota_telegram_nudge_failed for %s: %s", username, exc)
+
+
+async def _send_quota_approaching_notification(username: str, email: str, plan: str, used: int, limit: int) -> None:
+    """Fire-and-forget: warn user at 80% daily quota consumption."""
+    from datetime import date as _date
+    key = f"{username}:{_date.today().isoformat()}"
+    if key in _quota_approaching_notified:
+        return
+    _quota_approaching_notified.add(key)
+
+    remaining = limit - used
+    upgrade_plan = "basic" if plan == "free" else "pro"
+    upgrade_limits = {"basic": 10, "pro": 50}
+    upgrade_limit = upgrade_limits.get(upgrade_plan, 10)
+
+    if not settings.SMTP_HOST:
+        logger.info("[DEV] Quota-approaching notification would be sent to %s (%s) used=%d/%d", username, email, used, limit)
+        return
+
+    from app.api.auth import _unsubscribe_url
+    unsub_url = _unsubscribe_url(username)
+    sender = settings.SMTP_FROM or settings.SMTP_USER
+    subject = f"Nur noch {remaining} Signal{'e' if remaining != 1 else ''} verfügbar — Neural Trading OS"
+    html = f"""
+<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">
+<div style="max-width:480px;margin:0 auto">
+  <h2 style="color:#f59e0b;margin-bottom:8px">⚠️ Fast aufgebraucht: {used}/{limit} Signale genutzt</h2>
+  <p>Hallo <strong>{username}</strong>,</p>
+  <p>Du hast heute bereits <strong>{used} von {limit} Signalen</strong> deines {plan.capitalize()}-Plans genutzt.</p>
+  <p>Dir stehen heute noch <strong>{remaining} Signal{'e' if remaining != 1 else ''}</strong> zur Verfügung.</p>
+  <div style="margin:24px 0;padding:16px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:12px">
+    <p style="margin:0 0 8px;font-weight:600;color:#f59e0b">Mehr Signale mit einem Upgrade:</p>
+    <p style="margin:0;color:#94a3b8">{upgrade_plan.capitalize()}: {upgrade_limit} Signale/Tag · keine Unterbrechung deiner Analyse</p>
+  </div>
+  <a href="{settings.FRONTEND_URL}/billing?plan={upgrade_plan}"
+     style="display:inline-block;padding:12px 24px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:8px;color:#f59e0b;text-decoration:none;font-weight:600">
+    Auf {upgrade_plan.capitalize()} upgraden →
+  </a>
+  <p style="margin-top:24px;font-size:12px;color:#475569">Neural Trading OS · <a href="{settings.FRONTEND_URL}/datenschutz" style="color:#475569">Datenschutz</a> · <a href="{unsub_url}" style="color:#475569">Abmelden</a></p>
+</div>
+</body></html>"""
+    text = (
+        f"Hallo {username},\n"
+        f"du hast heute bereits {used} von {limit} Signalen ({plan}) genutzt.\n"
+        f"Noch {remaining} Signal{'e' if remaining != 1 else ''} verfügbar.\n"
+        f"Upgrade: {settings.FRONTEND_URL}/billing?plan={upgrade_plan}"
+    )
+
+    def _send_sync() -> None:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = sender
+        msg["To"] = email
+        msg["List-Unsubscribe"] = f"<{unsub_url}>"
+        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+        msg.attach(MIMEText(text, "plain"))
+        msg.attach(MIMEText(html, "html"))
+        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
+            if settings.SMTP_HOST != "localhost":
+                srv.starttls()
+            if settings.SMTP_USER:
+                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
+            srv.sendmail(sender, [email], msg.as_string())
+
+    try:
+        await asyncio.to_thread(_send_sync)
+    except Exception as exc:
+        logger.warning("quota_approaching_notification_failed for %s: %s", username, exc)
+
+
+async def _check_signal_quota(user: Optional[UserInfo]) -> None:
+    """Raise HTTP 429 if the caller has exhausted their daily signal quota."""
+    from datetime import date
+    from sqlalchemy import func, select
+    from app.db.database import get_session
+    from app.db.models import SignalRecord, Subscription
+
+    plan = "free"
+    if user:
+        try:
+            async with get_session() as session:
+                sub_result = await session.execute(
+                    select(Subscription).where(Subscription.user_id == user.username)
+                )
+                sub = sub_result.scalar_one_or_none()
+                if sub:
+                    plan = sub.plan
+        except Exception:
+            pass  # Fall back to free-plan limits on DB error
+
+    limit = _PLAN_LIMITS.get(plan, 3)
+    if limit < 0:  # unlimited plan
+        return
+
+    # Identify this caller: authenticated user_id or "anon" for unauthenticated
+    caller_id = user.username if user else "anon"
+
+    today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=UTC)
+    try:
+        async with get_session() as session:
+            # Count signals for this specific caller today.
+            # Legacy rows with NULL user_id are treated as "admin" by the migration backfill.
+            count_result = await session.execute(
+                select(func.count()).select_from(SignalRecord).where(
+                    SignalRecord.generated_at >= today_start,
+                    SignalRecord.user_id == caller_id,
+                )
+            )
+            used_today = count_result.scalar_one()
+    except Exception:
+        return  # Skip quota check on DB error — fail open
+
+    # 80% approaching warning (fire-and-forget, non-blocking)
+    if user and user.email and limit > 0 and used_today >= max(1, int(limit * 0.8)) and used_today < limit:
+        asyncio.create_task(
+            _send_quota_approaching_notification(user.username, user.email, plan, used_today, limit)
+        )
+
+    if used_today >= limit:
+        # Fire quota-exhaustion notifications on first hit per user per day (non-blocking)
+        if user and user.email:
+            asyncio.create_task(
+                _send_quota_notification(user.username, user.email, plan, limit)
+            )
+        if user:
+            asyncio.create_task(
+                _send_quota_telegram_nudge(user.username, plan, limit)
+            )
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "signal_quota_exceeded",
+                "message": f"Tageslimit von {limit} Signalen erreicht (Plan: {plan}). Upgrade für mehr Signale.",
+                "plan": plan,
+                "limit": limit,
+                "used": used_today,
+                "upgrade_url": "/billing",
+            },
+        )
+
+
 # In-memory cache — replace with Redis in production
 _signal_cache: dict[str, TradingSignal] = {}
+
+# Per-ticker per-day demo signal cache — key: "TICKER:YYYY-MM-DD"
+# Demo signals are deterministic per ticker+date so we cache and skip DB writes on repeat calls
+_demo_cache: dict[str, TradingSignal] = {}
 
 # Persistent in-memory signal store — FIFO, max 100 entries
 _MAX_STORE = 100
@@ -60,7 +335,7 @@ def _store_signal(signal: TradingSignal) -> None:
     _signal_store.append(signal)
 
 
-async def _persist_signal_to_db(signal: TradingSignal) -> None:
+async def _persist_signal_to_db(signal: TradingSignal, user_id: Optional[str] = None) -> None:
     """Non-blocking: persist signal to SQLite. Silently skips on DB error."""
     try:
         import json
@@ -80,6 +355,7 @@ async def _persist_signal_to_db(signal: TradingSignal) -> None:
                 price_target=signal.price_target,
                 stop_loss=signal.stop_loss,
                 time_horizon=signal.time_horizon,
+                user_id=user_id,
             )
             session.add(record)
             await session.commit()
@@ -97,41 +373,64 @@ def _fire_webhook(event: str, payload: dict) -> None:
         pass  # Never block signal generation on webhook failure
 
 
-async def _notify_telegram_signal(signal: TradingSignal) -> None:
-    """Fire-and-forget Telegram notification for a new trading signal."""
+async def _notify_telegram_signal(signal: TradingSignal, username: Optional[str] = None) -> None:
+    """Fire-and-forget: send signal result to the requesting user's Telegram chat (if connected)."""
+    if not username:
+        return
     try:
-        from app.services.telegram.client import send_message, is_configured
+        from app.services.telegram.client import send_message, inline_keyboard, is_configured_async
         from app.db.database import get_session
         from sqlalchemy import select
         from app.db.models import TelegramChat
-        if not is_configured():
+
+        if not await is_configured_async():
             return
+
         async with get_session() as session:
-            result = await session.execute(select(TelegramChat))
-            chats = result.scalars().all()
-        if not chats:
+            result = await session.execute(
+                select(TelegramChat).where(TelegramChat.user_id == username)
+            )
+            chat = result.scalar_one_or_none()
+
+        if not chat:
             return
+
         dir_emoji = {
-            "BUY": "\U0001f4c8",
-            "STRONG_BUY": "\U0001f680",
-            "SELL": "\U0001f4c9",
-            "STRONG_SELL": "\U0001f53b",
+            "BUY": "📈",
+            "STRONG_BUY": "🚀",
+            "SELL": "📉",
+            "STRONG_SELL": "🩸",
             "HOLD": "⏸️",
         }
         direction_str = signal.direction.value if hasattr(signal.direction, "value") else str(signal.direction)
-        emoji = dir_emoji.get(direction_str, "\U0001f4ca")
+        emoji = dir_emoji.get(direction_str, "📊")
         conf = int((signal.confidence or 0.5) * 100)
-        target = f"\nTarget: ${signal.price_target:.2f}" if signal.price_target else ""
-        stop = f"\nStop: ${signal.stop_loss:.2f}" if signal.stop_loss else ""
-        msg = (
-            f"{emoji} <b>{direction_str} — {signal.ticker}</b>\n\n"
-            f"Confidence: <b>{conf}%</b>{target}{stop}\n\n"
-            f"<i>{signal.source}</i> | Neural Trading OS"
+
+        lines = [
+            f"{emoji} <b>Neues Signal — {signal.ticker}</b>",
+            "",
+            f"Richtung: <b>{direction_str}</b>",
+            f"Konfidenz: <b>{conf}%</b>",
+        ]
+        if signal.price_target:
+            lines.append(f"Kursziel: <b>${signal.price_target:.2f}</b>")
+        if signal.stop_loss:
+            lines.append(f"Stop-Loss: <b>${signal.stop_loss:.2f}</b>")
+        if signal.time_horizon:
+            lines.append(f"Horizont: <b>{signal.time_horizon}</b>")
+        lines.append(f"\n<i>{signal.source}</i>")
+
+        signal_url = f"{settings.FRONTEND_URL}/signals/view/{signal.id}"
+        await send_message(
+            chat.chat_id,
+            "\n".join(lines),
+            reply_markup=inline_keyboard(
+                [{"text": "📊 Signal ansehen", "url": signal_url}]
+            ),
         )
-        for chat in chats:
-            await send_message(chat.chat_id, msg)
+        logger.debug("telegram_signal_notify_sent username=%s ticker=%s", username, signal.ticker)
     except Exception as e:
-        logger.debug("telegram_signal_notify_failed", extra={"reason": str(e)})
+        logger.debug("telegram_signal_notify_failed username=%s reason=%s", username, str(e))
 
 
 def _make_demo_signal(ticker: str, source_prefix: str = "Demo[mock]") -> TradingSignal:
@@ -191,10 +490,14 @@ class BatchSignalRequest(BaseModel):
     "/generate",
     response_model=TradingSignal,
     summary="Generate AI trading signal for a ticker",
-    responses={422: {"model": ErrorResponse}, 429: {"description": "Rate limit exceeded"}, 500: {"model": ErrorResponse}},
+    responses={422: {"model": ErrorResponse}, 429: {"description": "Rate limit or quota exceeded"}, 500: {"model": ErrorResponse}},
 )
 @limiter.limit("5/minute")
-async def generate_trading_signal(request: Request, req: SignalRequest) -> TradingSignal:
+async def generate_trading_signal(
+    request: Request,
+    req: SignalRequest,
+    current_user: Optional[UserInfo] = Depends(get_current_user_optional),
+) -> TradingSignal:
     """
     Run TradingAgents multi-agent pipeline to produce a buy/sell/hold signal.
 
@@ -203,7 +506,11 @@ async def generate_trading_signal(request: Request, req: SignalRequest) -> Tradi
     - Results are cached per ticker+date to avoid redundant API calls
     - Falls back to a neutral HOLD placeholder if TradingAgents repo or API
       key is unavailable, rather than raising a hard 500 error
+    - Authenticated users get their plan's daily quota; unauthenticated callers
+      are subject to the free-plan limit (3 signals/day)
     """
+    await _check_signal_quota(current_user)
+
     cache_key = f"{req.ticker.upper()}:{req.analysis_date}:{req.fast_mode}"
     if cache_key in _signal_cache:
         logger.info("Cache hit for signal %s", cache_key)
@@ -217,7 +524,8 @@ async def generate_trading_signal(request: Request, req: SignalRequest) -> Tradi
         )
         _signal_cache[cache_key] = signal
         _store_signal(signal)
-        await _persist_signal_to_db(signal)
+        caller_id = current_user.username if current_user else "anon"
+        await _persist_signal_to_db(signal, user_id=caller_id)
         _fire_webhook("signal.generated", {
             "id": signal.id,
             "ticker": signal.ticker,
@@ -225,7 +533,7 @@ async def generate_trading_signal(request: Request, req: SignalRequest) -> Tradi
             "confidence": signal.confidence,
             "source": signal.source,
         })
-        asyncio.create_task(_notify_telegram_signal(signal))
+        asyncio.create_task(_notify_telegram_signal(signal, username=caller_id if current_user else None))
         return signal
     except FileNotFoundError as e:
         logger.warning("TradingAgents repo not found: %s", e)
@@ -234,7 +542,7 @@ async def generate_trading_signal(request: Request, req: SignalRequest) -> Tradi
             ticker=req.ticker.upper(),
             direction=SignalDirection.HOLD,
             confidence=0.0,
-            reasoning="TradingAgents repository not found. Clone TauricResearch/TradingAgents and set TRADINGAGENTS_PATH.",
+            reasoning="TradingAgents-Repository nicht gefunden. TauricResearch/TradingAgents klonen und TRADINGAGENTS_PATH setzen.",
             source="TradingAgents[missing_repo]",
             generated_at=datetime.now(UTC),
         )
@@ -245,7 +553,7 @@ async def generate_trading_signal(request: Request, req: SignalRequest) -> Tradi
             ticker=req.ticker.upper(),
             direction=SignalDirection.HOLD,
             confidence=0.0,
-            reasoning="Anthropic API key not configured. Set ANTHROPIC_API_KEY and restart.",
+            reasoning="Anthropic API-Key nicht konfiguriert. Bitte ANTHROPIC_API_KEY setzen und neu starten.",
             source="TradingAgents[no_api_key]",
             generated_at=datetime.now(UTC),
         )
@@ -262,7 +570,7 @@ async def generate_trading_signal(request: Request, req: SignalRequest) -> Tradi
                 ticker=req.ticker.upper(),
                 direction=SignalDirection.HOLD,
                 confidence=0.0,
-                reasoning="API key invalid or missing. Use /api/signals/demo for key-free testing.",
+                reasoning="API-Key ungültig oder nicht gesetzt. Zum Testen ohne Key: /api/signals/demo verwenden.",
                 source="TradingAgents[auth_error]",
                 generated_at=datetime.now(UTC),
             )
@@ -275,7 +583,8 @@ async def generate_trading_signal(request: Request, req: SignalRequest) -> Tradi
     summary="Generate a mock trading signal (no API key required)",
     responses={422: {"model": ErrorResponse}},
 )
-async def generate_demo_signal(ticker: Optional[str] = None) -> TradingSignal:
+@limiter.limit("30/minute")
+async def generate_demo_signal(request: Request, ticker: Optional[str] = None) -> TradingSignal:
     """
     Returns a realistic mock trading signal without calling any external API.
 
@@ -286,14 +595,28 @@ async def generate_demo_signal(ticker: Optional[str] = None) -> TradingSignal:
 
     The signal is deterministically seeded from the ticker name so repeated
     calls for the same ticker return the same direction (stable for tests).
+    Responses are cached per ticker per day to avoid redundant DB writes.
     """
     resolved_ticker = (ticker or random.choice(_DEMO_TICKERS)).upper()
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    demo_key = f"{resolved_ticker}:{today}"
+
+    # Evict stale entries from previous days (lazy cleanup — O(n) but n is tiny)
+    stale = [k for k in list(_demo_cache) if not k.endswith(today)]
+    for k in stale:
+        del _demo_cache[k]
+
+    if demo_key in _demo_cache:
+        logger.debug("Demo cache hit for %s", resolved_ticker)
+        return _demo_cache[demo_key]
+
     signal = _make_demo_signal(resolved_ticker, source_prefix="Demo[mock]")
+    _demo_cache[demo_key] = signal
 
     # Cache it so GET /signals/{ticker} can find it
     _signal_cache[f"{resolved_ticker}:demo:False"] = signal
 
-    # Persist to FIFO store and DB
+    # Persist to FIFO store and DB (only on first request per ticker per day)
     _store_signal(signal)
     await _persist_signal_to_db(signal)
 
@@ -317,7 +640,8 @@ async def generate_demo_signal(ticker: Optional[str] = None) -> TradingSignal:
     summary="Generate demo signals for multiple tickers in parallel",
     responses={422: {"model": ErrorResponse}},
 )
-async def batch_generate_signals(req: BatchSignalRequest) -> list[TradingSignal]:
+@limiter.limit("3/minute")
+async def batch_generate_signals(request: Request, req: BatchSignalRequest) -> list[TradingSignal]:
     """
     POST /api/signals/batch
 
@@ -335,7 +659,7 @@ async def batch_generate_signals(req: BatchSignalRequest) -> list[TradingSignal]
     if len(req.tickers) > 10:
         raise HTTPException(
             status_code=422,
-            detail=f"Maximum 10 tickers per batch request, got {len(req.tickers)}.",
+            detail=f"Maximal 10 Ticker pro Batch-Anfrage, erhalten: {len(req.tickers)}.",
         )
     if not req.tickers:
         return []
@@ -358,9 +682,9 @@ async def batch_generate_signals(req: BatchSignalRequest) -> list[TradingSignal]
     summary="Export signals as CSV",
     responses={200: {"content": {"text/csv": {}}}},
 )
-async def export_signals() -> StreamingResponse:
+async def export_signals(current_user: UserInfo = Depends(get_current_user)) -> StreamingResponse:
     """
-    Return all stored signals as a CSV file download.
+    Return the authenticated user's signals as a CSV file download.
     Reads from SQLite (preferred) or in-memory FIFO store as fallback.
     """
     output = io.StringIO()
@@ -380,7 +704,9 @@ async def export_signals() -> StreamingResponse:
 
         async with get_session() as session:
             result = await session.execute(
-                select(SignalRecord).order_by(desc(SignalRecord.generated_at))
+                select(SignalRecord)
+                .where(SignalRecord.user_id == current_user.username)
+                .order_by(desc(SignalRecord.generated_at))
             )
             db_signals = list(result.scalars().all())
     except Exception:
@@ -401,7 +727,8 @@ async def export_signals() -> StreamingResponse:
                 "reasoning": (row.reasoning or "").replace("\n", " "),
             })
     else:
-        for signal in sorted(_signal_store, key=lambda s: s.generated_at, reverse=True):
+        user_signals = [s for s in _signal_store if True]  # in-memory store has no user filter
+        for signal in sorted(user_signals, key=lambda s: s.generated_at, reverse=True):
             writer.writerow({
                 "id": signal.id,
                 "ticker": signal.ticker,
@@ -550,6 +877,25 @@ async def get_trending_tickers(limit: int = 10) -> list[dict]:
 
 
 @router.get(
+    "/total",
+    summary="Total signals generated (all time, public) — for social proof",
+)
+async def get_signal_total() -> dict:
+    """GET /api/signals/total — Returns all-time signal count. No auth required."""
+    from sqlalchemy import func, select
+    from app.db.database import get_session
+    from app.db.models import SignalRecord
+
+    try:
+        async with get_session() as session:
+            result = await session.execute(select(func.count()).select_from(SignalRecord))
+            total = result.scalar_one()
+        return {"total": total}
+    except Exception:
+        return {"total": 0}
+
+
+@router.get(
     "/stats",
     summary="Daily signal statistics — counts by direction",
 )
@@ -622,11 +968,19 @@ async def get_signal_performance() -> SignalPerformanceResponse:
         from app.db.models import SignalPerformance
 
         async with get_session() as session:
-            result = await session.execute(select(SignalPerformance))
-            rows = result.scalars().all()
+            result = await session.execute(select(SignalPerformance).order_by(SignalPerformance.evaluated_at.desc()))
+            all_rows = result.scalars().all()
 
-        if not rows:
+        if not all_rows:
             return _empty
+
+        # Dedup by signal_id — keep most-recent evaluation per signal
+        seen: set[str] = set()
+        rows = []
+        for r in all_rows:
+            if r.signal_id not in seen:
+                seen.add(r.signal_id)
+                rows.append(r)
 
         returns = [r.return_pct for r in rows]
         avg_return = round(sum(returns) / len(returns), 4)
@@ -657,16 +1011,248 @@ async def get_signal_performance() -> SignalPerformanceResponse:
         return _empty
 
 
+class _TickerPerfEntry(BaseModel):
+    ticker: str
+    total: int
+    wins: int
+    win_rate: float
+    avg_return: float
+
+class _TickerPerformanceResponse(BaseModel):
+    tickers: list[_TickerPerfEntry]
+
+
+@router.get(
+    "/performance/by-ticker",
+    summary="Per-ticker win rate and average return (public)",
+)
+async def get_performance_by_ticker() -> _TickerPerformanceResponse:
+    """Returns top-10 tickers ranked by win rate (min 2 evaluated signals)."""
+    try:
+        from collections import defaultdict as _dd
+        from sqlalchemy import select as _sel
+        from app.db.database import get_session
+        from app.db.models import SignalPerformance
+
+        async with get_session() as session:
+            result = await session.execute(
+                _sel(SignalPerformance).order_by(SignalPerformance.evaluated_at.desc())
+            )
+            all_rows = result.scalars().all()
+
+        if not all_rows:
+            return _TickerPerformanceResponse(tickers=[])
+
+        seen: set[str] = set()
+        rows = []
+        for r in all_rows:
+            if r.signal_id not in seen:
+                seen.add(r.signal_id)
+                rows.append(r)
+
+        ticker_returns: dict[str, list[float]] = _dd(list)
+        for r in rows:
+            ticker_returns[r.ticker].append(r.return_pct)
+
+        entries: list[_TickerPerfEntry] = []
+        for ticker, rets in ticker_returns.items():
+            if len(rets) < 2:
+                continue
+            wins = sum(1 for r in rets if r > 0)
+            entries.append(_TickerPerfEntry(
+                ticker=ticker,
+                total=len(rets),
+                wins=wins,
+                win_rate=round(wins / len(rets), 4),
+                avg_return=round(sum(rets) / len(rets), 4),
+            ))
+
+        entries.sort(key=lambda e: (e.win_rate, e.avg_return), reverse=True)
+        return _TickerPerformanceResponse(tickers=entries[:10])
+    except Exception as exc:
+        logger.error("performance_by_ticker_error: %s", exc)
+        return _TickerPerformanceResponse(tickers=[])
+
+
+@router.get(
+    "/performance/mine",
+    response_model=SignalPerformanceResponse,
+    summary="Personal signal performance for authenticated user",
+)
+@limiter.limit("60/minute")
+async def get_my_performance(
+    request: Request,
+    user: Optional[UserInfo] = Depends(get_current_user_optional),
+) -> SignalPerformanceResponse:
+    """Returns performance stats for signals generated by the authenticated user."""
+    _empty = SignalPerformanceResponse(
+        avg_return=0.0, win_rate=0.0,
+        best_signal=None, worst_signal=None, total_evaluated=0,
+    )
+    if not user:
+        return _empty
+    try:
+        from sqlalchemy import select as _sel
+        from app.db.database import get_session
+        from app.db.models import SignalPerformance, SignalRecord
+
+        async with get_session() as session:
+            sig_result = await session.execute(
+                _sel(SignalRecord.id).where(SignalRecord.user_id == user.username)
+            )
+            user_signal_ids: set[str] = {row[0] for row in sig_result.all()}
+
+            if not user_signal_ids:
+                return _empty
+
+            perf_result = await session.execute(
+                _sel(SignalPerformance)
+                .where(SignalPerformance.signal_id.in_(user_signal_ids))
+                .order_by(SignalPerformance.evaluated_at.desc())
+            )
+            all_rows = perf_result.scalars().all()
+
+        if not all_rows:
+            return _empty
+
+        seen: set[str] = set()
+        rows = []
+        for r in all_rows:
+            if r.signal_id not in seen:
+                seen.add(r.signal_id)
+                rows.append(r)
+
+        returns = [r.return_pct for r in rows]
+        avg_return = round(sum(returns) / len(returns), 4)
+        win_rate = round(sum(1 for r in returns if r > 0) / len(returns), 4)
+        best = max(rows, key=lambda r: r.return_pct)
+        worst = min(rows, key=lambda r: r.return_pct)
+
+        return SignalPerformanceResponse(
+            avg_return=avg_return,
+            win_rate=win_rate,
+            best_signal=SignalPerformanceEntry(
+                signal_id=best.signal_id, ticker=best.ticker,
+                direction=best.direction, return_pct=round(best.return_pct, 4),
+            ),
+            worst_signal=SignalPerformanceEntry(
+                signal_id=worst.signal_id, ticker=worst.ticker,
+                direction=worst.direction, return_pct=round(worst.return_pct, 4),
+            ),
+            total_evaluated=len(rows),
+        )
+    except Exception as exc:
+        logger.error("my_performance_error: %s", exc)
+        return _empty
+
+
+@router.get(
+    "/history",
+    summary="User signal history from DB",
+)
+@limiter.limit("60/minute")
+async def get_signal_history(
+    request: Request,
+    limit: int = 10,
+    user: Optional[UserInfo] = Depends(get_current_user_optional),
+) -> list[dict]:
+    """Return the authenticated user's last N signals from the database, newest first."""
+    if not user:
+        return []
+    limit = max(1, min(limit, 50))
+    try:
+        from sqlalchemy import select, desc
+        from app.db.database import get_session
+        from app.db.models import SignalRecord
+
+        async with get_session() as session:
+            result = await session.execute(
+                select(SignalRecord)
+                .where(SignalRecord.user_id == user.username)
+                .order_by(desc(SignalRecord.generated_at))
+                .limit(limit)
+            )
+            rows = result.scalars().all()
+        return [
+            {
+                "id": r.id,
+                "ticker": r.ticker,
+                "direction": r.direction,
+                "confidence": r.confidence,
+                "source": r.source,
+                "generated_at": r.generated_at.isoformat(),
+                "reasoning": r.reasoning,
+                "price_target": r.price_target,
+                "stop_loss": r.stop_loss,
+                "time_horizon": r.time_horizon,
+            }
+            for r in rows
+        ]
+    except Exception:
+        return []
+
+
+@router.get(
+    "/by-id/{signal_id}",
+    response_model=Optional[TradingSignal],
+    summary="Get a specific signal by its UUID (public, no auth required)",
+)
+@limiter.limit("20/minute")
+async def get_signal_by_id(request: Request, signal_id: str) -> Optional[TradingSignal]:
+    """
+    GET /api/signals/by-id/{signal_id}
+
+    Looks up a signal by its UUID, first from in-memory cache/store,
+    then from the DB. Used by the public signal share page.
+    Returns null if not found (404 not raised to avoid enumeration).
+    """
+    # Search in-memory store first
+    for sig in list(_signal_store):
+        if sig.id == signal_id:
+            return sig
+    for sig in _signal_cache.values():
+        if sig.id == signal_id:
+            return sig
+
+    # Fall back to DB lookup
+    try:
+        from sqlalchemy import select as _select
+        from app.db.database import get_session
+        from app.db.models import SignalRecord
+        async with get_session() as session:
+            result = await session.execute(
+                _select(SignalRecord).where(SignalRecord.id == signal_id)
+            )
+            row = result.scalar_one_or_none()
+        if row:
+            return TradingSignal(
+                id=row.id,
+                ticker=row.ticker,
+                direction=SignalDirection(row.direction),
+                confidence=row.confidence,
+                reasoning=row.reasoning,
+                source=row.source,
+                generated_at=row.generated_at,
+                agents_consensus=row.agents_consensus_as_dict() or None,
+                price_target=row.price_target,
+                stop_loss=row.stop_loss,
+                time_horizon=row.time_horizon,
+            )
+    except Exception:
+        pass
+    return None
+
+
 @router.delete(
     "/cache",
     response_model=ClearCacheResponse,
     summary="Clear signal cache",
 )
-async def clear_cache() -> ClearCacheResponse:
-    """Clear the in-memory signal cache."""
+async def clear_cache(_: UserInfo = Depends(get_current_user)) -> ClearCacheResponse:
+    """Clear the in-memory signal cache. Requires authentication."""
     count = len(_signal_cache)
     _signal_cache.clear()
-    return ClearCacheResponse(cleared=count, message=f"Cleared {count} cached signals")
+    return ClearCacheResponse(cleared=count, message=f"{count} gecachte Signale gelöscht")
 
 
 @router.get(

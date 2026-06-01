@@ -180,7 +180,7 @@ async def get_risk_metrics() -> RiskMetrics:
         )
     except Exception as e:
         logger.error("Risk metrics error: %s", e)
-        raise HTTPException(status_code=500, detail="Risk metrics unavailable")
+        raise HTTPException(status_code=500, detail="Risiko-Metriken nicht verfügbar")
 
 
 @router.get(

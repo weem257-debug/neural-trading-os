@@ -315,21 +315,21 @@ def _identify_current_wave(seq_type: str, wave_pts: list[dict]) -> tuple[str, st
         label = last["label"] if "label" in last else "5"
         # After wave 5 we enter corrective A-B-C
         if label == "5":
-            return "Corrective A begins", "bearish" if last["wave_type"] == "peak" else "bullish"
+            return "Korrekturwelle A beginnt", "bearish" if last["wave_type"] == "peak" else "bullish"
         try:
             num = int(label)
-            next_label = str(num + 1) if num < 5 else "Corrective"
+            next_label = str(num + 1) if num < 5 else "Korrektur"
             direction = "bullish" if num % 2 == 1 else "bearish"
         except ValueError:
             next_label, direction = "?", "neutral"
-        return f"Wave {next_label} incoming", direction
+        return f"Welle {next_label} steht bevor", direction
     else:
         last = wave_pts[-1]
         label = last.get("label", "C")
         if label == "C":
-            return "C complete — new impulse likely", "bullish" if last["wave_type"] == "trough" else "bearish"
+            return "C vollständig — neuer Impuls wahrscheinlich", "bullish" if last["wave_type"] == "trough" else "bearish"
         direction = "bearish" if label == "A" else "bullish"
-        return f"Wave {label} in progress", direction
+        return f"Welle {label} in Bewegung", direction
 
 
 def _price_targets(wave_pts: list[dict], seq_type: str) -> list[float]:

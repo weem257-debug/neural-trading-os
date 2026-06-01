@@ -35,23 +35,32 @@ def _api_url(method: str, token: str) -> str:
     return f"https://api.telegram.org/bot{token}/{method}"
 
 
-async def send_message(chat_id: str, text: str, parse_mode: str = "HTML") -> bool:
+async def send_message(
+    chat_id: str,
+    text: str,
+    parse_mode: str = "HTML",
+    reply_markup: dict | None = None,
+) -> bool:
     """Send a message to a Telegram chat. Returns True on success."""
     token = await _get_token()
     if not token:
         logger.warning("telegram_not_configured")
         return False
     try:
+        payload: dict = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(_api_url("sendMessage", token), json={
-                "chat_id": chat_id,
-                "text": text,
-                "parse_mode": parse_mode,
-            })
+            resp = await client.post(_api_url("sendMessage", token), json=payload)
             return resp.status_code == 200
     except Exception as e:
         logger.warning("telegram_send_failed", extra={"reason": str(e)})
         return False
+
+
+def inline_keyboard(*rows: list[dict]) -> dict:
+    """Build a Telegram inline_keyboard reply_markup from rows of button dicts."""
+    return {"inline_keyboard": list(rows)}
 
 
 async def set_webhook(url: str) -> dict:
@@ -84,3 +93,18 @@ async def get_bot_name() -> str:
     except Exception:
         pass
     return _ENV_BOT_NAME
+
+
+async def get_webhook_info() -> dict:
+    """Return current webhook URL and pending update count from Telegram."""
+    token = await _get_token()
+    if not token:
+        return {"url": "", "pending_update_count": 0}
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(_api_url("getWebhookInfo", token))
+            if resp.status_code == 200:
+                return resp.json().get("result", {"url": "", "pending_update_count": 0})
+    except Exception:
+        pass
+    return {"url": "", "pending_update_count": 0}

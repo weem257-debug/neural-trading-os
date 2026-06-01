@@ -58,7 +58,7 @@ async def submit_order(
     if client.mode == "live" and not settings.ENABLE_LIVE_TRADING:
         raise HTTPException(
             status_code=403,
-            detail="Live trading is disabled. Set ENABLE_LIVE_TRADING=true in config.",
+            detail="Live-Trading ist deaktiviert. Setze ENABLE_LIVE_TRADING=true in der Konfiguration.",
         )
 
     if settings.ENABLE_LIVE_TRADING and client.mode == "live":
@@ -73,12 +73,27 @@ async def submit_order(
         )
 
     try:
-        return await client.submit_order(req)
+        result = await client.submit_order(req)
+        # Dispatch outbound webhook for filled orders (best-effort, non-blocking)
+        try:
+            import asyncio as _asyncio
+            from app.services.webhooks.client import get_webhook_manager
+            loop = _asyncio.get_event_loop()
+            loop.create_task(get_webhook_manager().dispatch("order.filled", {
+                "order_id": result.order_id if hasattr(result, "order_id") else None,
+                "ticker": req.ticker,
+                "side": req.side,
+                "quantity": req.quantity,
+                "mode": client.mode,
+            }))
+        except Exception:
+            pass
+        return result
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
     except Exception as e:
         logger.error("Order submission error: %s", e)
-        raise HTTPException(status_code=500, detail="Order submission failed")
+        raise HTTPException(status_code=500, detail="Order-Übermittlung fehlgeschlagen")
 
 
 # ---------------------------------------------------------------------------
@@ -103,7 +118,7 @@ async def list_orders(
         return await client.get_order_history_async(limit=limit)
     except Exception as e:
         logger.error("Error fetching order history: %s", e)
-        raise HTTPException(status_code=500, detail="Failed to fetch order history")
+        raise HTTPException(status_code=500, detail="Order-Historie konnte nicht abgerufen werden")
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +132,7 @@ async def list_orders(
 )
 async def get_execution_mode(
     client: NautilusExecutionClient = Depends(_get_client),
+    _: UserInfo = Depends(get_current_user),
 ) -> ExecutionModeResponse:
     """Returns whether the system is in paper or live trading mode."""
     return ExecutionModeResponse(
@@ -145,6 +161,7 @@ async def get_execution_mode(
 async def set_execution_mode(
     mode: str,
     client: NautilusExecutionClient = Depends(_get_client),
+    _: UserInfo = Depends(get_current_user),
 ) -> ExecutionModeSetResponse:
     """
     Switch execution mode.
@@ -157,7 +174,7 @@ async def set_execution_mode(
     if mode not in ("paper", "live"):
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid mode '{mode}'. Must be 'paper' or 'live'.",
+            detail=f"Ungültiger Modus '{mode}'. Erlaubt: 'paper' oder 'live'.",
         )
 
     if mode == "live":
@@ -166,8 +183,8 @@ async def set_execution_mode(
             raise HTTPException(
                 status_code=403,
                 detail=(
-                    "Safety-Gate: live trading is not enabled. "
-                    "Set ENABLE_LIVE_TRADING=true in your .env and configure broker API keys."
+                    "Safety-Gate: Live-Trading ist nicht aktiviert. "
+                    "Setze ENABLE_LIVE_TRADING=true in der .env und konfiguriere Broker-API-Keys."
                 ),
             )
         # Safety-Gate: at least one broker key must be present
@@ -181,8 +198,8 @@ async def set_execution_mode(
             raise HTTPException(
                 status_code=403,
                 detail=(
-                    "Safety-Gate: no broker API keys configured. "
-                    "Set ALPACA_API_KEY or BINANCE_API_KEY in your .env."
+                    "Safety-Gate: Keine Broker-API-Keys konfiguriert. "
+                    "Setze ALPACA_API_KEY oder BINANCE_API_KEY in der .env."
                 ),
             )
 
@@ -192,5 +209,5 @@ async def set_execution_mode(
     return ExecutionModeSetResponse(
         previous_mode=previous,
         current_mode=client.mode,
-        message=f"Switched to {mode} trading mode.",
+        message=f"Handelsmodus auf {mode} umgestellt.",
     )

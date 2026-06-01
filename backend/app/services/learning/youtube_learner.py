@@ -105,10 +105,10 @@ def _get_video_info_sync(video_id: str) -> dict:
             data = json.loads(resp.read())
             return {
                 "title": data.get("title", f"Video {video_id}"),
-                "channel": data.get("author_name", "Unknown Channel"),
+                "channel": data.get("author_name", "Unbekannter Kanal"),
             }
     except Exception:
-        return {"title": f"Video {video_id}", "channel": "Unknown Channel"}
+        return {"title": f"Video {video_id}", "channel": "Unbekannter Kanal"}
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +169,7 @@ def _keyword_extraction_fallback(transcript: str, title: str) -> dict:
     found_strategies = [s for s in strategies if s.lower() in transcript.lower()]
 
     return {
-        "insight_text": f"Trading content from: {title}. Key topics: {', '.join(found_strategies) if found_strategies else 'general trading'}. Content: {transcript[:500]}...",
+        "insight_text": f"Trading-Inhalt: {title}. Hauptthemen: {', '.join(found_strategies) if found_strategies else 'allgemeines Trading'}. Inhalt: {transcript[:500]}...",
         "strategy": found_strategies[0] if found_strategies else "general",
         "timeframe": "swing" if "swing" in transcript.lower() else "1d",
         "market_condition": "any",

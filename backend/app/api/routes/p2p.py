@@ -126,7 +126,7 @@ async def get_p2p_summary(
 @router.post("/snapshot", status_code=201)
 async def save_snapshot(
     portfolio_id: Optional[int] = Query(None),
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> dict:
     """Fetch all platforms and persist the current values as DB snapshots."""
     mintos_data = await mintos_svc.fetch_summary()
@@ -137,6 +137,7 @@ async def save_snapshot(
     async with get_session() as session:
         for svc_data in [mintos_data, bondora_data, peerberry_data]:
             snap = P2PSnapshot(
+                owner_username=user.username,
                 portfolio_id=portfolio_id,
                 platform=svc_data.to_dict()["platform"],
                 total_invested=svc_data.total_invested,
@@ -165,10 +166,15 @@ async def save_snapshot(
 async def get_p2p_history(
     platform: Optional[str] = Query(None, description="Filter by platform name"),
     limit: int = Query(30, ge=1, le=200),
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> list[dict]:
     async with get_session() as session:
-        q = select(P2PSnapshot).order_by(P2PSnapshot.fetched_at.desc()).limit(limit)
+        q = (
+            select(P2PSnapshot)
+            .where(P2PSnapshot.owner_username == user.username)
+            .order_by(P2PSnapshot.fetched_at.desc())
+            .limit(limit)
+        )
         if platform:
             q = q.where(P2PSnapshot.platform == platform)
         result = await session.execute(q)

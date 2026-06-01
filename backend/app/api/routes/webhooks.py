@@ -89,7 +89,7 @@ async def delete_webhook(webhook_id: str, _: UserInfo = Depends(get_current_user
     mgr = get_webhook_manager()
     deleted = mgr.delete(webhook_id)
     if not deleted:
-        raise HTTPException(status_code=404, detail=f"Webhook {webhook_id} not found")
+        raise HTTPException(status_code=404, detail=f"Webhook {webhook_id} nicht gefunden")
     return WebhookDeleteResponse(deleted=True, webhook_id=webhook_id)
 
 

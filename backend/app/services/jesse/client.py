@@ -266,7 +266,7 @@ async def compute_risk_metrics(
             current_drawdown=0.0,
             sharpe_ratio=0.0,
             concentration_risk=0.0,
-            alerts=["No positions — risk metrics unavailable"],
+            alerts=["Keine Positionen — Risikokennzahlen nicht verfügbar"],
         )
 
     # Concentration risk: sum of top-5 positions as % of portfolio
@@ -278,9 +278,9 @@ async def compute_risk_metrics(
 
     alerts = []
     if concentration > 0.6:
-        alerts.append(f"High concentration: top-5 positions = {concentration:.0%}")
+        alerts.append(f"Hohe Konzentration: Top-5-Positionen = {concentration:.0%}")
     if portfolio_value < 10_000:
-        alerts.append("Low portfolio value — consider minimum capital requirements")
+        alerts.append("Niedriger Portfoliowert — Mindestkapitalanforderungen beachten")
 
     # Simplified VaR (parametric, assuming 2% daily vol)
     daily_vol = 0.02

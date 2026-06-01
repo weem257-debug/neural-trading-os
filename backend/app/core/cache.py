@@ -193,6 +193,21 @@ def async_cached(ttl_seconds: float = 30) -> Callable[[F], F]:
 # Global helpers
 # ---------------------------------------------------------------------------
 
+def cache_get(key: str) -> Optional[Any]:
+    """Return the cached value for `key`, or None if absent/expired.
+
+    Note: a cached value of literal None is indistinguishable from a miss here.
+    Use this only for callers that never cache None (e.g. dict payloads).
+    """
+    value = _store.get(key)
+    return None if isinstance(value, _Miss) else value
+
+
+def cache_set(key: str, value: Any, ttl_seconds: float = 30) -> None:
+    """Store `value` under `key` for `ttl_seconds`."""
+    _store.set(key, value, ttl_seconds)
+
+
 def cache_clear_all() -> int:
     """Clear the entire global cache. Returns number of entries removed."""
     return _store.clear()

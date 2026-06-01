@@ -70,7 +70,7 @@ def _validate_type(v: Optional[str]) -> Optional[str]:
     if v is not None and v not in VALID_TYPES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"portfolio_type must be one of: {', '.join(sorted(VALID_TYPES))}",
+            detail=f"portfolio_type muss einer der folgenden sein: {', '.join(sorted(VALID_TYPES))}",
         )
     return v
 
@@ -79,19 +79,22 @@ def _validate_category(v: Optional[str]) -> Optional[str]:
     if v is not None and v not in VALID_CATEGORIES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"category must be one of: {', '.join(sorted(VALID_CATEGORIES))}",
+            detail=f"category muss einer der folgenden sein: {', '.join(sorted(VALID_CATEGORIES))}",
         )
     return v
 
 
-async def _get_or_404(portfolio_id: int) -> Portfolio:
+async def _get_or_404(portfolio_id: int, owner_username: str) -> Portfolio:
     async with get_session() as session:
         result = await session.execute(
-            select(Portfolio).where(Portfolio.id == portfolio_id)
+            select(Portfolio).where(
+                Portfolio.id == portfolio_id,
+                Portfolio.owner_username == owner_username,
+            )
         )
         portfolio = result.scalar_one_or_none()
     if not portfolio:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portfolio nicht gefunden")
     return portfolio
 
 
@@ -101,11 +104,13 @@ async def _get_or_404(portfolio_id: int) -> Portfolio:
 
 @router.get("/", response_model=list[PortfolioOut])
 async def list_portfolios(
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> list[PortfolioOut]:
     async with get_session() as session:
         result = await session.execute(
-            select(Portfolio).order_by(Portfolio.is_default.desc(), Portfolio.created_at)
+            select(Portfolio)
+            .where(Portfolio.owner_username == user.username)
+            .order_by(Portfolio.is_default.desc(), Portfolio.created_at)
         )
         portfolios = result.scalars().all()
     return [PortfolioOut.model_validate(p) for p in portfolios]
@@ -114,17 +119,20 @@ async def list_portfolios(
 @router.post("/", response_model=PortfolioOut, status_code=status.HTTP_201_CREATED)
 async def create_portfolio(
     body: PortfolioCreate,
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> PortfolioOut:
     _validate_type(body.portfolio_type)
     _validate_category(body.category)
 
     async with get_session() as session:
-        # If this is the first portfolio, make it default
-        count_result = await session.execute(select(Portfolio))
+        # If this user has no portfolios yet, make it default
+        count_result = await session.execute(
+            select(Portfolio).where(Portfolio.owner_username == user.username)
+        )
         is_first = len(count_result.scalars().all()) == 0
 
         portfolio = Portfolio(
+            owner_username=user.username,
             name=body.name,
             portfolio_type=body.portfolio_type,
             category=body.category,
@@ -145,16 +153,19 @@ async def create_portfolio(
 async def update_portfolio(
     portfolio_id: int,
     body: PortfolioUpdate,
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> PortfolioOut:
     _validate_type(body.portfolio_type)
     _validate_category(body.category)
 
-    portfolio = await _get_or_404(portfolio_id)
+    await _get_or_404(portfolio_id, user.username)
 
     async with get_session() as session:
         result = await session.execute(
-            select(Portfolio).where(Portfolio.id == portfolio_id)
+            select(Portfolio).where(
+                Portfolio.id == portfolio_id,
+                Portfolio.owner_username == user.username,
+            )
         )
         p = result.scalar_one()
         if body.name is not None:
@@ -177,17 +188,20 @@ async def update_portfolio(
 @router.delete("/{portfolio_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_portfolio(
     portfolio_id: int,
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> None:
-    portfolio = await _get_or_404(portfolio_id)
+    portfolio = await _get_or_404(portfolio_id, user.username)
     if portfolio.is_default:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete the default portfolio. Set another portfolio as default first.",
+            detail="Standard-Portfolio kann nicht gelöscht werden. Setze zuerst ein anderes Portfolio als Standard.",
         )
     async with get_session() as session:
         result = await session.execute(
-            select(Portfolio).where(Portfolio.id == portfolio_id)
+            select(Portfolio).where(
+                Portfolio.id == portfolio_id,
+                Portfolio.owner_username == user.username,
+            )
         )
         p = result.scalar_one()
         await session.delete(p)
@@ -197,17 +211,22 @@ async def delete_portfolio(
 @router.post("/{portfolio_id}/default", response_model=PortfolioOut)
 async def set_default_portfolio(
     portfolio_id: int,
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> PortfolioOut:
-    await _get_or_404(portfolio_id)
+    await _get_or_404(portfolio_id, user.username)
 
     async with get_session() as session:
-        # Clear all defaults first
+        # Clear defaults only for this user's portfolios
         await session.execute(
-            update(Portfolio).values(is_default=False)
+            update(Portfolio)
+            .where(Portfolio.owner_username == user.username)
+            .values(is_default=False)
         )
         result = await session.execute(
-            select(Portfolio).where(Portfolio.id == portfolio_id)
+            select(Portfolio).where(
+                Portfolio.id == portfolio_id,
+                Portfolio.owner_username == user.username,
+            )
         )
         p = result.scalar_one()
         p.is_default = True

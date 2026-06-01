@@ -46,6 +46,7 @@ class BankConnectionCreate(BaseModel):
 
 class BankConnectionOut(BaseModel):
     id: int
+    owner_username: Optional[str]
     bank_name: str
     blz: str
     username: str
@@ -66,7 +67,7 @@ class BankConnectionOut(BaseModel):
 @router.post("/sync")
 async def sync_bank(
     body: BankSyncRequest,
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> dict:
     """
     Perform a live FinTS sync.
@@ -83,13 +84,14 @@ async def sync_bank(
     if result.error and not result.is_demo:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"FinTS sync failed: {result.error}",
+            detail=f"FinTS-Synchronisation fehlgeschlagen: {result.error}",
         )
 
-    # Update last_synced on stored connection if it exists
+    # Update last_synced on stored connection if it exists (scoped to owner)
     async with get_session() as session:
         q_result = await session.execute(
             select(BankConnection).where(
+                BankConnection.owner_username == user.username,
                 BankConnection.blz == body.blz,
                 BankConnection.username == body.username,
             )
@@ -107,11 +109,13 @@ async def sync_bank(
 
 @router.get("/connections", response_model=list[BankConnectionOut])
 async def list_connections(
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> list[BankConnectionOut]:
     async with get_session() as session:
         result = await session.execute(
-            select(BankConnection).order_by(BankConnection.created_at)
+            select(BankConnection)
+            .where(BankConnection.owner_username == user.username)
+            .order_by(BankConnection.created_at)
         )
         connections = result.scalars().all()
     return [BankConnectionOut.model_validate(c) for c in connections]
@@ -120,10 +124,11 @@ async def list_connections(
 @router.post("/connections", response_model=BankConnectionOut, status_code=status.HTTP_201_CREATED)
 async def add_connection(
     body: BankConnectionCreate,
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> BankConnectionOut:
     async with get_session() as session:
         conn = BankConnection(
+            owner_username=user.username,
             bank_name=body.bank_name,
             blz=body.blz,
             username=body.username,
@@ -141,15 +146,18 @@ async def add_connection(
 @router.delete("/connections/{connection_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_connection(
     connection_id: int,
-    _user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
 ) -> None:
     async with get_session() as session:
         result = await session.execute(
-            select(BankConnection).where(BankConnection.id == connection_id)
+            select(BankConnection).where(
+                BankConnection.id == connection_id,
+                BankConnection.owner_username == user.username,
+            )
         )
         conn = result.scalar_one_or_none()
         if not conn:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Connection not found")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Verbindung nicht gefunden")
         await session.delete(conn)
         await session.commit()
 

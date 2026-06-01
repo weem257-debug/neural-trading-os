@@ -11,16 +11,41 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 _ALLOWED_KEYS = frozenset({
+    # P2P
     "MINTOS_API_KEY",
     "BONDORA_API_KEY",
     "PEERBERRY_EMAIL",
     "PEERBERRY_PASSWORD",
+    # Messaging / Billing
     "TELEGRAM_BOT_TOKEN",
     "TELEGRAM_BOT_NAME",
     "STRIPE_SECRET_KEY",
+    # Bestehende Broker
     "ALPACA_API_KEY",
     "ALPACA_SECRET_KEY",
     "ANTHROPIC_API_KEY",
+    # ---- Neue Broker (Phase 1: Offizielle APIs) ----
+    "BITPANDA_API_KEY",
+    "COMDIRECT_CLIENT_ID",
+    "COMDIRECT_CLIENT_SECRET",
+    "COMDIRECT_ACCESS_TOKEN",
+    "COMDIRECT_REFRESH_TOKEN",
+    # ---- Neue Broker (Phase 2: Community-Libs) ----
+    "DEGIRO_USERNAME",
+    "DEGIRO_PASSWORD",
+    "DEGIRO_TOTP_TOKEN",
+    "FLATEX_FINTS_USER",
+    # FLATEX_FINTS_PIN ist NICHT in der Whitelist — PIN wird NIE in der DB gespeichert
+    "FLATEX_FINTS_ACCOUNT",
+    "CROWDESTOR_EMAIL",
+    "CROWDESTOR_PASSWORD",
+    # ---- Neue Broker (Phase 3: Reverse Engineering) ----
+    "TR_PHONE_NUMBER",
+    "TR_PIN",
+    "WH_CTRADER_CLIENT_ID",
+    "WH_CTRADER_CLIENT_SECRET",
+    "WH_CTRADER_ACCESS_TOKEN",
+    "WH_CTRADER_ACCOUNT_ID",
 })
 
 
@@ -41,7 +66,7 @@ async def get_credential(key: str) -> Optional[str]:
 async def set_credential(key: str, value: str) -> None:
     """Upsert a credential in the DB."""
     if key not in _ALLOWED_KEYS:
-        raise ValueError(f"Key '{key}' is not in the allowed list")
+        raise ValueError(f"Schlüssel '{key}' ist nicht in der erlaubten Liste")
     from datetime import datetime, UTC
     from sqlalchemy.dialects.sqlite import insert as sqlite_insert
     from sqlalchemy.dialects.postgresql import insert as pg_insert

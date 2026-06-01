@@ -92,11 +92,11 @@ class WebhookManager:
     ) -> WebhookRegistration:
         """Register a new outbound webhook. Returns the registration."""
         if len(self._webhooks) >= _MAX_WEBHOOKS:
-            raise ValueError(f"Maximum of {_MAX_WEBHOOKS} webhooks reached. Delete one first.")
+            raise ValueError(f"Maximale Anzahl von {_MAX_WEBHOOKS} Webhooks erreicht. Bitte zuerst einen löschen.")
 
         unknown = set(events) - WEBHOOK_EVENTS
         if unknown:
-            raise ValueError(f"Unknown event type(s): {unknown}. Valid: {sorted(WEBHOOK_EVENTS)}")
+            raise ValueError(f"Unbekannte Event-Typen: {unknown}. Erlaubt: {sorted(WEBHOOK_EVENTS)}")
 
         wh = WebhookRegistration(
             id=str(uuid.uuid4()),

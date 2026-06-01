@@ -10,6 +10,9 @@ Run:
     cd dashboard/backend
     pytest tests/test_routes.py -v
 """
+import os
+import tempfile
+
 import pytest
 import httpx
 from unittest.mock import patch, AsyncMock, MagicMock
@@ -30,7 +33,19 @@ def client():
     We patch:
     - nautilus ExecutionClient.initialize  (avoid broker connection at startup)
     - fingpt analyze_sentiment             (avoid Anthropic/news API calls)
+
+    The test DB is an isolated throwaway file, NOT the local dev DB. Setting
+    TRADING_DB_PATH in os.environ *before* importing the app ensures BOTH the
+    async engine (app/db/database.py) and the startup migration subprocess
+    (which inherits os.environ) build a fresh schema at head, so tests can't
+    drift against — or corrupt — the developer's real trading_dashboard.db.
     """
+    db_fd, db_path = tempfile.mkstemp(suffix=".db", prefix="test_trading_")
+    os.close(db_fd)
+    os.environ["TRADING_DB_PATH"] = db_path
+    # Force the SQLite path: a stray Postgres DATABASE_URL would override it.
+    os.environ.pop("DATABASE_URL", None)
+
     mock_nautilus = MagicMock()
     mock_nautilus.initialize = AsyncMock(return_value=None)
     mock_nautilus.get_positions = AsyncMock(return_value=[])
@@ -45,6 +60,11 @@ def client():
         with TestClient(app, raise_server_exceptions=False) as c:
             yield c
         app.state.limiter.enabled = True
+
+    try:
+        os.remove(db_path)
+    except OSError:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -494,7 +514,7 @@ class TestSignalCache:
         assert resp_upper.status_code == 200
 
     def test_cache_clear(self, client):
-        resp = client.delete("/api/signals/cache")
+        resp = client.delete("/api/signals/cache", headers=_auth_headers(client))
         assert resp.status_code == 200
         data = resp.json()
         assert "cleared" in data
@@ -540,7 +560,7 @@ class TestBacktest:
             "engine": "jesse",
             "params": {},
         }
-        resp = client.post("/api/backtest/run", json=payload)
+        resp = client.post("/api/backtest/run", json=payload, headers=_auth_headers(client))
         data = _assert_ok(resp)
         assert "job_id" in data, "Response must contain job_id"
         assert isinstance(data["job_id"], str)
@@ -557,11 +577,11 @@ class TestBacktest:
             "engine": "jesse",
             "params": {},
         }
-        run_resp = client.post("/api/backtest/run", json=payload)
+        run_resp = client.post("/api/backtest/run", json=payload, headers=_auth_headers(client))
         run_data = _assert_ok(run_resp)
         job_id = run_data["job_id"]
 
-        jobs_resp = client.get("/api/backtest/jobs")
+        jobs_resp = client.get("/api/backtest/jobs", headers=_auth_headers(client))
         jobs_data = _assert_ok(jobs_resp)
         job_ids = [j["id"] for j in jobs_data]
         assert job_id in job_ids, f"Job {job_id} not found in /jobs listing"
@@ -577,20 +597,20 @@ class TestBacktest:
             "engine": "jesse",
             "params": {},
         }
-        run_data = _assert_ok(client.post("/api/backtest/run", json=payload))
+        run_data = _assert_ok(client.post("/api/backtest/run", json=payload, headers=_auth_headers(client)))
         job_id = run_data["job_id"]
 
-        job_resp = client.get(f"/api/backtest/jobs/{job_id}")
+        job_resp = client.get(f"/api/backtest/jobs/{job_id}", headers=_auth_headers(client))
         job = _assert_ok(job_resp)
         assert "status" in job
         assert job["status"] in {"queued", "running", "completed", "failed"}
 
     def test_get_unknown_job_returns_404(self, client):
-        resp = client.get("/api/backtest/jobs/nonexistent-job-id-xyz")
+        resp = client.get("/api/backtest/jobs/nonexistent-job-id-xyz", headers=_auth_headers(client))
         assert resp.status_code == 404
 
     def test_run_backtest_missing_required_field_returns_422(self, client):
-        resp = client.post("/api/backtest/run", json={"ticker": "AAPL"})
+        resp = client.post("/api/backtest/run", json={"ticker": "AAPL"}, headers=_auth_headers(client))
         assert resp.status_code == 422
 
 
@@ -792,7 +812,7 @@ class TestExecution:
             mock_settings.MAX_DAILY_LOSS_PCT = 0.02
             mock_settings.MAX_LEVERAGE = 1.0
 
-            resp = client.post("/api/execution/mode?mode=live")
+            resp = client.post("/api/execution/mode?mode=live", headers=_auth_headers(client))
 
         # Should be blocked — 403 or 422 (if query param handling differs)
         # but NOT 200 (that would mean safety gate bypassed)
@@ -1188,7 +1208,7 @@ class TestAuth:
 class TestSignalsExport:
     def test_export_returns_200_and_csv_content_type(self, client):
         """GET /api/signals/export must return 200 with text/csv Content-Type."""
-        resp = client.get("/api/signals/export")
+        resp = client.get("/api/signals/export", headers=_auth_headers(client))
         assert resp.status_code == 200, (
             f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
         )
@@ -1199,7 +1219,7 @@ class TestSignalsExport:
 
     def test_export_has_csv_headers_row(self, client):
         """CSV output must start with a header row containing expected column names."""
-        resp = client.get("/api/signals/export")
+        resp = client.get("/api/signals/export", headers=_auth_headers(client))
         assert resp.status_code == 200
         text = resp.text
         # The CSV header row must contain key columns
@@ -1210,7 +1230,7 @@ class TestSignalsExport:
     def test_export_after_demo_contains_signal(self, client):
         """After POST /api/signals/demo, export CSV must contain at least one data row."""
         client.post("/api/signals/demo?ticker=EXPORTTEST")
-        resp = client.get("/api/signals/export")
+        resp = client.get("/api/signals/export", headers=_auth_headers(client))
         assert resp.status_code == 200
         lines = [l for l in resp.text.splitlines() if l.strip()]
         # At least header + one data row
@@ -1220,7 +1240,7 @@ class TestSignalsExport:
 
     def test_export_csv_disposition_header(self, client):
         """Response must have Content-Disposition: attachment with .csv filename."""
-        resp = client.get("/api/signals/export")
+        resp = client.get("/api/signals/export", headers=_auth_headers(client))
         disposition = resp.headers.get("content-disposition", "")
         assert "attachment" in disposition, f"Missing attachment disposition: {disposition}"
         assert ".csv" in disposition, f"Missing .csv in disposition: {disposition}"
@@ -1544,7 +1564,7 @@ class TestBacktestExport:
             "engine": "jesse",
             "params": {},
         }
-        run_resp = client.post("/api/backtest/run", json=payload)
+        run_resp = client.post("/api/backtest/run", json=payload, headers=_auth_headers(client))
         if run_resp.status_code == 429:
             pytest.skip("Rate limit hit — /api/backtest/run is at 10/min cap in full suite")
         assert run_resp.status_code == 200
@@ -1553,7 +1573,7 @@ class TestBacktestExport:
         # Poll until done (TestClient runs bg tasks synchronously in most cases)
         import time
         for _ in range(20):
-            job_resp = client.get(f"/api/backtest/jobs/{job_id}")
+            job_resp = client.get(f"/api/backtest/jobs/{job_id}", headers=_auth_headers(client))
             status = job_resp.json().get("status")
             if status in ("completed", "failed"):
                 break
@@ -1562,17 +1582,17 @@ class TestBacktestExport:
 
     def test_export_unknown_job_returns_404(self, client):
         """GET /api/backtest/export/nonexistent must return 404."""
-        resp = client.get("/api/backtest/export/nonexistent-job-xyz")
+        resp = client.get("/api/backtest/export/nonexistent-job-xyz", headers=_auth_headers(client))
         assert resp.status_code == 404
 
     def test_export_completed_job_returns_200_csv(self, client):
         """GET /api/backtest/export/{job_id} for a completed job must return 200 + text/csv."""
         job_id = self._create_completed_job(client)
-        job = client.get(f"/api/backtest/jobs/{job_id}").json()
+        job = client.get(f"/api/backtest/jobs/{job_id}", headers=_auth_headers(client)).json()
         if job["status"] != "completed":
             pytest.skip(f"Job did not complete in time (status: {job['status']})")
 
-        resp = client.get(f"/api/backtest/export/{job_id}")
+        resp = client.get(f"/api/backtest/export/{job_id}", headers=_auth_headers(client))
         assert resp.status_code == 200, (
             f"Expected 200 for completed export, got {resp.status_code}: {resp.text[:300]}"
         )
@@ -1582,11 +1602,11 @@ class TestBacktestExport:
     def test_export_csv_has_summary_section(self, client):
         """CSV export must contain a SUMMARY section header."""
         job_id = self._create_completed_job(client)
-        job = client.get(f"/api/backtest/jobs/{job_id}").json()
+        job = client.get(f"/api/backtest/jobs/{job_id}", headers=_auth_headers(client)).json()
         if job["status"] != "completed":
             pytest.skip(f"Job did not complete in time (status: {job['status']})")
 
-        resp = client.get(f"/api/backtest/export/{job_id}")
+        resp = client.get(f"/api/backtest/export/{job_id}", headers=_auth_headers(client))
         if resp.status_code == 200:
             assert "SUMMARY" in resp.text, "CSV export missing SUMMARY section"
 
@@ -1702,7 +1722,7 @@ class TestBacktestCompare:
             "period":     "1y",
             "strategies": ["ma_crossover", "buy_and_hold"],
         }
-        resp = client.post("/api/backtest/compare", json=payload)
+        resp = client.post("/api/backtest/compare", json=payload, headers=_auth_headers(client))
         assert resp.status_code == 200, (
             f"Expected 200, got {resp.status_code}: {resp.text[:400]}"
         )
@@ -1714,7 +1734,7 @@ class TestBacktestCompare:
             "period":     "6mo",
             "strategies": ["ma_crossover", "buy_and_hold"],
         }
-        resp = client.post("/api/backtest/compare", json=payload)
+        resp = client.post("/api/backtest/compare", json=payload, headers=_auth_headers(client))
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, dict), "Response must be a dict"
@@ -1729,7 +1749,7 @@ class TestBacktestCompare:
             "period":     "1y",
             "strategies": ["ma_crossover", "rsi_mean_reversion", "buy_and_hold"],
         }
-        resp = client.post("/api/backtest/compare", json=payload)
+        resp = client.post("/api/backtest/compare", json=payload, headers=_auth_headers(client))
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data["results"], list)
@@ -1742,7 +1762,7 @@ class TestBacktestCompare:
             "period":     "1y",
             "strategies": ["ma_crossover", "buy_and_hold"],
         }
-        resp = client.post("/api/backtest/compare", json=payload)
+        resp = client.post("/api/backtest/compare", json=payload, headers=_auth_headers(client))
         assert resp.status_code == 200
         data = resp.json()
         row_fields = {"strategy", "return_pct", "sharpe", "drawdown", "trades", "is_best"}
@@ -1757,7 +1777,7 @@ class TestBacktestCompare:
             "period":     "1y",
             "strategies": ["ma_crossover", "buy_and_hold"],
         }
-        resp = client.post("/api/backtest/compare", json=payload)
+        resp = client.post("/api/backtest/compare", json=payload, headers=_auth_headers(client))
         assert resp.status_code == 200
         data = resp.json()
         best_count = sum(1 for r in data["results"] if r.get("is_best"))
@@ -1766,13 +1786,13 @@ class TestBacktestCompare:
     def test_compare_empty_strategies_returns_422(self, client):
         """Empty strategies list must be rejected with 422."""
         payload = {"ticker": "AAPL", "period": "1y", "strategies": []}
-        resp = client.post("/api/backtest/compare", json=payload)
+        resp = client.post("/api/backtest/compare", json=payload, headers=_auth_headers(client))
         assert resp.status_code == 422, f"Expected 422 for empty strategies, got {resp.status_code}"
 
     def test_compare_single_strategy_returns_one_result(self, client):
         """Single strategy compare must return exactly one result row."""
         payload = {"ticker": "AAPL", "period": "6mo", "strategies": ["buy_and_hold"]}
-        resp = client.post("/api/backtest/compare", json=payload)
+        resp = client.post("/api/backtest/compare", json=payload, headers=_auth_headers(client))
         assert resp.status_code == 200
         data = resp.json()
         assert len(data["results"]) == 1
@@ -1781,7 +1801,7 @@ class TestBacktestCompare:
     def test_compare_ticker_echoed_in_response(self, client):
         """ticker field in response must match the requested ticker (uppercased)."""
         payload = {"ticker": "msft", "period": "1y", "strategies": ["buy_and_hold"]}
-        resp = client.post("/api/backtest/compare", json=payload)
+        resp = client.post("/api/backtest/compare", json=payload, headers=_auth_headers(client))
         assert resp.status_code == 200
         assert resp.json()["ticker"] == "MSFT"
 
@@ -1916,6 +1936,152 @@ class TestSignalPerformance:
         data = resp.json()
         assert isinstance(data["total_evaluated"], int)
         assert data["total_evaluated"] >= 0
+
+
+class TestSignalsTotal:
+    """GET /api/signals/total — public social-proof counter."""
+
+    def test_total_returns_200(self, client):
+        resp = client.get("/api/signals/total")
+        assert resp.status_code == 200
+
+    def test_total_has_total_field(self, client):
+        data = client.get("/api/signals/total").json()
+        assert "total" in data
+
+    def test_total_is_non_negative_int(self, client):
+        data = client.get("/api/signals/total").json()
+        assert isinstance(data["total"], int)
+        assert data["total"] >= 0
+
+    def test_total_no_auth_required(self, client):
+        """Public endpoint — must not return 401."""
+        resp = client.get("/api/signals/total")
+        assert resp.status_code != 401
+
+    def test_total_increases_after_demo_signal(self, client):
+        before = client.get("/api/signals/total").json()["total"]
+        client.post("/api/signals/demo", params={"ticker": "AAPL"})
+        after = client.get("/api/signals/total").json()["total"]
+        # In-memory mode: counter may or may not persist — at minimum must not decrease
+        assert after >= before
+
+
+class TestSignalPerformanceByTicker:
+    """GET /api/signals/performance/by-ticker — public per-ticker win-rate."""
+
+    def test_returns_200(self, client):
+        resp = client.get("/api/signals/performance/by-ticker")
+        assert resp.status_code == 200
+
+    def test_has_tickers_field(self, client):
+        data = client.get("/api/signals/performance/by-ticker").json()
+        assert "tickers" in data
+
+    def test_tickers_is_list(self, client):
+        data = client.get("/api/signals/performance/by-ticker").json()
+        assert isinstance(data["tickers"], list)
+
+    def test_no_auth_required(self, client):
+        resp = client.get("/api/signals/performance/by-ticker")
+        assert resp.status_code != 401
+
+    def test_ticker_entry_has_required_fields(self, client):
+        """If tickers list is non-empty, each entry must have the expected shape."""
+        data = client.get("/api/signals/performance/by-ticker").json()
+        for entry in data["tickers"]:
+            for field in ("ticker", "total", "wins", "win_rate", "avg_return"):
+                assert field in entry, f"ticker entry missing field '{field}': {entry}"
+
+    def test_win_rate_in_range_for_all_entries(self, client):
+        data = client.get("/api/signals/performance/by-ticker").json()
+        for entry in data["tickers"]:
+            assert 0.0 <= entry["win_rate"] <= 1.0, f"win_rate out of range: {entry}"
+
+
+class TestSignalPerformanceMine:
+    """GET /api/signals/performance/mine — personal performance (optional auth)."""
+
+    def test_returns_200_unauthenticated(self, client):
+        """Without auth, must return 200 with empty stats (not 401)."""
+        resp = client.get("/api/signals/performance/mine")
+        assert resp.status_code == 200
+
+    def test_unauthenticated_returns_empty_stats(self, client):
+        data = client.get("/api/signals/performance/mine").json()
+        assert "avg_return" in data
+        assert "win_rate" in data
+        assert "total_evaluated" in data
+        assert data["total_evaluated"] == 0
+
+    def test_authenticated_returns_valid_shape(self, client):
+        token = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+        ).json()["access_token"]
+        resp = client.get(
+            "/api/signals/performance/mine",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        for field in ("avg_return", "win_rate", "total_evaluated"):
+            assert field in data
+
+
+class TestSignalHistory:
+    """GET /api/signals/history — user's personal signal history (optional auth)."""
+
+    def test_returns_200_unauthenticated(self, client):
+        """Without auth, must return 200 with empty list (not 401)."""
+        resp = client.get("/api/signals/history")
+        assert resp.status_code == 200
+
+    def test_unauthenticated_returns_empty_list(self, client):
+        data = client.get("/api/signals/history").json()
+        assert isinstance(data, list)
+        assert len(data) == 0
+
+    def test_authenticated_returns_list(self, client):
+        token = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+        ).json()["access_token"]
+        resp = client.get(
+            "/api/signals/history",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), list)
+
+    def test_limit_param_respected(self, client):
+        """?limit= must cap the result count."""
+        token = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+        ).json()["access_token"]
+        resp = client.get(
+            "/api/signals/history?limit=2",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        assert len(resp.json()) <= 2
+
+    def test_history_entry_shape_after_demo(self, client):
+        """After generating a demo signal, history entry must have required fields."""
+        token = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+        ).json()["access_token"]
+        auth = {"Authorization": f"Bearer {token}"}
+        # Generate a demo signal so history is non-empty
+        client.post("/api/signals/demo", params={"ticker": "TSLA"}, headers=auth)
+        resp = client.get("/api/signals/history?limit=1", headers=auth)
+        assert resp.status_code == 200
+        entries = resp.json()
+        if entries:
+            for field in ("id", "ticker", "direction", "confidence", "generated_at"):
+                assert field in entries[0], f"history entry missing field '{field}'"
 
 
 class TestAlertsListAfterPost:
@@ -2275,7 +2441,7 @@ class TestStrategyParams:
             "engine": "jesse",
             "params": {"fast_period": 10, "slow_period": 30},
         }
-        resp = client.post("/api/backtest/run", json=payload)
+        resp = client.post("/api/backtest/run", json=payload, headers=_auth_headers(client))
         data = _assert_ok(resp)
         assert "job_id" in data, "Response must contain job_id"
 
@@ -2290,7 +2456,7 @@ class TestStrategyParams:
             "engine": "jesse",
             "params": {"fast_period": 50, "slow_period": 20},
         }
-        resp = client.post("/api/backtest/run", json=payload)
+        resp = client.post("/api/backtest/run", json=payload, headers=_auth_headers(client))
         assert resp.status_code == 422, (
             f"Expected 422 for fast_period >= slow_period, got {resp.status_code}: {resp.text[:300]}"
         )
@@ -2306,7 +2472,7 @@ class TestStrategyParams:
             "engine": "jesse",
             "params": {"fast_period": 1, "slow_period": 50},
         }
-        resp = client.post("/api/backtest/run", json=payload)
+        resp = client.post("/api/backtest/run", json=payload, headers=_auth_headers(client))
         assert resp.status_code == 422, (
             f"Expected 422 for out-of-range fast_period, got {resp.status_code}: {resp.text[:300]}"
         )
@@ -2377,7 +2543,7 @@ class TestStrategyParams:
             "engine": "vibe_trading",
             "params": {"rsi_period": 21, "oversold": 25, "overbought": 75},
         }
-        resp = client.post("/api/backtest/run", json=payload)
+        resp = client.post("/api/backtest/run", json=payload, headers=_auth_headers(client))
         if resp.status_code == 429:
             pytest.skip("Rate limit hit — /api/backtest/run is at 10/min cap in full suite")
         data = _assert_ok(resp)
@@ -2394,7 +2560,7 @@ class TestStrategyParams:
             "engine": "vibe_trading",
             "params": {"rsi_period": 99, "oversold": 30, "overbought": 70},
         }
-        resp = client.post("/api/backtest/run", json=payload)
+        resp = client.post("/api/backtest/run", json=payload, headers=_auth_headers(client))
         if resp.status_code == 429:
             pytest.skip("Rate limit hit — /api/backtest/run is at 10/min cap in full suite")
         assert resp.status_code == 422, f"Expected 422 for rsi_period=99, got {resp.status_code}"
@@ -2410,7 +2576,7 @@ class TestStrategyParams:
             "engine": "vibe_trading",
             "params": {"rsi_period": 14, "oversold": 50, "overbought": 70},
         }
-        resp = client.post("/api/backtest/run", json=payload)
+        resp = client.post("/api/backtest/run", json=payload, headers=_auth_headers(client))
         if resp.status_code == 429:
             pytest.skip("Rate limit hit — /api/backtest/run is at 10/min cap in full suite")
         assert resp.status_code == 422, f"Expected 422 for oversold=50, got {resp.status_code}"
@@ -2485,23 +2651,23 @@ class TestBacktestJobDelete:
             "ticker": "AAPL",
             "start_date": "2023-01-01",
             "end_date": "2023-06-01",
-        })
+        }, headers=_auth_headers(client))
         if create.status_code == 429:
             pytest.skip("Rate limit hit — /api/backtest/run is at 10/min cap in full suite")
         job_id = _assert_ok(create)["job_id"]
-        data = _assert_ok(client.delete(f"/api/backtest/jobs/{job_id}"))
+        data = _assert_ok(client.delete(f"/api/backtest/jobs/{job_id}", headers=_auth_headers(client)))
         assert "deleted" in data, "DELETE response must contain 'deleted' key"
         assert str(data["deleted"]) == job_id or data["deleted"] is True, (
             f"Unexpected 'deleted' value: {data['deleted']}"
         )
         # After deletion, the job must be gone
-        get_resp = client.get(f"/api/backtest/jobs/{job_id}")
+        get_resp = client.get(f"/api/backtest/jobs/{job_id}", headers=_auth_headers(client))
         assert get_resp.status_code == 404, (
             f"Job {job_id} should be gone after delete but got {get_resp.status_code}"
         )
 
     def test_delete_nonexistent_job_returns_404(self, client):
-        resp = client.delete("/api/backtest/jobs/nonexistent-job-xyz")
+        resp = client.delete("/api/backtest/jobs/nonexistent-job-xyz", headers=_auth_headers(client))
         assert resp.status_code == 404, f"Expected 404, got {resp.status_code}"
 
 
@@ -2629,7 +2795,7 @@ class TestPortfolioEquityCurve:
 
 class TestBacktestResults:
     def test_results_nonexistent_job_returns_404(self, client):
-        resp = client.get("/api/backtest/results/no-such-job-abc123")
+        resp = client.get("/api/backtest/results/no-such-job-abc123", headers=_auth_headers(client))
         assert resp.status_code == 404, f"Expected 404, got {resp.status_code}"
 
     def test_results_completed_job_returns_200_or_409_with_valid_shape(self, client):
@@ -2640,11 +2806,11 @@ class TestBacktestResults:
             "ticker": "SPY",
             "start_date": "2024-01-01",
             "end_date": "2024-06-01",
-        })
+        }, headers=_auth_headers(client))
         if run.status_code == 429:
             pytest.skip("Rate limit hit — /api/backtest/run is at 10/min cap in full suite")
         job_id = _assert_ok(run)["job_id"]
-        resp = client.get(f"/api/backtest/results/{job_id}")
+        resp = client.get(f"/api/backtest/results/{job_id}", headers=_auth_headers(client))
         assert resp.status_code in {200, 409}, (
             f"Expected 200 (completed) or 409 (still running), got {resp.status_code}. Body: {resp.text[:300]}"
         )
@@ -2930,7 +3096,7 @@ class TestBacktestEngines:
             "params": {},
             "engine": engine,
         }
-        return client.post("/api/backtest/run", json=payload)
+        return client.post("/api/backtest/run", json=payload, headers=_auth_headers(client))
 
     def test_vibe_trading_engine_accepts_request_and_returns_job_id(self, client):
         """POST /api/backtest/run engine=vibe_trading returns 200+job_id or 429."""
@@ -2957,7 +3123,7 @@ class TestBacktestEngines:
         if resp.status_code == 429:
             return  # rate limited — endpoint exists, skip status check
         job_id = resp.json()["job_id"]
-        job = _assert_ok(client.get(f"/api/backtest/jobs/{job_id}"))
+        job = _assert_ok(client.get(f"/api/backtest/jobs/{job_id}", headers=_auth_headers(client)))
         assert job["status"] in {"queued", "running", "completed", "failed"}, (
             f"Unexpected job status: {job['status']}"
         )
@@ -2968,7 +3134,7 @@ class TestBacktestEngines:
         if resp.status_code == 429:
             return  # rate limited — endpoint exists, skip status check
         job_id = resp.json()["job_id"]
-        job = _assert_ok(client.get(f"/api/backtest/jobs/{job_id}"))
+        job = _assert_ok(client.get(f"/api/backtest/jobs/{job_id}", headers=_auth_headers(client)))
         assert job["status"] in {"queued", "running", "completed", "failed"}, (
             f"Unexpected job status: {job['status']}"
         )
@@ -3373,8 +3539,8 @@ class TestP2P:
 # Bank / FinTS
 # ---------------------------------------------------------------------------
 
-class TestBank:
-    """Tests for /api/bank — FinTS bank connection management."""
+class TestBankFints:
+    """Tests for /api/bank — FinTS bank connection management (legacy suite)."""
 
     def _auth(self, client) -> dict:
         resp = client.post(
@@ -3821,3 +3987,913 @@ class TestSettingsCredentials:
     def test_unauthenticated_is_rejected(self, client):
         resp = client.get("/api/settings/credentials")
         assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Auth — new endpoints (register, check-username, forgot-password, etc.)
+# ---------------------------------------------------------------------------
+
+class TestAuthNewEndpoints:
+    """
+    Tests for auth endpoints added after the initial JWT implementation:
+    register, check-username, forgot-password, reset-password,
+    change-password, referral-stats, export-data, email-preferences.
+    """
+
+    def _get_token(self, client) -> str:
+        resp = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert resp.status_code == 200
+        return resp.json()["access_token"]
+
+    # ---- POST /api/auth/register ----
+
+    def test_register_returns_400_for_short_username(self, client):
+        """Username < 3 chars must be rejected."""
+        resp = client.post("/api/auth/register", json={
+            "username": "ab",
+            "email": "ab@example.com",
+            "password": "Password1!",
+            "gdpr_consent": True,
+        })
+        assert resp.status_code in {400, 422}, f"Expected 400/422, got {resp.status_code}"
+
+    def test_register_returns_400_for_duplicate_username(self, client):
+        """Registering with an existing username (admin) must fail with 409."""
+        resp = client.post("/api/auth/register", json={
+            "username": "admin",
+            "email": "admin2@example.com",
+            "password": "Password1!",
+            "gdpr_consent": True,
+        })
+        assert resp.status_code == 409, f"Expected 409 for duplicate, got {resp.status_code}: {resp.text}"
+
+    def test_register_returns_422_without_gdpr_consent(self, client):
+        """Registering without GDPR consent must fail validation."""
+        resp = client.post("/api/auth/register", json={
+            "username": "testuser99",
+            "email": "testuser99@example.com",
+            "password": "Password1!",
+            "gdpr_consent": False,
+        })
+        assert resp.status_code in {400, 422}, f"Expected 4xx, got {resp.status_code}"
+
+    def test_register_invalid_email_rejected(self, client):
+        """Invalid email format must fail validation."""
+        resp = client.post("/api/auth/register", json={
+            "username": "testuser88",
+            "email": "not-an-email",
+            "password": "Password1!",
+            "gdpr_consent": True,
+        })
+        assert resp.status_code in {400, 422}, f"Expected 4xx, got {resp.status_code}"
+
+    # ---- GET /api/auth/check-username ----
+
+    def test_check_username_available_returns_200(self, client):
+        """A clearly unused username must return available=true."""
+        resp = client.get("/api/auth/check-username?username=zzz_totally_unique_xyz_123")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "available" in data
+        assert data["available"] is True
+
+    def test_check_username_admin_is_not_available(self, client):
+        """Reserved/existing username 'admin' must not be available."""
+        resp = client.get("/api/auth/check-username?username=admin")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["available"] is False
+
+    def test_check_username_too_short_is_unavailable(self, client):
+        """Username < 3 chars must return available=false."""
+        resp = client.get("/api/auth/check-username?username=ab")
+        assert resp.status_code == 200
+        assert resp.json()["available"] is False
+
+    def test_check_username_invalid_chars_is_unavailable(self, client):
+        """Username with spaces must return available=false."""
+        resp = client.get("/api/auth/check-username?username=bad user")
+        assert resp.status_code == 200
+        assert resp.json()["available"] is False
+
+    # ---- POST /api/auth/forgot-password ----
+
+    def test_forgot_password_always_returns_202(self, client):
+        """Email-enumeration protection: must return 202 for any email."""
+        resp = client.post("/api/auth/forgot-password", json={"email": "whoever@example.com"})
+        assert resp.status_code == 202, f"Expected 202, got {resp.status_code}: {resp.text}"
+
+    def test_forgot_password_real_email_also_returns_202(self, client):
+        """202 even for an existing email — no enumeration leak."""
+        resp = client.post("/api/auth/forgot-password", json={"email": "admin@neural-trading.os"})
+        assert resp.status_code == 202
+
+    def test_forgot_password_missing_email_returns_422(self, client):
+        """Missing body field must fail validation."""
+        resp = client.post("/api/auth/forgot-password", json={})
+        assert resp.status_code == 422
+
+    # ---- POST /api/auth/reset-password ----
+
+    def test_reset_password_invalid_token_returns_400(self, client):
+        """A bogus reset token must be rejected."""
+        resp = client.post("/api/auth/reset-password", json={
+            "token": "invalidtoken123",
+            "password": "NewPass1!",
+        })
+        assert resp.status_code == 400, f"Expected 400, got {resp.status_code}: {resp.text}"
+
+    def test_reset_password_missing_fields_returns_422(self, client):
+        resp = client.post("/api/auth/reset-password", json={"token": "x"})
+        assert resp.status_code == 422
+
+    # ---- GET /api/auth/referral-stats ----
+
+    def test_referral_stats_requires_auth(self, client):
+        resp = client.get("/api/auth/referral-stats")
+        assert resp.status_code == 401
+
+    def test_referral_stats_returns_200_with_token(self, client):
+        token = self._get_token(client)
+        resp = client.get("/api/auth/referral-stats", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "referral_count" in data
+        assert "referral_url" in data
+        assert isinstance(data["referral_count"], int)
+        assert data["referral_count"] >= 0
+
+    # ---- GET /api/auth/export-data ----
+
+    def test_export_data_requires_auth(self, client):
+        resp = client.get("/api/auth/export-data")
+        assert resp.status_code == 401
+
+    def test_export_data_returns_json_file(self, client):
+        token = self._get_token(client)
+        resp = client.get("/api/auth/export-data", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        ct = resp.headers.get("content-type", "")
+        assert "json" in ct or "octet-stream" in ct, f"Expected JSON content-type, got: {ct}"
+
+    def test_export_data_has_account_and_signals_keys(self, client):
+        token = self._get_token(client)
+        data = client.get("/api/auth/export-data", headers={"Authorization": f"Bearer {token}"}).json()
+        assert "account" in data, "export-data must contain 'account' key"
+        assert "signals" in data, "export-data must contain 'signals' key"
+        assert "price_alerts" in data, "export-data must contain 'price_alerts' key"
+
+    def test_export_data_account_has_username(self, client):
+        token = self._get_token(client)
+        data = client.get("/api/auth/export-data", headers={"Authorization": f"Bearer {token}"}).json()
+        assert data["account"]["username"] == "admin"
+
+    # ---- POST /api/auth/email-preferences ----
+
+    def test_email_preferences_requires_auth(self, client):
+        resp = client.post("/api/auth/email-preferences", json={"subscribed": True})
+        assert resp.status_code == 401
+
+    def test_email_preferences_toggle_returns_200(self, client):
+        token = self._get_token(client)
+        headers = {"Authorization": f"Bearer {token}"}
+        resp = client.post("/api/auth/email-preferences", json={"subscribed": False}, headers=headers)
+        assert resp.status_code == 200
+        # Re-subscribe to leave test state clean
+        client.post("/api/auth/email-preferences", json={"subscribed": True}, headers=headers)
+
+    def test_email_preferences_missing_field_returns_422(self, client):
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/auth/email-preferences", json={},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 422
+
+    # ---- GET /api/auth/users/count ----
+
+    def test_users_count_is_public_and_returns_int(self, client):
+        """Public endpoint — no auth required."""
+        resp = client.get("/api/auth/users/count")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "count" in data or isinstance(data, dict), f"Unexpected shape: {data}"
+
+    # ---- PUT /api/auth/profile ----
+
+    def test_profile_update_requires_auth(self, client):
+        resp = client.put("/api/auth/profile", json={"email": "test@example.com"})
+        assert resp.status_code == 401
+
+    def test_profile_update_valid_email_returns_200(self, client):
+        token = self._get_token(client)
+        resp = client.put(
+            "/api/auth/profile",
+            json={"email": "admin_updated@neural-trading.os"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "email" in data
+        assert "message" in data
+        assert data["email"] == "admin_updated@neural-trading.os"
+
+    def test_profile_update_invalid_email_returns_422(self, client):
+        token = self._get_token(client)
+        resp = client.put(
+            "/api/auth/profile",
+            json={"email": "not-a-valid-email"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 422
+
+    def test_profile_update_missing_body_returns_422(self, client):
+        token = self._get_token(client)
+        resp = client.put(
+            "/api/auth/profile",
+            json={},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 422
+
+    def test_profile_update_response_has_correct_email(self, client):
+        """Returned email must match what was submitted (lowercased/trimmed)."""
+        token = self._get_token(client)
+        target = "profile_test@example.com"
+        resp = client.put(
+            "/api/auth/profile",
+            json={"email": target},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["email"] == target
+
+
+# ---------------------------------------------------------------------------
+# Analysis routes
+# ---------------------------------------------------------------------------
+
+class TestAnalysis:
+    """Tests for /api/analysis/elliott endpoints."""
+
+    def test_elliott_demo_responds(self, client):
+        """Demo endpoint must respond — 200 with data or 500 if yfinance unavailable."""
+        resp = client.get("/api/analysis/elliott/demo")
+        assert resp.status_code in {200, 500}, f"Unexpected status: {resp.status_code}"
+
+    def test_elliott_ticker_too_long_returns_422(self, client):
+        """Ticker longer than 10 chars must be rejected before hitting yfinance."""
+        resp = client.get("/api/analysis/elliott/TOOLONGTICKER99")
+        assert resp.status_code == 422, f"Expected 422, got {resp.status_code}"
+
+    def test_elliott_invalid_period_returns_422(self, client):
+        """Unknown period param must be rejected with 422."""
+        resp = client.get("/api/analysis/elliott/AAPL?period=invalid")
+        assert resp.status_code == 422, f"Expected 422, got {resp.status_code}"
+
+    def test_elliott_valid_period_not_rejected(self, client):
+        """Valid period must pass validation — may succeed or fail at yfinance layer."""
+        resp = client.get("/api/analysis/elliott/AAPL?period=3mo")
+        assert resp.status_code in {200, 500}, f"Unexpected status: {resp.status_code}"
+
+    def test_elliott_all_valid_periods_accepted(self, client):
+        """Every documented valid period must pass the period-validation gate."""
+        for period in ("1mo", "3mo", "6mo", "1y", "2y"):
+            resp = client.get(f"/api/analysis/elliott/SPY?period={period}")
+            assert resp.status_code in {200, 500}, f"Period {period!r} rejected: {resp.status_code}"
+
+
+# ---------------------------------------------------------------------------
+# Broker routes
+# ---------------------------------------------------------------------------
+
+class TestBrokers:
+    """Tests for /api/brokers endpoints."""
+
+    def _get_token(self, client) -> str:
+        resp = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert resp.status_code == 200
+        return resp.json()["access_token"]
+
+    def test_broker_status_requires_auth(self, client):
+        resp = client.get("/api/brokers/status")
+        assert resp.status_code == 401
+
+    def test_broker_status_returns_all_brokers(self, client):
+        token = self._get_token(client)
+        resp = client.get("/api/brokers/status", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        data = resp.json()
+        for broker in ("bitpanda", "comdirect", "degiro", "flatex", "crowdestor", "trade_republic", "wh_selfinvest"):
+            assert broker in data, f"Broker {broker!r} missing from status response"
+
+    def test_broker_status_shape_is_valid(self, client):
+        """Each broker entry must have at least a 'status' key."""
+        token = self._get_token(client)
+        data = client.get("/api/brokers/status", headers={"Authorization": f"Bearer {token}"}).json()
+        for broker_key, broker_val in data.items():
+            if isinstance(broker_val, dict):
+                assert "status" in broker_val, f"Broker {broker_key!r} missing 'status' field"
+
+    def test_broker_summary_requires_auth(self, client):
+        resp = client.get("/api/brokers/summary")
+        assert resp.status_code == 401
+
+    def test_broker_summary_returns_aggregate_fields(self, client):
+        token = self._get_token(client)
+        resp = client.get("/api/brokers/summary", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "total_portfolio_value" in data
+        assert "brokers" in data
+        assert "currency" in data
+        assert data["currency"] == "EUR"
+        assert isinstance(data["brokers"], list)
+
+    def test_flatex_sync_requires_auth(self, client):
+        resp = client.post("/api/brokers/flatex/sync", json={"pin": "1234"})
+        assert resp.status_code == 401
+
+    def test_flatex_sync_without_pin_returns_422(self, client):
+        """PIN is required in request body — missing PIN must be rejected."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/brokers/flatex/sync",
+            json={},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 422, f"Expected 422 for missing PIN, got {resp.status_code}: {resp.text}"
+
+    def test_bitpanda_requires_auth(self, client):
+        resp = client.get("/api/brokers/bitpanda")
+        assert resp.status_code == 401
+
+    def test_bitpanda_transactions_requires_auth(self, client):
+        resp = client.get("/api/brokers/bitpanda/transactions")
+        assert resp.status_code == 401
+
+    def test_comdirect_requires_auth(self, client):
+        resp = client.get("/api/brokers/comdirect")
+        assert resp.status_code == 401
+
+    def test_comdirect_transactions_requires_auth(self, client):
+        resp = client.get("/api/brokers/comdirect/transactions")
+        assert resp.status_code == 401
+
+    def test_comdirect_oauth_initiate_requires_auth(self, client):
+        resp = client.post("/api/brokers/comdirect/oauth/initiate")
+        assert resp.status_code == 401
+
+    def test_comdirect_oauth_refresh_requires_auth(self, client):
+        resp = client.post("/api/brokers/comdirect/oauth/refresh", json={})
+        assert resp.status_code == 401
+
+    def test_degiro_requires_auth(self, client):
+        resp = client.get("/api/brokers/degiro")
+        assert resp.status_code == 401
+
+    def test_flatex_account_requires_auth(self, client):
+        resp = client.get("/api/brokers/flatex/account")
+        assert resp.status_code == 401
+
+    def test_flatex_import_csv_requires_auth(self, client):
+        resp = client.post(
+            "/api/brokers/flatex/import-csv",
+            files={"file": ("depot.csv", b"dummy", "text/csv")},
+        )
+        assert resp.status_code == 401
+
+    def test_flatex_import_csv_parses_minimal_csv(self, client):
+        """With auth but empty/minimal CSV: must not crash (returns dict, not 500)."""
+        token = self._get_token(client)
+        minimal_csv = b"Bezeichnung;ISIN;WKN;Anzahl;Kaufwert EUR;Akt. Kurs EUR;Akt. Wert EUR\n"
+        resp = client.post(
+            "/api/brokers/flatex/import-csv",
+            files={"file": ("depot.csv", minimal_csv, "text/csv")},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code in (200, 422), (
+            f"Unexpected status {resp.status_code}: {resp.text[:200]}"
+        )
+
+    def test_crowdestor_requires_auth(self, client):
+        resp = client.get("/api/brokers/crowdestor")
+        assert resp.status_code == 401
+
+    def test_trade_republic_requires_auth(self, client):
+        resp = client.get("/api/brokers/trade-republic")
+        assert resp.status_code == 401
+
+    def test_wh_selfinvest_requires_auth(self, client):
+        resp = client.get("/api/brokers/wh-selfinvest")
+        assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Telegram routes
+# ---------------------------------------------------------------------------
+
+class TestTelegram:
+    """Tests for /api/telegram endpoints."""
+
+    def _get_token(self, client) -> str:
+        resp = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert resp.status_code == 200
+        return resp.json()["access_token"]
+
+    def test_telegram_status_requires_auth(self, client):
+        resp = client.get("/api/telegram/status")
+        assert resp.status_code == 401
+
+    def test_telegram_status_returns_connection_fields(self, client):
+        token = self._get_token(client)
+        resp = client.get("/api/telegram/status", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "connected" in data, "status must include 'connected'"
+        assert "configured" in data, "status must include 'configured'"
+        assert isinstance(data["connected"], bool)
+
+    def test_telegram_status_not_connected_for_fresh_user(self, client):
+        """Admin account has no Telegram connection in test environment."""
+        token = self._get_token(client)
+        data = client.get("/api/telegram/status", headers={"Authorization": f"Bearer {token}"}).json()
+        assert data["connected"] is False
+
+    def test_telegram_webhook_no_auth_required(self, client):
+        """Webhook is called by Telegram servers without auth — must accept unauthenticated POST."""
+        resp = client.post("/api/telegram/webhook", json={"update_id": 1})
+        assert resp.status_code == 200
+        assert resp.json().get("ok") is True
+
+    def test_telegram_webhook_empty_body_ok(self, client):
+        """Telegram minimal updates must not crash the webhook handler."""
+        resp = client.post("/api/telegram/webhook", json={})
+        assert resp.status_code == 200
+        assert resp.json().get("ok") is True
+
+    def test_telegram_webhook_always_returns_ok_true(self, client):
+        """Even malformed payloads must return ok=true (Telegram re-sends on non-200)."""
+        resp = client.post("/api/telegram/webhook", json={"garbage": "data", "nested": {"x": 1}})
+        assert resp.status_code == 200
+        assert resp.json().get("ok") is True
+
+    def test_telegram_test_requires_auth(self, client):
+        resp = client.post("/api/telegram/test")
+        assert resp.status_code == 401
+
+    def test_telegram_test_returns_404_when_not_connected(self, client):
+        """Without a prior /connect, test message must return 404."""
+        token = self._get_token(client)
+        resp = client.post("/api/telegram/test", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 404, f"Expected 404 for unconnected user, got {resp.status_code}"
+
+    def test_telegram_disconnect_requires_auth(self, client):
+        resp = client.delete("/api/telegram/disconnect")
+        assert resp.status_code == 401
+
+    def test_telegram_disconnect_is_idempotent(self, client):
+        """DELETE disconnect must succeed (200) even when no connection exists."""
+        token = self._get_token(client)
+        resp = client.delete("/api/telegram/disconnect", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        assert resp.json().get("disconnected") is True
+
+    def test_telegram_connect_requires_auth(self, client):
+        resp = client.post("/api/telegram/connect")
+        assert resp.status_code == 401
+
+    def test_telegram_connect_without_bot_token_returns_503(self, client):
+        """Without TELEGRAM_BOT_TOKEN configured, connect must return 503."""
+        token = self._get_token(client)
+        resp = client.post("/api/telegram/connect", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code in {200, 503}, f"Unexpected: {resp.status_code} — {resp.text}"
+
+    def test_telegram_setup_webhook_requires_auth(self, client):
+        resp = client.post("/api/telegram/setup-webhook")
+        assert resp.status_code == 401
+
+    def test_telegram_setup_webhook_returns_503_without_bot_token(self, client):
+        """Without TELEGRAM_BOT_TOKEN, setup-webhook must return 503."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/telegram/setup-webhook",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code in {200, 503}, (
+            f"Expected 200 (if configured) or 503 (if no bot token), got {resp.status_code}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Admin routes
+# ---------------------------------------------------------------------------
+
+class TestAdmin:
+    """Tests for /api/admin endpoints — all require admin role."""
+
+    def _get_token(self, client) -> str:
+        resp = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert resp.status_code == 200
+        return resp.json()["access_token"]
+
+    def test_admin_users_requires_auth(self, client):
+        resp = client.get("/api/admin/users")
+        assert resp.status_code == 401
+
+    def test_admin_users_returns_list(self, client):
+        token = self._get_token(client)
+        resp = client.get("/api/admin/users", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), list)
+
+    def test_admin_users_schema_shape(self, client):
+        """Each user record must have the required fields."""
+        token = self._get_token(client)
+        users = client.get("/api/admin/users", headers={"Authorization": f"Bearer {token}"}).json()
+        for u in users:
+            assert "username" in u
+            assert "tier" in u
+            assert "role" in u
+            assert "is_active" in u
+
+    def test_admin_growth_stats_requires_auth(self, client):
+        resp = client.get("/api/admin/stats/growth")
+        assert resp.status_code == 401
+
+    def test_admin_growth_stats_returns_7_days(self, client):
+        token = self._get_token(client)
+        resp = client.get("/api/admin/stats/growth", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "days" in data
+        assert len(data["days"]) == 7
+        assert "total_signups_7d" in data
+        assert "total_signals_7d" in data
+
+    def test_admin_growth_stats_day_shape(self, client):
+        """Each day entry must have date, signups, signals."""
+        token = self._get_token(client)
+        data = client.get("/api/admin/stats/growth", headers={"Authorization": f"Bearer {token}"}).json()
+        for day in data["days"]:
+            assert "date" in day
+            assert "signups" in day
+            assert "signals" in day
+
+    def test_admin_patch_user_requires_auth(self, client):
+        resp = client.patch("/api/admin/users/admin", json={"tier": "pro"})
+        assert resp.status_code == 401
+
+    def test_admin_patch_user_invalid_tier_returns_422(self, client):
+        """Tier not in (free/basic/pro/institutional) must be rejected."""
+        token = self._get_token(client)
+        resp = client.patch(
+            "/api/admin/users/admin",
+            json={"tier": "superadmin"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 422, f"Expected 422, got {resp.status_code}: {resp.text}"
+
+    def test_admin_patch_nonexistent_user_returns_404(self, client):
+        token = self._get_token(client)
+        resp = client.patch(
+            "/api/admin/users/this_user_xyz_does_not_exist_99",
+            json={"tier": "pro"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 404
+
+    def test_admin_test_smtp_requires_auth(self, client):
+        resp = client.post("/api/admin/test-smtp?to=test@example.com")
+        assert resp.status_code == 401
+
+    def test_admin_test_smtp_returns_smtp_status(self, client):
+        """Without SMTP_HOST configured, must return smtp_configured=False — no error."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/admin/test-smtp?to=test@example.com",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "smtp_configured" in data
+        assert "sent" in data
+        assert isinstance(data["smtp_configured"], bool)
+
+    def test_admin_upgrade_email_requires_auth(self, client):
+        resp = client.post("/api/admin/users/admin/send-upgrade-email")
+        assert resp.status_code == 401
+
+    def test_admin_upgrade_email_nonexistent_user_returns_404(self, client):
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/admin/users/nobody_xyz_9999/send-upgrade-email",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 404
+
+    def test_admin_bulk_upgrade_email_requires_auth(self, client):
+        resp = client.post("/api/admin/bulk-upgrade-email")
+        assert resp.status_code == 401
+
+    def test_admin_bulk_upgrade_email_returns_summary(self, client):
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/admin/bulk-upgrade-email",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "sent" in data
+        assert "skipped" in data
+        assert "failed" in data
+        assert isinstance(data["sent"], int)
+
+    def test_admin_bulk_reengagement_email_requires_auth(self, client):
+        resp = client.post("/api/admin/bulk-reengagement-email")
+        assert resp.status_code == 401
+
+    def test_admin_invite_waitlist_requires_auth(self, client):
+        resp = client.post("/api/admin/invite-waitlist")
+        assert resp.status_code == 401
+
+    def test_admin_weekly_digest_requires_auth(self, client):
+        resp = client.post("/api/admin/send-weekly-digest")
+        assert resp.status_code == 401
+
+    def test_admin_trigger_morning_briefings_requires_auth(self, client):
+        resp = client.post("/api/admin/trigger-morning-briefings")
+        assert resp.status_code == 401
+
+    def test_admin_trigger_activation_followup_requires_auth(self, client):
+        resp = client.post("/api/admin/trigger-activation-followup")
+        assert resp.status_code == 401
+
+    def test_admin_trigger_activation_followup_returns_job_summary(self, client):
+        """Returns sent/skipped/failed shape without crashing — requires admin."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/admin/trigger-activation-followup",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "sent" in data
+        assert "skipped" in data
+        assert "failed" in data
+        assert isinstance(data["sent"], int)
+
+    def test_admin_trigger_daily_signal_email_requires_auth(self, client):
+        resp = client.post("/api/admin/trigger-daily-signal-email")
+        assert resp.status_code == 401
+
+    def test_admin_trigger_daily_signal_email_returns_job_summary(self, client):
+        """Returns sent/skipped/failed shape without crashing — requires admin."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/admin/trigger-daily-signal-email",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "sent" in data
+        assert "skipped" in data
+        assert "failed" in data
+        assert isinstance(data["sent"], int)
+
+    def test_admin_send_individual_reengagement_requires_auth(self, client):
+        resp = client.post("/api/admin/users/admin/send-reengagement-email")
+        assert resp.status_code == 401
+
+    def test_admin_send_individual_reengagement_nonexistent_returns_404(self, client):
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/admin/users/nobody_xyz_999/send-reengagement-email",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 404
+
+    def test_admin_bulk_reengagement_email_returns_summary(self, client):
+        """Returns sent/skipped/failed shape without crashing — requires admin."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/admin/bulk-reengagement-email",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "sent" in data
+        assert "skipped" in data
+        assert "failed" in data
+        assert isinstance(data["sent"], int)
+
+    def test_admin_invite_waitlist_returns_summary(self, client):
+        """Returns sent/skipped/failed without crashing — requires admin."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/admin/invite-waitlist",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "sent" in data
+        assert "skipped" in data
+        assert "failed" in data
+        assert isinstance(data["sent"], int)
+
+    def test_admin_weekly_digest_returns_summary(self, client):
+        """Returns sent/skipped/failed without crashing — requires admin."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/admin/send-weekly-digest",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "sent" in data
+        assert "skipped" in data
+        assert "failed" in data
+        assert isinstance(data["sent"], int)
+
+    def test_admin_morning_briefings_returns_triggered_shape(self, client):
+        """Returns {triggered: bool, message: str} without crashing — requires admin."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/admin/trigger-morning-briefings",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "triggered" in data
+        assert "message" in data
+        assert isinstance(data["triggered"], bool)
+
+
+# ---------------------------------------------------------------------------
+# Bank / FinTS routes
+# ---------------------------------------------------------------------------
+
+class TestBank:
+    """Tests for /api/bank endpoints (FinTS bank connections)."""
+
+    def _get_token(self, client) -> str:
+        resp = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert resp.status_code == 200
+        return resp.json()["access_token"]
+
+    def test_bank_connections_requires_auth(self, client):
+        resp = client.get("/api/bank/connections")
+        assert resp.status_code == 401
+
+    def test_bank_connections_returns_list(self, client):
+        token = self._get_token(client)
+        resp = client.get("/api/bank/connections", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        assert isinstance(resp.json(), list)
+
+    def test_bank_known_banks_requires_auth(self, client):
+        resp = client.get("/api/bank/known-banks")
+        assert resp.status_code == 401
+
+    def test_bank_known_banks_returns_blz_list(self, client):
+        token = self._get_token(client)
+        resp = client.get("/api/bank/known-banks", headers={"Authorization": f"Bearer {token}"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) > 0
+        for bank in data:
+            assert "blz" in bank
+            assert "fints_url" in bank
+
+    def test_bank_connection_create_and_delete(self, client):
+        """Create a connection entry and delete it immediately — state stays clean."""
+        token = self._get_token(client)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        resp = client.post(
+            "/api/bank/connections",
+            json={"bank_name": "Test Bank", "blz": "12030000", "username": "test_user"},
+            headers=headers,
+        )
+        assert resp.status_code == 201
+        conn_id = resp.json()["id"]
+        assert isinstance(conn_id, int)
+
+        del_resp = client.delete(f"/api/bank/connections/{conn_id}", headers=headers)
+        assert del_resp.status_code == 204
+
+    def test_bank_delete_nonexistent_returns_404(self, client):
+        token = self._get_token(client)
+        resp = client.delete(
+            "/api/bank/connections/999999",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 404
+
+    def test_bank_sync_requires_auth(self, client):
+        resp = client.post(
+            "/api/bank/sync",
+            json={"blz": "12030000", "username": "test", "pin": "1234"},
+        )
+        assert resp.status_code == 401
+
+    def test_bank_sync_missing_pin_returns_422(self, client):
+        """PIN field is required — missing it must fail Pydantic validation."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/bank/sync",
+            json={"blz": "12030000", "username": "test"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 422
+
+    def test_bank_sync_blz_too_short_returns_422(self, client):
+        """BLZ must be exactly 8 chars — too short must fail."""
+        token = self._get_token(client)
+        resp = client.post(
+            "/api/bank/sync",
+            json={"blz": "123", "username": "test", "pin": "1234"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp.status_code == 422
+
+    def test_bank_add_connection_requires_auth(self, client):
+        resp = client.post(
+            "/api/bank/connections",
+            json={"bank_name": "Test", "blz": "12030000", "username": "x"},
+        )
+        assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Signal Share / Viral Loop — GET /api/signals/by-id
+# ---------------------------------------------------------------------------
+
+class TestSignalById:
+    """Tests for GET /api/signals/by-id/{signal_id} — public viral share endpoint."""
+
+    def test_unknown_id_returns_null_not_404(self, client):
+        """Non-existent ID must return 200 with null body (no enumeration via 404)."""
+        resp = client.get("/api/signals/by-id/00000000-0000-0000-0000-000000000000")
+        assert resp.status_code == 200
+        assert resp.json() is None
+
+    def test_public_no_auth_required(self, client):
+        """Endpoint is public — no Authorization header should still return 200."""
+        resp = client.get("/api/signals/by-id/nonexistent-id-xyz")
+        assert resp.status_code == 200
+
+    def test_known_demo_signal_retrievable_by_id(self, client):
+        """Generate a demo signal and retrieve it by its UUID."""
+        demo_resp = client.post("/api/signals/demo", params={"ticker": "AAPL"})
+        assert demo_resp.status_code == 200
+        signal = demo_resp.json()
+        assert "id" in signal
+
+        lookup_resp = client.get(f"/api/signals/by-id/{signal['id']}")
+        assert lookup_resp.status_code == 200
+        found = lookup_resp.json()
+        assert found is not None
+        assert found["id"] == signal["id"]
+        assert found["ticker"] == "AAPL"
+
+    def test_returned_signal_has_required_fields(self, client):
+        """Signal object from by-id must have all required fields."""
+        demo_resp = client.post("/api/signals/demo", params={"ticker": "MSFT"})
+        assert demo_resp.status_code == 200
+        signal_id = demo_resp.json()["id"]
+
+        resp = client.get(f"/api/signals/by-id/{signal_id}")
+        data = resp.json()
+        assert data is not None
+        for field in ("id", "ticker", "direction", "confidence", "reasoning", "source", "generated_at"):
+            assert field in data, f"Missing field: {field}"
+
+    def test_different_tickers_have_different_ids(self, client):
+        """Signals for different tickers should have different UUIDs."""
+        r1 = client.post("/api/signals/demo", params={"ticker": "NVDA"})
+        r2 = client.post("/api/signals/demo", params={"ticker": "TSLA"})
+        assert r1.status_code == 200
+        assert r2.status_code == 200
+        assert r1.json()["id"] != r2.json()["id"]

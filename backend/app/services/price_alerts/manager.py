@@ -19,8 +19,11 @@ When an alert fires:
 """
 import asyncio
 import logging
+import smtplib
 import uuid
 from datetime import datetime, UTC
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Literal, Optional
 
 from sqlalchemy import select, delete
@@ -45,6 +48,7 @@ class PriceAlert:
         created_at: Optional[datetime] = None,
         fired_at: Optional[datetime] = None,
         fired_price: Optional[float] = None,
+        username: Optional[str] = None,
     ):
         self.alert_id = alert_id
         self.ticker = ticker
@@ -54,6 +58,7 @@ class PriceAlert:
         self.created_at: datetime = created_at or datetime.now(UTC)
         self.fired_at: Optional[datetime] = fired_at
         self.fired_price: Optional[float] = fired_price
+        self.username: Optional[str] = username
 
     def to_dict(self) -> dict:
         return {
@@ -65,6 +70,7 @@ class PriceAlert:
             "created_at": self.created_at.isoformat(),
             "fired_at": self.fired_at.isoformat() if self.fired_at else None,
             "fired_price": self.fired_price,
+            "username": self.username,
         }
 
 
@@ -107,6 +113,7 @@ class PriceAlertManager:
                         created_at=_ensure_aware(row.created_at),
                         fired_at=_ensure_aware(row.fired_at),
                         fired_price=row.fired_price,
+                        username=getattr(row, "username", None),
                     )
                     self._alerts[alert.alert_id] = alert
 
@@ -123,6 +130,7 @@ class PriceAlertManager:
         ticker: str,
         condition: AlertCondition,
         threshold: float,
+        username: Optional[str] = None,
     ) -> PriceAlert:
         """Add alert — persists to DB, then updates cache. Enforces max 50 alerts."""
         from app.db.database import _AsyncSessionFactory as async_session_factory
@@ -133,6 +141,7 @@ class PriceAlertManager:
             ticker=ticker.upper(),
             condition=condition,
             threshold=threshold,
+            username=username,
         )
 
         # Persist to DB
@@ -162,6 +171,7 @@ class PriceAlertManager:
                         threshold=alert.threshold,
                         status=alert.status,
                         created_at=alert.created_at,
+                        username=alert.username,
                     ))
         except SQLAlchemyError as e:
             logger.warning("alert_db_write_failed", extra={"reason": str(e)})
@@ -177,13 +187,15 @@ class PriceAlertManager:
         })
         return alert
 
-    async def delete_alert(self, alert_id: str) -> bool:
-        """Delete alert by ID from DB and cache. Returns True if found."""
+    async def delete_alert(self, alert_id: str, owner_username: Optional[str] = None) -> bool:
+        """Delete alert by ID from DB and cache. Returns True if found and authorized."""
         from app.db.database import _AsyncSessionFactory as async_session_factory
         from app.db.models import PriceAlertRecord
 
         async with self._lock:
             if alert_id not in self._alerts:
+                return False
+            if owner_username is not None and self._alerts[alert_id].username != owner_username:
                 return False
             del self._alerts[alert_id]
 
@@ -200,8 +212,8 @@ class PriceAlertManager:
 
         return True
 
-    async def get_all_alerts(self) -> list[dict]:
-        """Return all alerts from in-memory cache, newest first."""
+    async def get_all_alerts(self, username: Optional[str] = None) -> list[dict]:
+        """Return alerts from in-memory cache, newest first. Filtered by username when provided."""
         from datetime import timezone as _tz
         def _sort_key(a: "PriceAlert") -> datetime:
             dt = a.created_at
@@ -210,8 +222,11 @@ class PriceAlertManager:
             return dt
 
         async with self._lock:
+            alerts = self._alerts.values()
+            if username is not None:
+                alerts = [a for a in alerts if a.username == username]
             return [a.to_dict() for a in sorted(
-                self._alerts.values(),
+                alerts,
                 key=_sort_key,
                 reverse=True,
             )]
@@ -284,29 +299,38 @@ class PriceAlertManager:
             except Exception as ws_err:
                 logger.debug("alert_ws_broadcast_failed", extra={"reason": str(ws_err)})
 
-        # Telegram notification for fired alerts
-        try:
-            from app.services.telegram.client import send_message, is_configured
-            from app.db.database import get_session
-            from sqlalchemy import select
-            from app.db.models import TelegramChat
-            if is_configured():
-                async with get_session() as session:
-                    result = await session.execute(select(TelegramChat))
-                    chats = result.scalars().all()
-                for chat in chats:
-                    for alert_dict in fired_alerts:
-                        cond = alert_dict["condition"].replace("_", " ")
-                        msg = (
-                            f"\U0001f514 <b>Price Alert Fired</b>\n\n"
-                            f"\U0001f4c8 <b>{alert_dict['ticker']}</b>\n"
-                            f"Condition: {cond} {alert_dict['threshold']}\n"
-                            f"Fired at: <b>${alert_dict.get('fired_price', '—')}</b>\n\n"
-                            f"<i>Neural Trading OS</i>"
-                        )
-                        await send_message(chat.chat_id, msg)
-        except Exception as e:
-            logger.debug("telegram_alert_notify_failed", extra={"reason": str(e)})
+        # Telegram notification for fired alerts — only send to alert owner
+        if fired_alerts:
+            for alert_dict in fired_alerts:
+                owner = alert_dict.get("username")
+                if owner:
+                    asyncio.create_task(_send_price_alert_telegram(owner, alert_dict))
+
+        # Outbound webhook dispatch for fired alerts
+        if fired_alerts:
+            try:
+                import asyncio as _asyncio
+                from app.services.webhooks.client import get_webhook_manager
+                loop = _asyncio.get_event_loop()
+                for alert_dict in fired_alerts:
+                    loop.create_task(
+                        get_webhook_manager().dispatch("alert.fired", {
+                            "alert_id": alert_dict.get("alert_id"),
+                            "ticker": alert_dict.get("ticker"),
+                            "condition": alert_dict.get("condition"),
+                            "threshold": alert_dict.get("threshold"),
+                            "fired_price": alert_dict.get("fired_price"),
+                            "fired_at": alert_dict.get("fired_at"),
+                        })
+                    )
+            except Exception:
+                pass  # Never block alert processing on webhook failure
+
+        # E-Mail-Notification für den Alert-Eigentümer
+        for alert_dict in fired_alerts:
+            owner = alert_dict.get("username")
+            if owner:
+                asyncio.create_task(_send_price_alert_email(owner, alert_dict))
 
     async def _persist_fired(self, fired: list[dict]) -> None:
         """Update fired alerts in DB."""
@@ -331,6 +355,138 @@ class PriceAlertManager:
                             row.fired_price = a["fired_price"]
         except SQLAlchemyError as e:
             logger.warning("alert_fired_db_update_failed", extra={"reason": str(e)})
+
+
+async def _send_price_alert_telegram(username: str, alert_dict: dict) -> None:
+    """Telegram notification for a fired price alert — sent only to the alert owner."""
+    try:
+        from app.services.telegram.client import send_message, inline_keyboard, is_configured_async
+        from app.db.database import get_session
+        from app.db.models import TelegramChat
+        from app.core.config import settings
+        from sqlalchemy import select as _select
+
+        if not await is_configured_async():
+            return
+
+        async with get_session() as session:
+            result = await session.execute(
+                _select(TelegramChat).where(TelegramChat.user_id == username)
+            )
+            chat = result.scalar_one_or_none()
+
+        if not chat:
+            return
+
+        cond_label = {"above": "überschritten", "below": "unterschritten", "change_pct": "Änderung %"}.get(
+            alert_dict.get("condition", ""), alert_dict.get("condition", "")
+        )
+        ticker = alert_dict.get("ticker", "")
+        threshold = alert_dict.get("threshold", "")
+        fired_price = alert_dict.get("fired_price", "—")
+
+        cond_emoji = {"above": "⬆️", "below": "⬇️", "change_pct": "📊"}.get(
+            alert_dict.get("condition", ""), "🔔"
+        )
+
+        msg = (
+            f"🔔 <b>Kursalarm: {ticker}</b>\n\n"
+            f"{cond_emoji} Schwelle <b>{threshold}</b> {cond_label}\n"
+            f"Aktueller Kurs: <b>{fired_price}</b>"
+        )
+        signal_url = f"{settings.FRONTEND_URL}/signals?ticker={ticker}"
+        alerts_url = f"{settings.FRONTEND_URL}/alerts"
+        await send_message(
+            chat.chat_id,
+            msg,
+            reply_markup=inline_keyboard(
+                [
+                    {"text": f"📊 Signal für {ticker}", "url": signal_url},
+                    {"text": "🔔 Alarme verwalten", "url": alerts_url},
+                ]
+            ),
+        )
+        logger.info("price_alert_telegram_sent", extra={"username": username, "ticker": ticker})
+    except Exception as e:
+        logger.debug("price_alert_telegram_failed", extra={"reason": str(e)})
+
+
+async def _send_price_alert_email(username: str, alert_dict: dict) -> None:
+    """E-Mail-Notification wenn ein Preis-Alarm ausgelöst wird (fire-and-forget)."""
+    try:
+        from app.core.config import get_settings
+        from app.api.auth import _is_unsubscribed
+        settings = get_settings()
+
+        if not settings.SMTP_HOST:
+            logger.debug("price_alert_email_skipped_no_smtp", extra={"username": username})
+            return
+
+        if _is_unsubscribed(username):
+            return
+
+        # Nutzer-E-Mail aus DB laden
+        try:
+            from app.db.database import _AsyncSessionFactory as _sf
+            from app.db.models import User
+            from sqlalchemy import select as _select
+            async with _sf() as session:
+                result = await session.execute(_select(User).where(User.username == username))
+                user = result.scalar_one_or_none()
+            if not user or not user.email:
+                return
+            to_email = user.email
+        except Exception:
+            return
+
+        ticker = alert_dict.get("ticker", "")
+        condition = alert_dict.get("condition", "")
+        threshold = alert_dict.get("threshold", 0)
+        fired_price = alert_dict.get("fired_price", "—")
+
+        cond_label = {"above": "über", "below": "unter", "change_pct": "Änderung %"}.get(condition, condition)
+        subject = f"Kursalarm: {ticker} hat die Bedingung erfüllt"
+
+        from app.api.auth import _unsubscribe_url
+        unsub_url = _unsubscribe_url(username)
+        app_url = settings.FRONTEND_URL
+
+        html = f"""
+        <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#0f1117;color:#e2e8f0;padding:24px;border-radius:12px">
+          <h2 style="color:#00D4FF;margin:0 0 16px">&#128276; Kursalarm ausgelöst</h2>
+          <div style="background:#1a1f2e;border-radius:8px;padding:16px;margin-bottom:16px">
+            <p style="margin:0 0 8px;font-size:20px;font-weight:bold;color:#fff">{ticker}</p>
+            <p style="margin:0 0 4px;color:#94a3b8">Bedingung: {cond_label} {threshold}</p>
+            <p style="margin:0;font-size:18px;color:#00D4FF">Ausgelöst bei: <strong>${fired_price}</strong></p>
+          </div>
+          <a href="{app_url}/dashboard" style="display:inline-block;background:#00D4FF;color:#0f1117;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold;margin-bottom:24px">
+            Dashboard öffnen
+          </a>
+          <p style="font-size:11px;color:#64748b;margin-top:24px">
+            Neural Trading OS · <a href="{unsub_url}" style="color:#64748b">E-Mail-Benachrichtigungen abbestellen</a>
+          </p>
+        </div>"""
+
+        text = f"Kursalarm: {ticker} {cond_label} {threshold} — Ausgelöst bei ${fired_price}\n\nDashboard: {app_url}/dashboard"
+
+        def _send() -> None:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = settings.SMTP_FROM or settings.SMTP_USER or "noreply@neural-trading.os"
+            msg["To"] = to_email
+            msg["List-Unsubscribe"] = f"<{unsub_url}>"
+            msg.attach(MIMEText(text, "plain", "utf-8"))
+            msg.attach(MIMEText(html, "html", "utf-8"))
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT or 587) as server:
+                server.starttls()
+                if settings.SMTP_USER and settings.SMTP_PASSWORD:
+                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+                server.sendmail(msg["From"], [to_email], msg.as_string())
+
+        await asyncio.to_thread(_send)
+        logger.info("price_alert_email_sent", extra={"username": username, "ticker": ticker})
+    except Exception as e:
+        logger.debug("price_alert_email_failed", extra={"reason": str(e)})
 
 
 async def _fetch_prices_async(tickers: list[str]) -> dict[str, dict]:

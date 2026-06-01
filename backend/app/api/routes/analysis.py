@@ -9,7 +9,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from app.models.schemas import ElliottWaveAnalysis, ErrorResponse
 from app.services.elliott.client import analyze_elliott_waves
-from app.core.cache import async_cached
+from app.core.cache import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analysis", tags=["Analysis"])
@@ -17,12 +17,18 @@ router = APIRouter(prefix="/analysis", tags=["Analysis"])
 VALID_PERIODS = {"1mo", "3mo", "6mo", "1y", "2y"}
 
 
-@async_cached(ttl_seconds=600)
 async def _cached_elliott(ticker: str, period: str) -> dict:
+    key = f"elliott:{ticker}:{period}"
+    cached = cache_get(key)
+    if cached is not None:
+        return cached
     result = analyze_elliott_waves(ticker=ticker, period=period)
-    # Don't cache empty results — let the next call retry
-    if not result.get("candles"):
-        raise ValueError("Empty analysis result — skip cache")
+    # Only cache non-empty analyses. An empty result (no market data — e.g.
+    # offline/CI, or yfinance throttling) is still a valid-shaped payload, so
+    # return it as a 200 rather than a 500; just don't cache it, so the next
+    # call retries once data is available.
+    if result.get("candles"):
+        cache_set(key, result, ttl_seconds=600)
     return result
 
 
@@ -41,7 +47,7 @@ async def get_elliott_demo() -> ElliottWaveAnalysis:
         return ElliottWaveAnalysis(**result)
     except Exception as e:
         logger.error("elliott_demo_error: %s", e)
-        raise HTTPException(status_code=500, detail="Analysis failed")
+        raise HTTPException(status_code=500, detail="Analyse fehlgeschlagen")
 
 
 @router.get(
@@ -74,13 +80,13 @@ async def get_elliott_analysis(
     """
     ticker = ticker.upper().strip()
     if not ticker or len(ticker) > 10:
-        raise HTTPException(status_code=422, detail="Invalid ticker symbol")
+        raise HTTPException(status_code=422, detail="Ungültiges Ticker-Symbol")
     if period not in VALID_PERIODS:
-        raise HTTPException(status_code=422, detail=f"Invalid period. Choose from: {sorted(VALID_PERIODS)}")
+        raise HTTPException(status_code=422, detail=f"Ungültiger Zeitraum. Erlaubt: {sorted(VALID_PERIODS)}")
 
     try:
         result = await _cached_elliott(ticker, period)
         return ElliottWaveAnalysis(**result)
     except Exception as e:
         logger.error("elliott_analysis_error ticker=%s: %s", ticker, e)
-        raise HTTPException(status_code=500, detail="Analysis failed")
+        raise HTTPException(status_code=500, detail="Analyse fehlgeschlagen")

@@ -42,9 +42,9 @@ async def save_credential(
 ) -> dict:
     """Upsert a single credential in the DB."""
     if body.key not in _ALLOWED_KEYS:
-        raise HTTPException(status_code=400, detail=f"Key '{body.key}' is not allowed")
+        raise HTTPException(status_code=400, detail=f"Schlüssel '{body.key}' ist nicht erlaubt")
     if not body.value.strip():
-        raise HTTPException(status_code=400, detail="Value must not be empty")
+        raise HTTPException(status_code=400, detail="Wert darf nicht leer sein")
     await set_credential(body.key, body.value.strip())
     logger.info("credential_saved", extra={"key": body.key})
     return {"ok": True, "key": body.key}
@@ -57,7 +57,7 @@ async def remove_credential(
 ) -> dict:
     """Remove a credential from the DB (env var fallback still applies)."""
     if key not in _ALLOWED_KEYS:
-        raise HTTPException(status_code=400, detail=f"Key '{key}' is not allowed")
+        raise HTTPException(status_code=400, detail=f"Schlüssel '{key}' ist nicht erlaubt")
     found = await delete_credential(key)
     logger.info("credential_deleted", extra={"key": key, "found": found})
     return {"ok": True, "key": key, "found": found}

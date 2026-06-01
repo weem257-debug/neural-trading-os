@@ -54,6 +54,41 @@ class Settings(BaseSettings):
     INTERACTIVE_BROKERS_HOST: str = "127.0.0.1"
     INTERACTIVE_BROKERS_PORT: int = 7497
 
+    # ---- Phase 1: Offizielle APIs ----
+    # Bitpanda
+    BITPANDA_API_KEY: Optional[str] = None
+
+    # Comdirect (OAuth2 + PHOTO-TAN)
+    COMDIRECT_CLIENT_ID: Optional[str] = None
+    COMDIRECT_CLIENT_SECRET: Optional[str] = None
+    COMDIRECT_ACCESS_TOKEN: Optional[str] = None   # Läuft ab — via DB/UI setzen
+
+    # ---- Phase 2: Community-Bibliotheken ----
+    # DEGIRO
+    DEGIRO_USERNAME: Optional[str] = None
+    DEGIRO_PASSWORD: Optional[str] = None
+    DEGIRO_TOTP_TOKEN: Optional[str] = None         # Nur wenn 2FA aktiviert
+
+    # Flatex (FinTS/HBCI)
+    FLATEX_FINTS_USER: Optional[str] = None
+    FLATEX_FINTS_PIN: Optional[str] = None           # NIE in DB speichern
+    FLATEX_FINTS_ACCOUNT: Optional[str] = None       # Ziel-IBAN (optional)
+
+    # Crowdestor (inoffizielle Web-API)
+    CROWDESTOR_EMAIL: Optional[str] = None
+    CROWDESTOR_PASSWORD: Optional[str] = None
+
+    # ---- Phase 3: Reverse Engineering ----
+    # Trade Republic (pytr / WebSocket)
+    TR_PHONE_NUMBER: Optional[str] = None
+    TR_PIN: Optional[str] = None
+
+    # WH SelfInvest (cTrader Open API)
+    WH_CTRADER_CLIENT_ID: Optional[str] = None
+    WH_CTRADER_CLIENT_SECRET: Optional[str] = None
+    WH_CTRADER_ACCESS_TOKEN: Optional[str] = None
+    WH_CTRADER_ACCOUNT_ID: Optional[str] = None
+
     # Database
     DATABASE_URL: str = "sqlite:///./trading_dashboard.db"
     REDIS_URL: str = "redis://localhost:6379"
@@ -75,11 +110,21 @@ class Settings(BaseSettings):
     # Stripe Billing
     STRIPE_SECRET_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
-    STRIPE_PRICE_BASIC: str = ""    # price_xxx — Basic €29/mo
-    STRIPE_PRICE_PRO: str = ""      # price_xxx — Pro €99/mo
-    STRIPE_PRICE_INST: str = ""     # price_xxx — Institutional €299/mo
-    STRIPE_PRICE_SIGNALS: str = ""  # price_xxx — Signal Marketplace €19/mo
-    FRONTEND_URL: str = "http://localhost:3000"
+    STRIPE_PRICE_BASIC: str = ""           # price_xxx — Basic €29/mo
+    STRIPE_PRICE_PRO: str = ""             # price_xxx — Pro €99/mo
+    STRIPE_PRICE_INST: str = ""            # price_xxx — Institutional €299/mo
+    STRIPE_PRICE_SIGNALS: str = ""         # price_xxx — Signal Marketplace €19/mo
+    STRIPE_PRICE_BASIC_ANNUAL: str = ""    # price_xxx — Basic €290/yr (2 months free)
+    STRIPE_PRICE_PRO_ANNUAL: str = ""      # price_xxx — Pro €990/yr
+    STRIPE_PRICE_INST_ANNUAL: str = ""     # price_xxx — Institutional €2990/yr
+    STRIPE_PRICE_SIGNALS_ANNUAL: str = ""  # price_xxx — Signals €190/yr
+    # Public URL of the frontend — used in emails and Stripe redirect URLs.
+    # Override via FRONTEND_URL env var. Default points to the Railway deployment.
+    FRONTEND_URL: str = "https://frontend-production-8a00.up.railway.app"
+    # Public URL of the backend API — used in one-click unsubscribe links (RFC 8058).
+    # Must point to the FastAPI service, not the Next.js frontend.
+    # Override via BACKEND_URL env var.
+    BACKEND_URL: str = "https://backend-production-52af.up.railway.app"
 
     # Feature flags
     ENABLE_LIVE_TRADING: bool = False
@@ -96,6 +141,19 @@ class Settings(BaseSettings):
     # Demo credentials (override via env in production)
     DEMO_USERNAME: str = "admin"
     DEMO_PASSWORD: str = "neural123"
+
+    # On startup: promote this registered username to role=admin (idempotent).
+    # Set to your registered username to gain admin access without the demo account.
+    INITIAL_ADMIN_USERNAME: str = ""
+
+    # SMTP (optional — password reset emails)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""  # falls leer → SMTP_USER
+    # E-Mail-Adresse für Admin-Benachrichtigungen (neue Registrierungen etc.)
+    ADMIN_NOTIFICATION_EMAIL: str = ""
 
     # Risk limits
     MAX_POSITION_SIZE_PCT: float = 0.05   # 5% of portfolio per position

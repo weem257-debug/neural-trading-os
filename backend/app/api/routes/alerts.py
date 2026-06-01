@@ -30,7 +30,7 @@ class AlertDeleteResponse(BaseModel):
     response_model=PriceAlertRecord,
     status_code=200,
 )
-async def create_alert(req: AlertCreateRequest, _: UserInfo = Depends(get_current_user)) -> PriceAlertRecord:
+async def create_alert(req: AlertCreateRequest, current_user: UserInfo = Depends(get_current_user)) -> PriceAlertRecord:
     """
     Create a price alert.
 
@@ -45,6 +45,7 @@ async def create_alert(req: AlertCreateRequest, _: UserInfo = Depends(get_curren
         ticker=req.ticker,
         condition=req.condition,
         threshold=req.threshold,
+        username=current_user.username,
     )
     return PriceAlertRecord(**alert.to_dict())
 
@@ -54,12 +55,12 @@ async def create_alert(req: AlertCreateRequest, _: UserInfo = Depends(get_curren
     summary="List all price alerts",
     response_model=list[PriceAlertRecord],
 )
-async def list_alerts(_: UserInfo = Depends(get_current_user)) -> list[PriceAlertRecord]:
-    """Return all price alerts (active and fired), newest first."""
+async def list_alerts(current_user: UserInfo = Depends(get_current_user)) -> list[PriceAlertRecord]:
+    """Return price alerts for the authenticated user (active and fired), newest first."""
     from app.services.price_alerts.manager import get_alert_manager
 
     mgr = get_alert_manager()
-    raw = await mgr.get_all_alerts()
+    raw = await mgr.get_all_alerts(username=current_user.username)
     return [PriceAlertRecord(**item) for item in raw]
 
 
@@ -68,12 +69,12 @@ async def list_alerts(_: UserInfo = Depends(get_current_user)) -> list[PriceAler
     summary="Delete a price alert",
     response_model=AlertDeleteResponse,
 )
-async def delete_alert(alert_id: str, _: UserInfo = Depends(get_current_user)) -> AlertDeleteResponse:
-    """Delete a price alert by its ID."""
+async def delete_alert(alert_id: str, current_user: UserInfo = Depends(get_current_user)) -> AlertDeleteResponse:
+    """Delete a price alert by its ID. Only the owner may delete their alert."""
     from app.services.price_alerts.manager import get_alert_manager
 
     mgr = get_alert_manager()
-    deleted = await mgr.delete_alert(alert_id)
+    deleted = await mgr.delete_alert(alert_id, owner_username=current_user.username)
     if not deleted:
-        raise HTTPException(status_code=404, detail=f"Alert {alert_id} not found")
+        raise HTTPException(status_code=404, detail=f"Alert {alert_id} nicht gefunden")
     return AlertDeleteResponse(deleted=True, alert_id=alert_id)
