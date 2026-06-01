@@ -39,20 +39,31 @@ target_metadata = Base.metadata
 # Resolve database URL (sync driver for Alembic)
 # ---------------------------------------------------------------------------
 def _get_sync_url() -> str:
-    """Return a *sync* driver URL for Alembic (no asyncpg / aiosqlite)."""
+    """Return a *sync* driver URL for Alembic (no asyncpg / aiosqlite).
+
+    For SQLite (local/test/CI) the resolved file MUST be the exact same one the
+    app's async engine opens (see app/db/database.py). Otherwise Alembic migrates
+    one file while the app reads another, producing "no such column" errors even
+    though `alembic upgrade head` reports success.
+    """
     try:
         from app.core.config import settings
         db_url: str = settings.DATABASE_URL
     except Exception:
         db_url = os.getenv("DATABASE_URL", "sqlite:///./trading_dashboard.db")
 
-    # async → sync driver substitution
-    db_url = (
-        db_url
-        .replace("postgresql+asyncpg://", "postgresql+psycopg2://")
-        .replace("sqlite+aiosqlite:///", "sqlite:///")
+    # Postgres (Railway/Heroku): swap async driver for the sync psycopg2 driver.
+    if "postgres" in db_url:
+        return db_url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+
+    # SQLite: mirror app/db/database.py path resolution exactly — honor
+    # TRADING_DB_PATH, else dashboard/trading_dashboard.db (one level above
+    # the backend dir, NOT cwd-relative).
+    db_path = os.getenv(
+        "TRADING_DB_PATH",
+        os.path.join(os.path.dirname(__file__), "..", "..", "trading_dashboard.db"),
     )
-    return db_url
+    return f"sqlite:///{os.path.abspath(db_path)}"
 
 
 # Override the sqlalchemy.url in alembic.ini at runtime

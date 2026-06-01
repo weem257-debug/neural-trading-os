@@ -38,6 +38,9 @@ class SignalRecord(Base):
     # JSON blob for agents_consensus dict
     agents_consensus: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    # Per-user quota tracking (nullable for legacy rows; NULL treated as "admin")
+    user_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+
     # Optional fields
     price_target: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     stop_loss: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -127,6 +130,7 @@ class TradeLearning(Base):
     __tablename__ = "trade_learnings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     ticker: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     direction: Mapped[str] = mapped_column(String(20), nullable=False)
     learning_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -155,6 +159,7 @@ class LearningJob(Base):
     __tablename__ = "learning_jobs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     job_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending", index=True)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -177,6 +182,7 @@ class Portfolio(Base):
     __tablename__ = "portfolios"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     # portfolio_type: "stocks" | "crypto" | "p2p" | "mixed"
     portfolio_type: Mapped[str] = mapped_column(String(20), nullable=False, default="mixed")
@@ -202,6 +208,7 @@ class P2PSnapshot(Base):
     __tablename__ = "p2p_snapshots"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     portfolio_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
     # platform: "mintos" | "bondora" | "peerberry" | "manual"
     platform: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
@@ -231,6 +238,7 @@ class BankConnection(Base):
     __tablename__ = "bank_connections"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
     portfolio_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
     bank_name: Mapped[str] = mapped_column(String(100), nullable=False)
     blz: Mapped[str] = mapped_column(String(8), nullable=False)
@@ -320,7 +328,7 @@ class TelegramChat(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
-    chat_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    chat_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     connected_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -366,3 +374,29 @@ class PriceAlertRecord(Base):
     )
     fired_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     fired_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
+
+
+class User(Base):
+    """
+    Registered user account — created via self-service registration.
+    The admin/demo user is NOT stored here; it lives in auth.py as fallback.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(50), nullable=False, unique=True, index=True)
+    email: Mapped[str] = mapped_column(String(254), nullable=False, unique=True, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(200), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default="trader")
+    tier: Mapped[str] = mapped_column(String(20), nullable=False, default="free")
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )
+    referred_by: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default=None)
+    email_unsubscribed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
