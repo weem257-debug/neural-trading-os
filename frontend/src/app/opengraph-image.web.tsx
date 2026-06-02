@@ -1,5 +1,8 @@
 import { ImageResponse } from "next/og";
 
+// `.web.tsx` extension: this OG route is web-only. The Capacitor mobile export
+// (MOBILE_BUILD=1) drops `.web.tsx` from pageExtensions, so this Edge route
+// never enters the static export. Edge stays for fast OG generation on web.
 export const runtime = "edge";
 export const alt = "Neural Trading OS — KI-gestütztes Trading Dashboard";
 export const size = { width: 1200, height: 630 };

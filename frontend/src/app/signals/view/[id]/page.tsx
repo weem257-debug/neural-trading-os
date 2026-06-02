@@ -41,6 +41,18 @@ const VOTE_DE: Record<string, string> = {
   SELL: "VERKAUFEN", STRONG_SELL: "STARK VERK.",
 };
 
+// This is a web-only SEO / social-share surface (SSR fetch + dynamic OG meta).
+// It has no role inside the native Capacitor shell, so in mobile static exports
+// (`MOBILE_BUILD=1`) we emit zero pages for this route. On web (standalone) the
+// route renders on-demand as before.
+const IS_MOBILE_BUILD = process.env.MOBILE_BUILD === "1";
+
+export function generateStaticParams() {
+  return [{ id: "_" }];
+}
+
+export const dynamicParams = !IS_MOBILE_BUILD;
+
 async function fetchSignal(id: string): Promise<TradingSignal | null> {
   try {
     const res = await fetch(`${API_BASE}/api/signals/by-id/${encodeURIComponent(id)}`, {

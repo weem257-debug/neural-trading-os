@@ -9,12 +9,18 @@ const config: CapacitorConfig = {
   appId: "com.neuraltrading.os",
   appName: "Neural Trading OS",
   webDir: "out",
-  ...(devServerUrl
-    ? { server: { url: devServerUrl, cleartext: devServerUrl.startsWith("http://") } }
-    : {}),
+  server: {
+    androidScheme: "https",
+    ...(devServerUrl
+      ? { url: devServerUrl, cleartext: devServerUrl.startsWith("http://") }
+      : {}),
+  },
   android: {
     backgroundColor: "#080B14",
     allowMixedContent: false,
+    buildOptions: {
+      releaseType: "APK",
+    },
   },
   plugins: {
     SplashScreen: {
