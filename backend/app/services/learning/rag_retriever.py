@@ -102,8 +102,29 @@ async def get_relevant_context(
     return "\n\n".join(sections)
 
 
+def _validation_boost(item) -> float:
+    """
+    Confidence/validation multiplier derived from the self-learning feedback loop.
+
+    Insights that correlated with winning trades (times_validated) get boosted;
+    those tied to losers (times_invalidated) get damped. confidence_score, which
+    is nudged online by apply_insight_feedback, folds in as well. Bounded to
+    roughly [0.5, 1.6] so it re-ranks without overpowering keyword relevance.
+    """
+    validated = getattr(item, "times_validated", 0) or 0
+    invalidated = getattr(item, "times_invalidated", 0) or 0
+    confidence = getattr(item, "confidence_score", 0.5) or 0.5
+    # Wilson-ish net evidence, smoothed so a single sample doesn't swing it hard.
+    net = (validated - invalidated) / (validated + invalidated + 4)
+    boost = 1.0 + 0.4 * net + 0.2 * (confidence - 0.5)
+    return max(0.5, min(1.6, boost))
+
+
 def _bm25_top_n(corpus: list[str], query_tokens: list[str], items: list, n: int) -> list:
-    """BM25 ranking with graceful fallback."""
+    """
+    BM25 ranking, re-weighted by each insight's learned validation/confidence,
+    with graceful fallback when rank_bm25 is unavailable.
+    """
     if not corpus:
         return items[:n]
     try:
@@ -111,10 +132,12 @@ def _bm25_top_n(corpus: list[str], query_tokens: list[str], items: list, n: int)
         tokenized = [doc.lower().split() for doc in corpus]
         bm25 = BM25Okapi(tokenized)
         scores = bm25.get_scores(query_tokens)
-        ranked = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
+        # Apply the self-learning boost on top of keyword relevance.
+        weighted = [s * _validation_boost(items[i]) for i, s in enumerate(scores)]
+        ranked = sorted(range(len(weighted)), key=lambda i: weighted[i], reverse=True)
         return [items[i] for i in ranked[:n]]
     except ImportError:
-        # Fallback: recency order (most recent first)
-        return items[:n]
+        # Fallback: order by learned confidence, then recency (items are recency-sorted).
+        return sorted(items, key=_validation_boost, reverse=True)[:n]
     except Exception:
         return items[:n]

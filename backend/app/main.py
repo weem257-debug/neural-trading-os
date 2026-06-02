@@ -335,6 +335,22 @@ async def _signal_performance_loop() -> None:
                         session.add(perf)
                         await session.commit()
 
+                    # Self-learning feedback loop: feed the fresh outcome back into
+                    # the knowledge base (online TradeLearning update + insight
+                    # validation). Best-effort — never break the eval loop on it.
+                    try:
+                        from app.services.learning.trade_reviewer import process_new_performance
+                        await process_new_performance(
+                            signal_id=sig.id,
+                            ticker=sig.ticker,
+                            direction=direction,
+                            return_pct=return_pct,
+                            confidence=getattr(sig, "confidence", 0.5) or 0.5,
+                            owner_username=sig.user_id,
+                        )
+                    except Exception as learn_err:
+                        logger.warning("signal_learning_hook_failed", signal_id=sig.id, reason=str(learn_err))
+
                     # Telegram + email win-notification for signals with user_id
                     if sig.user_id and return_pct > 0.001:
                         asyncio.create_task(

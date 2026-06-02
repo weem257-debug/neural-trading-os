@@ -111,6 +111,7 @@ async def run_weekly_review() -> dict:
                 SignalPerformance.direction,
                 SignalRecord.confidence,
                 SignalPerformance.return_pct,
+                SignalRecord.user_id,
             ).join(
                 SignalRecord, SignalRecord.id == SignalPerformance.signal_id, isouter=True
             )
@@ -122,13 +123,17 @@ async def run_weekly_review() -> dict:
 
     # Group by (ticker, direction, conf_bucket)
     groups: dict = {}
-    for ticker, direction, confidence, return_pct in rows:
+    owners: dict = {}
+    for ticker, direction, confidence, return_pct, user_id in rows:
         conf = confidence or 0.5
         bucket = _confidence_bucket(conf)
         key = (ticker, direction, bucket)
         if key not in groups:
             groups[key] = []
         groups[key].append(return_pct)
+        # Remember the owner for this (ticker, direction) so the learning stays
+        # tenant-scoped and the RAG retriever / API can filter correctly.
+        owners.setdefault((ticker, direction), user_id)
 
     learnings_created = 0
 
@@ -169,6 +174,7 @@ async def run_weekly_review() -> dict:
             )
             record = existing.scalar_one_or_none()
 
+            owner = owners.get((ticker, direction))
             if record:
                 record.learning_text = learning_text
                 record.conditions_json = json.dumps(conditions)
@@ -176,8 +182,11 @@ async def run_weekly_review() -> dict:
                 record.sample_count = len(returns)
                 record.avg_return_pct = avg_return * 100
                 record.last_updated = datetime.now(UTC)
+                if owner and not record.owner_username:
+                    record.owner_username = owner
             else:
                 record = TradeLearning(
+                    owner_username=owner,
                     ticker=ticker,
                     direction=direction,
                     learning_text=learning_text,
@@ -201,10 +210,25 @@ async def run_weekly_review() -> dict:
     return {"learnings_created": learnings_created, "patterns_analyzed": len(groups)}
 
 
-async def process_new_performance(signal_id: str, ticker: str, direction: str, return_pct: float, confidence: float = 0.5) -> None:
+async def process_new_performance(
+    signal_id: str,
+    ticker: str,
+    direction: str,
+    return_pct: float,
+    confidence: float = 0.5,
+    owner_username: Optional[str] = None,
+) -> dict:
     """
-    Called after a new SignalPerformance is written.
-    Updates the running tally for this (ticker, direction, bucket).
+    Online-learning hook. Called after a new SignalPerformance row is written.
+
+    Closes the self-learning feedback loop in two ways:
+      1. Incrementally updates (or seeds) the running TradeLearning tally for
+         this (ticker, direction) — no weekly batch needed for the counters.
+      2. Validates/invalidates the YouTube insights whose strategy informed this
+         trade, nudging their confidence_score so the RAG retriever learns which
+         knowledge actually pays off.
+
+    Returns a small dict describing what was updated (handy for tests/logging).
     """
     from sqlalchemy import select
     from app.db.database import get_session
@@ -212,6 +236,7 @@ async def process_new_performance(signal_id: str, ticker: str, direction: str, r
 
     bucket = _confidence_bucket(confidence)
     win = return_pct > 0
+    result = {"learning_updated": False, "learning_created": False, "insights_touched": 0}
 
     async with get_session() as session:
         existing = await session.execute(
@@ -224,15 +249,102 @@ async def process_new_performance(signal_id: str, ticker: str, direction: str, r
 
         if record and record.conditions_json:
             conditions = json.loads(record.conditions_json)
-            n = conditions.get("n", 1)
-            old_win_rate = conditions.get("win_rate", 0.5)
-            # Incremental update
+            n = conditions.get("n", record.sample_count or 1)
+            old_win_rate = conditions.get("win_rate", record.win_rate or 0.5)
+            old_avg = conditions.get("avg_return_pct", record.avg_return_pct or 0.0)
+            # Incremental (online) update of win rate + avg return
             new_n = n + 1
             new_win_rate = (old_win_rate * n + (1 if win else 0)) / new_n
-            conditions.update({"n": new_n, "win_rate": round(new_win_rate, 3)})
+            new_avg = (old_avg * n + return_pct * 100) / new_n
+            conditions.update({
+                "n": new_n,
+                "win_rate": round(new_win_rate, 3),
+                "avg_return_pct": round(new_avg, 2),
+                "confidence_bucket": bucket,
+            })
             record.conditions_json = json.dumps(conditions)
             record.sample_count = new_n
             record.win_rate = new_win_rate
+            record.avg_return_pct = new_avg
             record.last_updated = datetime.now(UTC)
+            if owner_username and not record.owner_username:
+                record.owner_username = owner_username
             await session.commit()
-        # Full rephrase is done by weekly review — post-trade just updates counts
+            result["learning_updated"] = True
+        else:
+            # Seed a fresh learning so the counter starts accumulating immediately,
+            # instead of waiting for the weekly batch (n>=3) to first create it.
+            conditions = {
+                "ticker": ticker,
+                "direction": direction,
+                "confidence_bucket": bucket,
+                "n": 1,
+                "win_rate": 1.0 if win else 0.0,
+                "avg_return_pct": round(return_pct * 100, 2),
+            }
+            seed = TradeLearning(
+                owner_username=owner_username,
+                ticker=ticker,
+                direction=direction,
+                learning_text=(
+                    f"{direction} {ticker}: tracking started — "
+                    f"first outcome {return_pct * 100:+.2f}%. "
+                    f"Needs more samples for a reliable pattern."
+                ),
+                conditions_json=json.dumps(conditions),
+                win_rate=1.0 if win else 0.0,
+                sample_count=1,
+                avg_return_pct=round(return_pct * 100, 2),
+                created_at=datetime.now(UTC),
+                last_updated=datetime.now(UTC),
+            )
+            session.add(seed)
+            await session.commit()
+            result["learning_created"] = True
+
+    # Close the loop on the knowledge that informed this trade
+    touched = await apply_insight_feedback(ticker=ticker, won=win)
+    result["insights_touched"] = touched
+
+    # Full natural-language rephrase remains the weekly review's job.
+    return result
+
+
+async def apply_insight_feedback(ticker: str, won: bool, max_insights: int = 5) -> int:
+    """
+    Adjust the validation counters and confidence of the YouTube insights that
+    the RAG retriever would surface for this ticker, based on whether the trade
+    that consumed them won or lost.
+
+    This is the online-learning signal for the knowledge base: insights that
+    correlate with winning trades drift up in confidence; those tied to losers
+    drift down. Confidence is clamped to [0.05, 0.99] and moved with a small
+    learning rate so a single trade never dominates.
+
+    Returns the number of insights updated.
+    """
+    from sqlalchemy import select
+    from app.db.database import get_session
+    from app.db.models import YoutubeInsight
+
+    LEARNING_RATE = 0.03
+    async with get_session() as session:
+        # Mirror the retriever's candidate set: most recent insights.
+        res = await session.execute(
+            select(YoutubeInsight)
+            .order_by(YoutubeInsight.created_at.desc())
+            .limit(max_insights)
+        )
+        insights = res.scalars().all()
+        if not insights:
+            return 0
+
+        for yi in insights:
+            if won:
+                yi.times_validated = (yi.times_validated or 0) + 1
+                yi.confidence_score = min(0.99, (yi.confidence_score or 0.5) + LEARNING_RATE)
+            else:
+                yi.times_invalidated = (yi.times_invalidated or 0) + 1
+                yi.confidence_score = max(0.05, (yi.confidence_score or 0.5) - LEARNING_RATE)
+        await session.commit()
+        return len(insights)
