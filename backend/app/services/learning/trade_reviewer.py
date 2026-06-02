@@ -302,39 +302,77 @@ async def process_new_performance(
             await session.commit()
             result["learning_created"] = True
 
-    # Close the loop on the knowledge that informed this trade
-    touched = await apply_insight_feedback(ticker=ticker, won=win)
+    # Close the loop on the knowledge that informed this trade. Prefer the exact
+    # insights attributed to this signal; fall back to recency for legacy signals
+    # that predate attribution tracking.
+    touched = await apply_insight_feedback(ticker=ticker, won=win, signal_id=signal_id)
     result["insights_touched"] = touched
 
     # Full natural-language rephrase remains the weekly review's job.
     return result
 
 
-async def apply_insight_feedback(ticker: str, won: bool, max_insights: int = 5) -> int:
+async def _attributed_insight_ids(signal_id: Optional[str]) -> list[int]:
+    """Return the insight IDs that were actually injected into this signal's prompt."""
+    if not signal_id:
+        return []
+    from sqlalchemy import select
+    from app.db.database import get_session
+    from app.db.models import SignalInsightUsage
+
+    async with get_session() as session:
+        res = await session.execute(
+            select(SignalInsightUsage.insight_id)
+            .where(SignalInsightUsage.signal_id == signal_id)
+            .order_by(SignalInsightUsage.rank.asc())
+        )
+        return [row[0] for row in res.all()]
+
+
+async def apply_insight_feedback(
+    ticker: str,
+    won: bool,
+    signal_id: Optional[str] = None,
+    max_insights: int = 5,
+) -> int:
     """
     Adjust the validation counters and confidence of the YouTube insights that
-    the RAG retriever would surface for this ticker, based on whether the trade
-    that consumed them won or lost.
+    actually informed a trade, based on whether that trade won or lost.
 
-    This is the online-learning signal for the knowledge base: insights that
-    correlate with winning trades drift up in confidence; those tied to losers
-    drift down. Confidence is clamped to [0.05, 0.99] and moved with a small
-    learning rate so a single trade never dominates.
+    Attribution-precise: when ``signal_id`` is given and the signal recorded which
+    insights were injected into its prompt (SignalInsightUsage), only those exact
+    insights are updated. This is the correct learning signal — unrelated insights
+    that merely happened to be recent are never rewarded or punished.
 
-    Returns the number of insights updated.
+    Falls back to the legacy recency-based candidate set only when no attribution
+    exists for the signal (e.g. signals generated before attribution tracking, or
+    signals where no YouTube insights were injected at all but we still want a
+    best-effort nudge for the ticker).
+
+    Confidence is clamped to [0.05, 0.99] and moved with a small learning rate so a
+    single trade never dominates. Returns the number of insights updated.
     """
     from sqlalchemy import select
     from app.db.database import get_session
     from app.db.models import YoutubeInsight
 
     LEARNING_RATE = 0.03
+
+    attributed_ids = await _attributed_insight_ids(signal_id)
+
     async with get_session() as session:
-        # Mirror the retriever's candidate set: most recent insights.
-        res = await session.execute(
-            select(YoutubeInsight)
-            .order_by(YoutubeInsight.created_at.desc())
-            .limit(max_insights)
-        )
+        if attributed_ids:
+            # Precise path: only the insights that actually fed this signal's prompt.
+            res = await session.execute(
+                select(YoutubeInsight).where(YoutubeInsight.id.in_(attributed_ids))
+            )
+        else:
+            # Legacy fallback: mirror the retriever's recency-based candidate set.
+            res = await session.execute(
+                select(YoutubeInsight)
+                .order_by(YoutubeInsight.created_at.desc())
+                .limit(max_insights)
+            )
         insights = res.scalars().all()
         if not insights:
             return 0

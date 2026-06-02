@@ -190,6 +190,11 @@ async def generate_signal(
     """
     Run TradingAgents multi-agent pipeline for a given ticker.
 
+    Thin wrapper around :func:`_generate_signal_core` that retrieves the RAG
+    learning context up front and stamps the resulting signal with the IDs of the
+    insights that were actually injected — so the self-learning feedback loop can
+    attribute the trade outcome to exactly those insights.
+
     Parameters
     ----------
     ticker       : Stock/crypto symbol, e.g. "AAPL", "BTC"
@@ -203,22 +208,40 @@ async def generate_signal(
     if analysis_date is None:
         analysis_date = date.today().isoformat()
 
-    model = (
-        settings.ANTHROPIC_MODEL_FAST if fast_mode
-        else settings.ANTHROPIC_MODEL_ANALYSIS
-    )
-
-    # Retrieve relevant learning context (RAG injection) — zero-cost if no insights yet
+    # Retrieve relevant learning context (RAG injection) — zero-cost if no insights yet.
+    # Capture the insight IDs that were actually injected so the feedback loop can
+    # attribute the trade outcome to exactly these insights (not a recency guess).
     learning_context = ""
+    used_insight_ids: list[int] = []
     try:
-        from app.services.learning.rag_retriever import get_relevant_context
-        learning_context = await get_relevant_context(
+        from app.services.learning.rag_retriever import get_relevant_context_with_attribution
+        learning_context, used_insight_ids = await get_relevant_context_with_attribution(
             query=f"{ticker} trading signal {analysis_date}",
             ticker=ticker,
             top_n=5,
         )
     except Exception as rag_err:
         logger.debug("RAG context retrieval skipped: %s", rag_err)
+
+    signal = await _generate_signal_core(ticker, analysis_date, fast_mode, learning_context)
+    # Stamp attribution on whichever path produced the signal (TradingAgents,
+    # Claude fallback, or placeholder). Best-effort — never overwrite with empties.
+    if used_insight_ids:
+        signal.used_insight_ids = used_insight_ids
+    return signal
+
+
+async def _generate_signal_core(
+    ticker: str,
+    analysis_date: str,
+    fast_mode: bool,
+    learning_context: str,
+) -> TradingSignal:
+    """Core signal generation: TradingAgents pipeline with Claude/placeholder fallbacks."""
+    model = (
+        settings.ANTHROPIC_MODEL_FAST if fast_mode
+        else settings.ANTHROPIC_MODEL_ANALYSIS
+    )
 
     if not _ensure_repo_on_path():
         # TradingAgents repo unavailable — fall back to native Claude analysis

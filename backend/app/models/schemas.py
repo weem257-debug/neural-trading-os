@@ -59,7 +59,11 @@ class TradingSignal(BaseModel):
     reasoning: Optional[str] = None
     source: str = "TradingAgents"              # which repo generated this
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    agents_consensus: Optional[dict[str, str]] = None  # agent_name → signal
+    agents_consensus: Optional[dict[str, str]] = None
+    # IDs of the YouTube insights that were actually injected into the prompt that
+    # produced this signal. Used by the self-learning feedback loop to attribute the
+    # trade outcome to exactly these insights. Not part of the public API contract.
+    used_insight_ids: list[int] = Field(default_factory=list, exclude=True)  # agent_name → signal
 
 
 class SignalRequest(BaseModel):

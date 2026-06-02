@@ -173,6 +173,31 @@ class LearningJob(Base):
     )
 
 
+class SignalInsightUsage(Base):
+    """
+    Attribution link: records exactly which YoutubeInsight rows were injected into
+    the prompt that produced a given signal.
+
+    This is the ground truth for the self-learning feedback loop. When a signal's
+    outcome is known, we validate/invalidate *these* insights — the ones that
+    actually influenced the trade — instead of re-deriving a recency-based guess.
+    """
+
+    __tablename__ = "signal_insight_usage"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    signal_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    insight_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    # Retrieval rank (0 = top-ranked) at injection time, for later analysis.
+    rank: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+
 class Portfolio(Base):
     """
     Named portfolio — owns a collection of positions, P2P accounts, and bank accounts.

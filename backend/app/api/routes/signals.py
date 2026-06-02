@@ -340,7 +340,7 @@ async def _persist_signal_to_db(signal: TradingSignal, user_id: Optional[str] = 
     try:
         import json
         from app.db.database import get_session
-        from app.db.models import SignalRecord
+        from app.db.models import SignalRecord, SignalInsightUsage
 
         async with get_session() as session:
             record = SignalRecord(
@@ -358,6 +358,16 @@ async def _persist_signal_to_db(signal: TradingSignal, user_id: Optional[str] = 
                 user_id=user_id,
             )
             session.add(record)
+
+            # Persist insight attribution: which insights actually fed this signal's
+            # prompt. The feedback loop validates exactly these when the outcome lands.
+            for rank, insight_id in enumerate(getattr(signal, "used_insight_ids", []) or []):
+                session.add(SignalInsightUsage(
+                    signal_id=signal.id,
+                    insight_id=insight_id,
+                    rank=rank,
+                ))
+
             await session.commit()
     except Exception as db_err:
         logger.debug("signal_db_persist_skipped reason=%s", str(db_err))

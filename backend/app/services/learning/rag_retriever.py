@@ -15,6 +15,13 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
+# Number of YouTube insights that actually make it into the prompt. The
+# retriever ranks top_n candidates, but only this many are injected — so this
+# is the exact set we attribute the trade outcome to.
+_PROMPT_INSIGHT_LIMIT = 3
+_PROMPT_LEARNING_LIMIT = 3
+
+
 async def get_relevant_context(
     query: str,
     ticker: str,
@@ -24,6 +31,29 @@ async def get_relevant_context(
     Retrieve top-N relevant insights and learnings for injection into a signal prompt.
 
     Returns an empty string if no insights exist yet (zero-cost on first run).
+
+    Thin wrapper around :func:`get_relevant_context_with_attribution` for callers
+    that don't need to know which insights were used.
+    """
+    context, _ = await get_relevant_context_with_attribution(query, ticker, top_n)
+    return context
+
+
+async def get_relevant_context_with_attribution(
+    query: str,
+    ticker: str,
+    top_n: int = 5,
+) -> tuple[str, list[int]]:
+    """
+    Like :func:`get_relevant_context`, but also returns the IDs of the YouTube
+    insights that were *actually injected* into the prompt, in rank order.
+
+    This is the attribution signal for the self-learning feedback loop: only the
+    insights returned here influenced the signal, so only these should be
+    validated/invalidated when the trade outcome is known.
+
+    Returns ``(context_string, [insight_id, ...])``. The ID list is empty when no
+    YouTube insights were injected (e.g. only trade learnings, or empty KB).
     """
     from sqlalchemy import select
     from app.db.database import get_session
@@ -31,6 +61,7 @@ async def get_relevant_context(
 
     insights_text: list[str] = []
     learnings_text: list[str] = []
+    used_insight_ids: list[int] = []
 
     async with get_session() as session:
         # Fetch recent YouTube insights
@@ -50,7 +81,7 @@ async def get_relevant_context(
         trade_learnings = tl_result.scalars().all()
 
     if not yt_insights and not trade_learnings:
-        return ""
+        return "", []
 
     # ---------------------------------------------------------------------------
     # BM25 retrieval over YouTube insights
@@ -59,13 +90,16 @@ async def get_relevant_context(
         corpus = [f"{yi.strategy or ''} {yi.market_condition or ''} {yi.insight_text}" for yi in yt_insights]
         query_tokens = f"{ticker} {query}".lower().split()
 
+        # Only the first _PROMPT_INSIGHT_LIMIT ranked insights are injected below,
+        # so attribute exactly those — not the full top_n candidate set.
         top_yt = _bm25_top_n(corpus, query_tokens, yt_insights, n=top_n)
-        for yi in top_yt:
+        for yi in top_yt[:_PROMPT_INSIGHT_LIMIT]:
             insights_text.append(
                 f"📹 [{yi.channel}] {yi.video_title[:60]}\n"
                 f"Strategy: {yi.strategy} | Timeframe: {yi.timeframe} | Condition: {yi.market_condition}\n"
                 f"{yi.insight_text[:400]}"
             )
+            used_insight_ids.append(yi.id)
 
     # ---------------------------------------------------------------------------
     # Trade learnings: ticker-specific first, then general
@@ -83,23 +117,23 @@ async def get_relevant_context(
     # Compose context block
     # ---------------------------------------------------------------------------
     if not insights_text and not learnings_text:
-        return ""
+        return "", []
 
     sections: list[str] = []
 
     if learnings_text:
         sections.append(
             "## Historical Trade Learnings\n"
-            + "\n\n".join(learnings_text[:3])
+            + "\n\n".join(learnings_text[:_PROMPT_LEARNING_LIMIT])
         )
 
     if insights_text:
         sections.append(
             "## Trading Knowledge (from YouTube analysis)\n"
-            + "\n\n".join(insights_text[:3])
+            + "\n\n".join(insights_text)
         )
 
-    return "\n\n".join(sections)
+    return "\n\n".join(sections), used_insight_ids
 
 
 def _validation_boost(item) -> float:
