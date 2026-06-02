@@ -300,7 +300,7 @@ function AddVideoPanel({ onAdded }: { onAdded: () => void }) {
 // Page
 // ---------------------------------------------------------------------------
 
-type Tab = "overview" | "youtube" | "trades" | "jobs" | "kontext";
+type Tab = "overview" | "youtube" | "trades" | "jobs" | "kontext" | "signal-quality";
 
 export default function LearningPage() {
   const [tab, setTab] = useState<Tab>("overview");
@@ -347,6 +347,7 @@ export default function LearningPage() {
     { key: "trades", label: "Trade-Lernkurve", icon: BarChart2 },
     { key: "jobs", label: "Jobs", icon: Clock },
     { key: "kontext", label: "KI-Kontext", icon: BookOpen },
+    { key: "signal-quality", label: "Signal-Qualität", icon: Target },
   ];
 
   return (
@@ -531,6 +532,9 @@ export default function LearningPage() {
 
           {/* KI-KONTEXT TAB */}
           {tab === "kontext" && <KiKontextTab />}
+
+          {/* SIGNAL-QUALITÄT TAB */}
+          {tab === "signal-quality" && <SignalQualityTab />}
         </>
       )}
     </div>
@@ -659,6 +663,222 @@ function KiKontextTab() {
             </div>
           )}
         </motion.div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// SignalQualityTab — KI-Insights Performance Dashboard (Iteration #117)
+// ---------------------------------------------------------------------------
+
+interface InsightStat {
+  id: number;
+  insight_text: string;
+  confidence_score: number;
+  times_validated: number;
+  times_invalidated: number;
+  usage_count: number;
+  win_rate: number | null;
+  avg_return_pct: number | null;
+  strategy: string | null;
+  created_at: string;
+}
+
+function ConfidenceBar({ value }: { value: number }) {
+  const pct = Math.round(value * 100);
+  const color = pct >= 80 ? "#00FF88" : pct >= 60 ? "#00D4FF" : pct >= 40 ? "#FFD700" : "#FF6B6B";
+  return (
+    <div className="flex items-center gap-2 min-w-[90px]">
+      <div className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <span className="text-xs font-mono font-semibold tabular-nums" style={{ color }}>{pct}%</span>
+    </div>
+  );
+}
+
+function SignalQualityTab() {
+  const [sortBy, setSortBy] = useState<"confidence" | "win_rate" | "usage">("confidence");
+  const [items, setItems] = useState<InsightStat[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = useCallback(async (sort: "confidence" | "win_rate" | "usage") => {
+    setLoading(true);
+    setError("");
+    try {
+      const data = await api.learning.insightsStats(sort, 10);
+      setItems(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Fehler beim Laden");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(sortBy); }, [load, sortBy]);
+
+  const totalValidations = items.reduce((s, i) => s + i.times_validated + i.times_invalidated, 0);
+
+  return (
+    <div className="space-y-5">
+      {/* Header banner */}
+      <div
+        className="rounded-2xl border border-neon-purple/25 p-5"
+        style={{ background: "linear-gradient(135deg, rgba(123,47,255,0.07), rgba(0,212,255,0.04))" }}
+      >
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="font-bold text-white text-sm flex items-center gap-2 mb-1">
+              <Target className="w-4 h-4 text-neon-purple" />
+              KI-Insights Performance
+            </h2>
+            <p className="text-xs text-slate-400 max-w-lg">
+              Welche KI-Erkenntnisse haben die besten Trade-Outcomes erzeugt?
+              Jeder Insight wird nach jedem abgeschlossenen Trade validiert oder invalidiert —
+              <span className="text-cyan-400 font-medium"> eine KI, die aus jedem Trade lernt.</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <CheckCircle className="w-3.5 h-3.5 text-neon-green" />
+            {totalValidations} Validierungen gesamt
+          </div>
+        </div>
+      </div>
+
+      {/* Sort controls */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-slate-500">Sortieren nach:</span>
+        {(["confidence", "win_rate", "usage"] as const).map((key) => (
+          <button
+            key={key}
+            onClick={() => setSortBy(key)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            style={
+              sortBy === key
+                ? { background: "rgba(123,47,255,0.2)", color: "#7B2FFF", border: "1px solid rgba(123,47,255,0.3)" }
+                : { color: "#64748b", border: "1px solid transparent" }
+            }
+          >
+            {{ confidence: "Confidence", win_rate: "Win-Rate", usage: "Verwendungen" }[key]}
+          </button>
+        ))}
+        <button
+          onClick={() => load(sortBy)}
+          disabled={loading}
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-400 hover:text-cyan-400 hover:border-cyan-500/40 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
+          Neu laden
+        </button>
+      </div>
+
+      {/* Error state */}
+      {error && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/10 text-sm text-red-400">
+          <XCircle className="w-4 h-4 flex-shrink-0" />{error}
+        </div>
+      )}
+
+      {/* Loading state */}
+      {loading && !items.length && (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-7 h-7 text-neon-purple animate-spin" />
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && items.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <Brain className="w-10 h-10 text-slate-700 mb-3" />
+          <p className="text-slate-400 text-sm font-medium">Noch keine Insights vorhanden</p>
+          <p className="text-slate-600 text-xs mt-1">Verarbeite zuerst YouTube-Videos über den YouTube-Insights-Tab.</p>
+        </div>
+      )}
+
+      {/* Table */}
+      {items.length > 0 && (
+        <div className="rounded-2xl border border-slate-800/60 overflow-hidden">
+          {/* Column headers */}
+          <div className="grid grid-cols-[1fr_120px_80px_80px_70px] gap-2 px-4 py-2.5 border-b border-slate-800/60 bg-slate-900/50">
+            <span className="text-xs text-slate-500 font-medium">Insight</span>
+            <span className="text-xs text-slate-500 font-medium">Confidence</span>
+            <span className="text-xs text-slate-500 font-medium">Validiert</span>
+            <span className="text-xs text-slate-500 font-medium">Win-Rate</span>
+            <span className="text-xs text-slate-500 font-medium text-right">Nutzungen</span>
+          </div>
+
+          {/* Rows */}
+          <div className="divide-y divide-slate-800/40">
+            {items.map((item, idx) => {
+              const ratio = item.times_validated + item.times_invalidated > 0
+                ? item.times_validated / (item.times_validated + item.times_invalidated)
+                : null;
+
+              return (
+                <motion.div
+                  key={item.id}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.04 }}
+                  className="grid grid-cols-[1fr_120px_80px_80px_70px] gap-2 px-4 py-3 items-center hover:bg-slate-800/20 transition-colors"
+                >
+                  {/* Insight text */}
+                  <div className="min-w-0">
+                    <p className="text-xs text-white leading-relaxed line-clamp-2 break-words">
+                      {item.insight_text.length > 120
+                        ? item.insight_text.slice(0, 120) + "…"
+                        : item.insight_text}
+                    </p>
+                    {item.strategy && (
+                      <span
+                        className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                        style={{ background: "rgba(123,47,255,0.15)", color: "#9B4FFF" }}
+                      >
+                        {item.strategy}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Confidence bar */}
+                  <ConfidenceBar value={item.confidence_score} />
+
+                  {/* Validated / Invalidated */}
+                  <div className="flex items-center gap-1 text-xs">
+                    <span className="text-neon-green font-mono">+{item.times_validated}</span>
+                    <span className="text-slate-600">/</span>
+                    <span className="text-red-400 font-mono">-{item.times_invalidated}</span>
+                  </div>
+
+                  {/* Win-Rate (from TradeLearning or validation ratio) */}
+                  <div className="text-xs font-mono">
+                    {item.win_rate != null ? (
+                      <span style={{ color: item.win_rate >= 0.5 ? "#00FF88" : "#FF6B6B" }}>
+                        {(item.win_rate * 100).toFixed(0)}%
+                      </span>
+                    ) : ratio != null ? (
+                      <span style={{ color: ratio >= 0.5 ? "#00D4FF" : "#FFD700" }}>
+                        ~{(ratio * 100).toFixed(0)}%
+                      </span>
+                    ) : (
+                      <span className="text-slate-600">–</span>
+                    )}
+                  </div>
+
+                  {/* Usage count */}
+                  <div className="text-xs font-mono text-slate-400 text-right">
+                    {item.usage_count > 0 ? (
+                      <span className="text-cyan-400 font-semibold">{item.usage_count}×</span>
+                    ) : (
+                      <span className="text-slate-600">0×</span>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -29,7 +29,7 @@ from sqlalchemy import select
 from app.api.auth import get_current_user, UserInfo
 from app.core.rate_limits import limiter
 from app.db.database import get_session
-from app.db.models import YoutubeInsight, TradeLearning, LearningJob
+from app.db.models import YoutubeInsight, TradeLearning, LearningJob, SignalInsightUsage
 
 router = APIRouter(prefix="/learning", tags=["Learning"])
 
@@ -387,6 +387,121 @@ async def preview_context(
         "has_context": bool(context),
         "context_length": len(context),
     }
+
+
+# ---------------------------------------------------------------------------
+# Insight Performance Stats
+# ---------------------------------------------------------------------------
+
+class InsightStatItem(BaseModel):
+    id: int
+    insight_text: str
+    confidence_score: float
+    times_validated: int
+    times_invalidated: int
+    usage_count: int
+    win_rate: Optional[float]
+    avg_return_pct: Optional[float]
+    strategy: Optional[str]
+    created_at: str
+
+
+@router.get("/insights/stats", response_model=list[InsightStatItem])
+async def insights_stats(
+    sort_by: str = Query("confidence", pattern="^(confidence|win_rate|usage)$"),
+    limit: int = Query(10, ge=1, le=50),
+    _user: UserInfo = Depends(get_current_user),
+) -> list[dict]:
+    """
+    Top insights by performance — the Signal Quality Dashboard data source.
+
+    Returns YoutubeInsight rows enriched with:
+    - ``usage_count``: how many signals used this insight (SignalInsightUsage)
+    - ``win_rate`` / ``avg_return_pct``: best matching TradeLearning stats
+
+    Sortable by ``confidence``, ``win_rate``, or ``usage``.
+    """
+    from sqlalchemy import func, outerjoin
+
+    async with get_session() as session:
+        # Sub-query: usage count per insight
+        usage_subq = (
+            select(
+                SignalInsightUsage.insight_id,
+                func.count(SignalInsightUsage.id).label("usage_count"),
+            )
+            .group_by(SignalInsightUsage.insight_id)
+            .subquery()
+        )
+
+        q = (
+            select(
+                YoutubeInsight,
+                func.coalesce(usage_subq.c.usage_count, 0).label("usage_count"),
+            )
+            .outerjoin(usage_subq, YoutubeInsight.id == usage_subq.c.insight_id)
+        )
+
+        if sort_by == "confidence":
+            q = q.order_by(YoutubeInsight.confidence_score.desc())
+        elif sort_by == "usage":
+            q = q.order_by(func.coalesce(usage_subq.c.usage_count, 0).desc())
+        else:
+            # win_rate: sort by validated ratio (validated / max(1, validated+invalidated))
+            validated = YoutubeInsight.times_validated
+            total = func.greatest(
+                YoutubeInsight.times_validated + YoutubeInsight.times_invalidated,
+                1,
+            )
+            q = q.order_by((validated / total).desc())
+
+        q = q.limit(limit)
+        result = await session.execute(q)
+        rows = result.all()
+
+        # Fetch best TradeLearning for each ticker (avg over all learnings)
+        tl_result = await session.execute(
+            select(
+                TradeLearning.ticker,
+                func.avg(TradeLearning.win_rate).label("avg_win_rate"),
+                func.avg(TradeLearning.avg_return_pct).label("avg_return"),
+            )
+            .where(TradeLearning.win_rate.is_not(None))
+            .group_by(TradeLearning.ticker)
+        )
+        tl_map: dict[str, dict] = {
+            row.ticker: {"win_rate": row.avg_win_rate, "avg_return_pct": row.avg_return}
+            for row in tl_result.all()
+        }
+
+    items = []
+    for row in rows:
+        insight: YoutubeInsight = row[0]
+        usage_count: int = row[1]
+
+        # Try to match insight to a TradeLearning by ticker tag in insight text
+        win_rate = None
+        avg_return_pct = None
+        for ticker, tl_data in tl_map.items():
+            if ticker.upper() in insight.insight_text.upper():
+                win_rate = tl_data["win_rate"]
+                avg_return_pct = tl_data["avg_return_pct"]
+                break
+
+        items.append({
+            "id": insight.id,
+            "insight_text": insight.insight_text,
+            "confidence_score": insight.confidence_score,
+            "times_validated": insight.times_validated,
+            "times_invalidated": insight.times_invalidated,
+            "usage_count": usage_count,
+            "win_rate": win_rate,
+            "avg_return_pct": avg_return_pct,
+            "strategy": insight.strategy,
+            "created_at": insight.created_at.isoformat(),
+        })
+
+    return items
 
 
 # ---------------------------------------------------------------------------

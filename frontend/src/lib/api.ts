@@ -610,6 +610,19 @@ export const api = {
         ticker: string; query: string; context: string; has_context: boolean; context_length: number;
       }>(`/api/learning/context?${qs}`);
     },
+    insightsStats: (sortBy: "confidence" | "win_rate" | "usage" = "confidence", limit = 10) =>
+      apiFetch<Array<{
+        id: number;
+        insight_text: string;
+        confidence_score: number;
+        times_validated: number;
+        times_invalidated: number;
+        usage_count: number;
+        win_rate: number | null;
+        avg_return_pct: number | null;
+        strategy: string | null;
+        created_at: string;
+      }>>(`/api/learning/insights/stats?sort_by=${sortBy}&limit=${limit}`),
   },
 
   // -------------------------------------------------------------------------
