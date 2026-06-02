@@ -62,6 +62,47 @@ async def _run_youtube_batch_job() -> None:
         logger.error("YouTube batch failed: %s", e)
 
 
+async def _run_confidence_decay_job() -> None:
+    """Weekly confidence decay job."""
+    from app.db.database import get_session
+    from app.db.models import LearningJob
+    from app.services.learning import confidence_decay
+
+    async with get_session() as session:
+        job = LearningJob(
+            job_type="confidence_decay",
+            status="running",
+            started_at=datetime.now(UTC),
+            created_at=datetime.now(UTC),
+        )
+        session.add(job)
+        await session.commit()
+        job_id = job.id
+
+    try:
+        result = await confidence_decay.run_confidence_decay()
+        async with get_session() as session:
+            from sqlalchemy import select
+            q = await session.execute(select(LearningJob).where(LearningJob.id == job_id))
+            j = q.scalar_one()
+            j.status = "done"
+            j.finished_at = datetime.now(UTC)
+            j.items_processed = result["insights_decayed"]
+            await session.commit()
+        logger.info("Confidence decay complete: %s", result)
+    except Exception as e:
+        async with get_session() as session:
+            from sqlalchemy import select
+            q = await session.execute(select(LearningJob).where(LearningJob.id == job_id))
+            j = q.scalar_one_or_none()
+            if j:
+                j.status = "failed"
+                j.finished_at = datetime.now(UTC)
+                j.error = str(e)[:500]
+            await session.commit()
+        logger.error("Confidence decay failed: %s", e)
+
+
 async def _run_trade_review_job() -> None:
     """Weekly trade review job."""
     from app.db.database import get_session
@@ -130,9 +171,21 @@ def start_scheduler():
             replace_existing=True,
         )
 
+        # Weekly confidence decay every Sunday 04:00 UTC (after trade review)
+        scheduler.add_job(
+            _run_confidence_decay_job,
+            trigger=CronTrigger(day_of_week="sun", hour=4, minute=0, timezone="UTC"),
+            id="confidence_decay",
+            name="Weekly Insight Confidence Decay",
+            replace_existing=True,
+        )
+
         scheduler.start()
         _scheduler = scheduler
-        logger.info("Learning scheduler started — YouTube daily 02:00 UTC, trade review Sundays 03:00 UTC")
+        logger.info(
+            "Learning scheduler started — YouTube daily 02:00 UTC, "
+            "trade review Sundays 03:00 UTC, confidence decay Sundays 04:00 UTC"
+        )
         return scheduler
 
     except ImportError:
@@ -162,6 +215,9 @@ async def trigger_job(job_type: str) -> dict:
         return {"triggered": True, "job_type": job_type}
     elif job_type == "trade_review":
         asyncio.create_task(_run_trade_review_job())
+        return {"triggered": True, "job_type": job_type}
+    elif job_type == "confidence_decay":
+        asyncio.create_task(_run_confidence_decay_job())
         return {"triggered": True, "job_type": job_type}
     else:
         return {"triggered": False, "error": f"Unknown job type: {job_type}"}

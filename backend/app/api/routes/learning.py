@@ -242,6 +242,48 @@ async def trigger_trade_review(
 
 
 # ---------------------------------------------------------------------------
+# Confidence Decay
+# ---------------------------------------------------------------------------
+
+class DecayRequest(BaseModel):
+    dry_run: bool = Field(False, description="If true, compute changes but do not write to DB")
+    decay_rate: float = Field(0.01, ge=0.0, le=1.0, description="Decay rate per week (default 1%)")
+
+
+@router.post("/decay", status_code=202)
+@limiter.limit("10/minute")
+async def trigger_confidence_decay(
+    request: Request,
+    body: DecayRequest = DecayRequest(),
+    _user: UserInfo = Depends(get_current_user),
+) -> dict:
+    """
+    Trigger insight confidence decay.
+
+    Insights that haven't been validated for a while lose confidence at
+    ``decay_rate`` per week, down to a floor of 0.05. Prevents stale insights
+    from dominating RAG ranking.
+
+    Set ``dry_run=true`` to preview how many insights would be affected without
+    writing any changes.
+    """
+    import asyncio
+    from app.services.learning.confidence_decay import run_confidence_decay
+
+    if body.dry_run:
+        # Run synchronously so caller gets the preview result immediately
+        result = await run_confidence_decay(dry_run=True, decay_rate=body.decay_rate)
+        return {**result, "message": "Dry-run complete — no changes written."}
+
+    asyncio.create_task(run_confidence_decay(decay_rate=body.decay_rate))
+    return {
+        "accepted": True,
+        "dry_run": False,
+        "message": "Confidence decay job triggered in background.",
+    }
+
+
+# ---------------------------------------------------------------------------
 # Jobs
 # ---------------------------------------------------------------------------
 
