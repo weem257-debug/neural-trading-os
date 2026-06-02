@@ -4498,6 +4498,285 @@ class TestTelegram:
 
 
 # ---------------------------------------------------------------------------
+# Telegram webhook command logic — bot brain
+# ---------------------------------------------------------------------------
+
+class TestTelegramWebhookLogic:
+    """
+    Tests the Telegram webhook command-routing brain.
+
+    All outbound Telegram API calls go through ``app.api.routes.telegram.send_message``
+    (a top-level import in the route module), so we patch *that* name with an
+    AsyncMock. This keeps every test fully offline while letting us assert which
+    handler ran and what text the bot would have sent.
+    """
+
+    # Unique chat_id per test class run avoids cross-test connection bleed.
+    CHAT_ID = "999000111"
+    # A real self-service user (exists in the User table, unlike the demo admin
+    # login) so multi-tenant handlers like /status and /briefing resolve a row.
+    TG_USER = "tg_tester"
+    TG_PASS = "Password1!"
+
+    def _ensure_user(self, client) -> str:
+        """Register the dedicated test user if missing; return its username."""
+        client.post("/api/auth/register", json={
+            "username": self.TG_USER,
+            "email": f"{self.TG_USER}@example.com",
+            "password": self.TG_PASS,
+            "gdpr_consent": True,
+        })  # 200 first time, 409 thereafter — both fine
+        return self.TG_USER
+
+    def _user_headers(self, client) -> dict:
+        """Auth headers for the dedicated test user."""
+        self._ensure_user(client)
+        resp = client.post(
+            "/api/auth/token",
+            data={"username": self.TG_USER, "password": self.TG_PASS},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert resp.status_code == 200, f"Login failed: {resp.text}"
+        return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+    def _make_update(self, text: str, *, chat_id: str | None = None, username: str = "tester") -> dict:
+        """Build a minimal Telegram webhook update payload."""
+        return {
+            "update_id": 1,
+            "message": {
+                "message_id": 1,
+                "text": text,
+                "chat": {"id": int(chat_id or self.CHAT_ID)},
+                "from": {"id": 42, "username": username},
+            },
+        }
+
+    def _connect_chat(self, client, user_id: str | None = None, chat_id: str | None = None) -> str:
+        """
+        Drive the real /start CODE flow to create a TelegramChat row.
+
+        Returns the chat_id used. Patches send_message so no HTTP happens.
+        Defaults to the dedicated self-service test user.
+        """
+        from app.api.routes import telegram as tg_mod
+
+        uid = user_id or self._ensure_user(client)
+        cid = chat_id or self.CHAT_ID
+        code = "TESTCD"
+        tg_mod._pending_codes[code] = uid
+        with patch.object(tg_mod, "send_message", new=AsyncMock(return_value=True)):
+            resp = client.post("/api/telegram/webhook", json=self._make_update(f"/start {code}", chat_id=cid))
+        assert resp.status_code == 200
+        return cid
+
+    # ── /start connection flow ──────────────────────────────────────────
+
+    def test_start_without_code_sends_welcome(self, client):
+        from app.api.routes import telegram as tg_mod
+        mock_send = AsyncMock(return_value=True)
+        with patch.object(tg_mod, "send_message", new=mock_send):
+            resp = client.post("/api/telegram/webhook", json=self._make_update("/start"))
+        assert resp.status_code == 200
+        assert resp.json()["ok"] is True
+        mock_send.assert_awaited_once()
+        sent_text = mock_send.await_args.args[1]
+        assert "Neural Trading OS" in sent_text
+
+    def test_start_with_unknown_code_warns(self, client):
+        from app.api.routes import telegram as tg_mod
+        mock_send = AsyncMock(return_value=True)
+        with patch.object(tg_mod, "send_message", new=mock_send):
+            resp = client.post(
+                "/api/telegram/webhook",
+                json=self._make_update("/start NOSUCHCODE", chat_id="888777"),
+            )
+        assert resp.status_code == 200
+        mock_send.assert_awaited_once()
+        assert "Ungültiger" in mock_send.await_args.args[1] or "abgelaufener" in mock_send.await_args.args[1]
+
+    def test_start_with_valid_code_connects_and_persists(self, client):
+        from app.api.routes import telegram as tg_mod
+        user_id = self._ensure_user(client)
+        chat_id = "777666555"
+        code = "VALID1"
+        tg_mod._pending_codes[code] = user_id
+        mock_send = AsyncMock(return_value=True)
+        with patch.object(tg_mod, "send_message", new=mock_send):
+            resp = client.post(
+                "/api/telegram/webhook",
+                json=self._make_update(f"/start {code}", chat_id=chat_id),
+            )
+        assert resp.status_code == 200
+        mock_send.assert_awaited_once()
+        assert "Verbunden" in mock_send.await_args.args[1]
+        # Code must be consumed (one-time use)
+        assert code not in tg_mod._pending_codes
+        # Status endpoint must now report connected for the test user
+        headers = self._user_headers(client)
+        data = client.get("/api/telegram/status", headers=headers).json()
+        assert data["connected"] is True
+        # Cleanup so we don't leak connection into other tests
+        client.delete("/api/telegram/disconnect", headers=headers)
+
+    def test_valid_code_is_single_use(self, client):
+        from app.api.routes import telegram as tg_mod
+        user_id = self._ensure_user(client)
+        code = "ONCE99"
+        tg_mod._pending_codes[code] = user_id
+        with patch.object(tg_mod, "send_message", new=AsyncMock(return_value=True)):
+            client.post("/api/telegram/webhook", json=self._make_update(f"/start {code}", chat_id="111222"))
+            # Second attempt with same code: now unknown
+            mock_send = AsyncMock(return_value=True)
+            with patch.object(tg_mod, "send_message", new=mock_send):
+                client.post("/api/telegram/webhook", json=self._make_update(f"/start {code}", chat_id="333444"))
+        assert "Ungültiger" in mock_send.await_args.args[1] or "abgelaufener" in mock_send.await_args.args[1]
+        # cleanup test-user connection from first /start
+        client.delete("/api/telegram/disconnect", headers=self._user_headers(client))
+
+    # ── command gating: unconnected chats ───────────────────────────────
+
+    def test_command_from_unconnected_chat_is_blocked(self, client):
+        from app.api.routes import telegram as tg_mod
+        mock_send = AsyncMock(return_value=True)
+        with patch.object(tg_mod, "send_message", new=mock_send):
+            resp = client.post(
+                "/api/telegram/webhook",
+                json=self._make_update("/status", chat_id="555000"),
+            )
+        assert resp.status_code == 200
+        mock_send.assert_awaited_once()
+        assert "nicht verbunden" in mock_send.await_args.args[1]
+
+    def test_non_command_text_is_ignored(self, client):
+        """Plain chatter (no leading slash) must not trigger any send."""
+        from app.api.routes import telegram as tg_mod
+        mock_send = AsyncMock(return_value=True)
+        with patch.object(tg_mod, "send_message", new=mock_send):
+            resp = client.post(
+                "/api/telegram/webhook",
+                json=self._make_update("hello bot", chat_id="555111"),
+            )
+        assert resp.status_code == 200
+        mock_send.assert_not_awaited()
+
+    # ── command dispatch for connected chats ────────────────────────────
+
+    def _run_command_connected(self, client, command: str) -> AsyncMock:
+        """Connect a chat, run a command, return the send_message mock."""
+        from app.api.routes import telegram as tg_mod
+        cid = self._connect_chat(client)
+        mock_send = AsyncMock(return_value=True)
+        try:
+            with patch.object(tg_mod, "send_message", new=mock_send):
+                resp = client.post("/api/telegram/webhook", json=self._make_update(command, chat_id=cid))
+            assert resp.status_code == 200
+        finally:
+            client.delete("/api/telegram/disconnect", headers=self._user_headers(client))
+        return mock_send
+
+    def test_help_command_lists_commands(self, client):
+        mock_send = self._run_command_connected(client, "/help")
+        mock_send.assert_awaited()
+        text = mock_send.await_args.args[1]
+        assert "/briefing" in text and "/signal" in text
+
+    def test_signal_command_returns_signal_block(self, client):
+        mock_send = self._run_command_connected(client, "/signal AAPL")
+        mock_send.assert_awaited()
+        assert "AAPL" in mock_send.await_args.args[1]
+
+    def test_status_command_shows_plan(self, client):
+        mock_send = self._run_command_connected(client, "/status")
+        mock_send.assert_awaited()
+        text = mock_send.await_args.args[1]
+        assert "Plan" in text
+
+    def test_briefing_command_responds(self, client):
+        mock_send = self._run_command_connected(client, "/briefing")
+        mock_send.assert_awaited()
+        assert "Tagesbriefing" in mock_send.await_args.args[1]
+
+    def test_upgrade_command_responds(self, client):
+        mock_send = self._run_command_connected(client, "/upgrade")
+        mock_send.assert_awaited()
+
+    def test_alerts_command_responds(self, client):
+        mock_send = self._run_command_connected(client, "/alerts")
+        mock_send.assert_awaited()
+
+    def test_performance_command_responds(self, client):
+        mock_send = self._run_command_connected(client, "/performance")
+        mock_send.assert_awaited()
+        assert "Performance" in mock_send.await_args.args[1]
+
+    def test_mystats_command_responds(self, client):
+        mock_send = self._run_command_connected(client, "/mystats")
+        mock_send.assert_awaited()
+
+    def test_refer_command_returns_invite_link(self, client):
+        mock_send = self._run_command_connected(client, "/refer")
+        mock_send.assert_awaited()
+        assert "Einladungslink" in mock_send.await_args.args[1]
+
+    def test_unknown_command_warns(self, client):
+        mock_send = self._run_command_connected(client, "/frobnicate")
+        mock_send.assert_awaited()
+        assert "Unbekannter Befehl" in mock_send.await_args.args[1]
+
+    def test_botname_suffix_is_stripped(self, client):
+        """/help@NeuralTradingBot must route the same as /help (group-chat form)."""
+        mock_send = self._run_command_connected(client, "/help@NeuralTradingBot")
+        mock_send.assert_awaited()
+        assert "/briefing" in mock_send.await_args.args[1]
+
+    def test_stop_command_disconnects(self, client):
+        from app.api.routes import telegram as tg_mod
+        cid = self._connect_chat(client, chat_id="424242")
+        mock_send = AsyncMock(return_value=True)
+        with patch.object(tg_mod, "send_message", new=mock_send):
+            resp = client.post("/api/telegram/webhook", json=self._make_update("/stop", chat_id=cid))
+        assert resp.status_code == 200
+        assert "deaktiviert" in mock_send.await_args.args[1]
+        # Subsequent command must now be treated as unconnected
+        mock_send2 = AsyncMock(return_value=True)
+        with patch.object(tg_mod, "send_message", new=mock_send2):
+            client.post("/api/telegram/webhook", json=self._make_update("/status", chat_id=cid))
+        assert "nicht verbunden" in mock_send2.await_args.args[1]
+
+    # ── background broadcast jobs ───────────────────────────────────────
+
+    def test_send_morning_briefings_runs_without_connections(self, client):
+        """Job must complete cleanly even when no chats are connected."""
+        import asyncio
+        from app.api.routes import telegram as tg_mod
+        with patch.object(tg_mod, "send_message", new=AsyncMock(return_value=True)):
+            # Should not raise
+            asyncio.run(tg_mod.send_morning_briefings())
+
+    def test_send_daily_signal_digest_dedups_per_day(self, client):
+        """Digest must not send twice for the same chat+day (in-memory de-dup)."""
+        import asyncio
+        from app.api.routes import telegram as tg_mod
+
+        cid = self._connect_chat(client, chat_id="636363")
+        # Seed a fresh platform signal so the digest has content
+        client.post("/api/signals/demo", params={"ticker": "AAPL"})
+        try:
+            mock_send = AsyncMock(return_value=True)
+            with patch.object(tg_mod, "send_message", new=mock_send):
+                asyncio.run(tg_mod.send_daily_signal_digest())
+                first_calls = mock_send.await_count
+                # Second run same day: de-dup set must suppress re-send to this chat
+                asyncio.run(tg_mod.send_daily_signal_digest())
+                second_calls = mock_send.await_count
+            # No additional sends on the second run for an already-notified chat
+            assert second_calls == first_calls
+        finally:
+            tg_mod._signal_digest_sent.clear()
+            client.delete("/api/telegram/disconnect", headers=self._user_headers(client))
+
+
+# ---------------------------------------------------------------------------
 # Admin routes
 # ---------------------------------------------------------------------------
 

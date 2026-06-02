@@ -14,6 +14,7 @@ build/
 .venv/
 venv/
 *.db
+*.db.bak-*
 *.sqlite3
 
 # Node
