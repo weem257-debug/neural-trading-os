@@ -26,7 +26,12 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.core.config import settings, jwt_key_is_secure
+from app.core.config import (
+    settings,
+    jwt_key_is_secure,
+    is_hardened_environment,
+    demo_password_is_default,
+)
 from app.core.rate_limits import limiter
 from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing, telegram, settings as settings_routes, brokers, admin
 from app.api import auth
@@ -691,7 +696,7 @@ async def lifespan(app: FastAPI):
         environment=os.getenv("ENVIRONMENT", "development"),
     )
 
-    is_production = os.getenv("ENVIRONMENT", "development").lower() in ("production", "prod", "staging")
+    is_production = is_hardened_environment()
     if not jwt_key_is_secure():
         if is_production:
             raise RuntimeError(
@@ -703,6 +708,30 @@ async def lifespan(app: FastAPI):
             "jwt_secret_weak",
             hint="Set a strong JWT_SECRET_KEY (≥32 random chars) in .env before production",
         )
+
+    # C3 — never boot a hardened deployment with the built-in demo/admin
+    # credentials still set to their default value.
+    if is_production and demo_password_is_default():
+        raise RuntimeError(
+            "FATAL: DEMO_PASSWORD is unset or uses a well-known default value while "
+            f"ENVIRONMENT={os.getenv('ENVIRONMENT', 'development')!r}. The built-in demo/admin "
+            "account would be exploitable. Either set a strong DEMO_PASSWORD via environment "
+            "variable, or (recommended) leave it at the default and rely solely on registered "
+            "users — the demo account is automatically disabled in production. This guard exists "
+            "to prevent an accidental admin/neural123 login in production."
+        )
+
+    # APP_ENCRYPTION_KEY guard (C2): refuse to boot a hardened deployment
+    # without an at-rest encryption key for stored credentials.
+    if is_production:
+        from app.core.crypto import encryption_key_configured
+        if not encryption_key_configured():
+            raise RuntimeError(
+                "FATAL: APP_ENCRYPTION_KEY is not configured. Stored broker/API credentials "
+                "would be written to the database in clear text. Generate a key with: "
+                "python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\" "
+                "and set it as the APP_ENCRYPTION_KEY environment variable before starting."
+            )
 
     # Apply Alembic migrations (idempotent — safe to run on every startup)
     try:

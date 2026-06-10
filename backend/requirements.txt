@@ -20,6 +20,9 @@ websockets>=13.0
 
 # Data processing
 pandas>=2.3.0
+# numpy is pinned <2.0 deliberately: parts of the optional trading stack
+# (nautilus_trader / qlib / jesse) are not yet numpy-2 compatible. Do NOT lift
+# this pin without a full integration test of the trading repos.
 numpy>=1.26.0,<2.0
 
 # Market data (choose based on available API keys)
@@ -52,6 +55,11 @@ stripe>=10.0.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
 bcrypt==4.2.1               # passlib 1.7.4 is incompatible with bcrypt>=5.0
+
+# At-rest credential encryption (Fernet) — see app/core/crypto.py.
+# Also pulled transitively by python-jose[cryptography]; pinned explicitly
+# so the security control has a first-class, auditable dependency.
+cryptography>=42.0.0
 
 # Environment
 python-dotenv==1.0.1

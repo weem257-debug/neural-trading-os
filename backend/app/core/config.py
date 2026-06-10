@@ -138,6 +138,12 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_HOURS: int = 24
 
+    # At-rest credential encryption (Fernet). See app/core/crypto.py.
+    # Empty in dev → credentials stored as clear text (with a warning).
+    # Required in production (startup guard in main.py aborts if missing).
+    APP_ENCRYPTION_KEY: str = ""
+    APP_ENCRYPTION_KEYS_OLD: str = ""  # comma-separated old keys for rotation
+
     # Demo credentials (override via env in production)
     DEMO_USERNAME: str = "admin"
     DEMO_PASSWORD: str = "neural123"
@@ -184,6 +190,46 @@ _JWT_WEAK_KEYS = {
     "changeme",
     "your-jwt-secret",
 }
+
+# Known default/demo passwords that must never reach a production deployment.
+_DEFAULT_DEMO_PASSWORDS = {
+    "neural123",
+    "admin",
+    "password",
+    "changeme",
+    "demo",
+}
+
+# Environments treated as "hardened" (no demo fallbacks, fail-closed checks).
+_HARDENED_ENVIRONMENTS = {"production", "prod", "staging"}
+
+
+def is_hardened_environment() -> bool:
+    """True for production/staging — used to disable demo fallbacks and
+    enforce fail-closed startup checks. Reads the live ENVIRONMENT value."""
+    import os as _os
+    env = (_os.getenv("ENVIRONMENT", settings.ENVIRONMENT) or "").strip().lower()
+    return env in _HARDENED_ENVIRONMENTS
+
+
+def demo_password_is_default() -> bool:
+    """True when DEMO_PASSWORD is empty or a well-known default."""
+    pw = (settings.DEMO_PASSWORD or "").strip()
+    return (not pw) or pw.lower() in _DEFAULT_DEMO_PASSWORDS
+
+
+def demo_login_enabled() -> bool:
+    """
+    The built-in demo/admin account is only available outside hardened
+    environments, OR in a hardened environment when DEMO_PASSWORD has been
+    explicitly overridden with a non-default value.
+
+    In production with a default password the account is fully disabled
+    (the startup guard in main.py additionally aborts the boot).
+    """
+    if not is_hardened_environment():
+        return True
+    return not demo_password_is_default()
 
 
 def anthropic_key_configured() -> bool:

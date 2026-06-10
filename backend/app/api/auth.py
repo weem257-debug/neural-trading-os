@@ -47,7 +47,7 @@ from passlib.context import CryptContext
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func, select, update
 
-from app.core.config import settings
+from app.core.config import settings, demo_login_enabled
 from app.core.rate_limits import limiter
 from app.db.database import get_session
 from app.db.models import User, SignalRecord, PriceAlertRecord, BankConnection, Portfolio, P2PSnapshot, TradeLearning
@@ -535,8 +535,18 @@ _DEMO_USER_DB: dict | None = None
 
 
 def _get_demo_user_db() -> dict:
-    """Returns a minimal user store. Password is hashed exactly once at first call."""
+    """
+    Returns a minimal user store for the built-in demo/admin account.
+
+    In hardened environments (production/staging) the demo account is
+    disabled unless DEMO_PASSWORD was explicitly overridden with a
+    non-default value — in that case an empty store is returned so the
+    fallback authentication path matches no one. Password is hashed
+    exactly once at first call.
+    """
     global _DEMO_USER_DB
+    if not demo_login_enabled():
+        return {}
     if _DEMO_USER_DB is None:
         hashed_pw = pwd_context.hash(settings.DEMO_PASSWORD)
         _DEMO_USER_DB = {
@@ -745,7 +755,8 @@ async def get_current_user_optional(
     summary="Get JWT access token",
     description=(
         "Exchange username and password for a JWT. "
-        "Demo credentials: `admin` / `neural123`."
+        "A built-in demo account (`admin`) is available in non-production "
+        "environments only; it is disabled automatically in production."
     ),
 )
 @limiter.limit("5/minute")
