@@ -115,8 +115,8 @@ async def get_all_statuses() -> dict[str, str]:
         async with _AsyncSessionFactory() as session:
             result = await session.execute(select(AppSecret.key))
             db_keys = {row[0] for row in result.fetchall() if row[0]}
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("credential_status_db_lookup_failed", extra={"reason": str(exc)})
 
     statuses: dict[str, str] = {}
     for key in _ALLOWED_KEYS:

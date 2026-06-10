@@ -86,8 +86,9 @@ async def submit_order(
                 "quantity": req.quantity,
                 "mode": client.mode,
             }))
-        except Exception:
-            pass
+        except Exception as hook_err:
+            # Webhook dispatch is best-effort and must never fail the order.
+            logger.warning("order_filled_webhook_dispatch_failed: %s", hook_err)
         return result
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))

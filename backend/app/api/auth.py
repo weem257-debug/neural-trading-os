@@ -594,8 +594,10 @@ async def _authenticate_user_db(username: str, password: str) -> Optional[dict]:
                     "role": db_user.role,
                     "tier": db_user.tier,
                 }
-    except Exception:
-        pass
+    except Exception as exc:
+        # DB unreachable / schema issue — log so an outage is visible, then
+        # fall back to the (off-prod) demo account instead of hard-failing login.
+        _logger.warning("auth_db_lookup_failed username=%s reason=%s", username, exc)
     return _authenticate_user(username, password)
 
 
@@ -662,8 +664,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
                     "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
                     "email_unsubscribed": bool(db_user.email_unsubscribed),
                 }
-    except Exception:
-        pass
+    except Exception as exc:
+        _logger.warning("get_current_user_db_lookup_failed username=%s reason=%s", username, exc)
 
     if user is None:
         db = _get_demo_user_db()

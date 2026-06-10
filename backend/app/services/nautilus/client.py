@@ -12,12 +12,31 @@ This client manages:
 import logging
 import uuid
 from datetime import datetime, UTC
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Optional
 
 from app.core.config import settings
 from app.models.schemas import OrderRequest, OrderResponse, Position, PortfolioSnapshot
 
 logger = logging.getLogger(__name__)
+
+_CENT = Decimal("0.01")
+
+
+def _money(value: float) -> float:
+    """
+    Quantize a monetary amount to whole cents using banker-safe rounding.
+
+    The paper-trading engine keeps float-typed public schemas, but raw float
+    arithmetic accumulates binary-representation drift (e.g. 0.1 + 0.2). Routing
+    every money result through Decimal-quantization keeps stored cash / PnL exact
+    to the cent. (Real-money execution should use Decimal end-to-end — tracked as
+    a follow-up; this path is simulation only.)
+    """
+    try:
+        return float(Decimal(str(value)).quantize(_CENT, rounding=ROUND_HALF_UP))
+    except Exception:
+        return value
 
 
 # ---------------------------------------------------------------------------
@@ -246,7 +265,7 @@ class NautilusExecutionClient:
         # Execute fill — update portfolio state
         if req.side.value == "buy":
             cost = fill_price * req.quantity
-            self._cash -= cost
+            self._cash = _money(self._cash - cost)
             pos = self._positions.get(ticker)
             if pos is None:
                 self._positions[ticker] = {
@@ -263,9 +282,9 @@ class NautilusExecutionClient:
         else:  # sell
             pos = self._positions[ticker]
             realized = (fill_price - pos["avg_price"]) * req.quantity
-            pos["realized_pnl"] += realized
+            pos["realized_pnl"] = _money(pos["realized_pnl"] + realized)
             pos["quantity"] -= req.quantity
-            self._cash += fill_price * req.quantity
+            self._cash = _money(self._cash + fill_price * req.quantity)
             if pos["quantity"] <= 0:
                 del self._positions[ticker]
 
