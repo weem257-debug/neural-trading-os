@@ -953,8 +953,10 @@ Central orchestrator for 9 specialized trading repos:
 
 All LLM calls use Anthropic Claude (Sonnet 4.6 for analysis, Haiku for fast tasks).
     """,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # H4: expose interactive API docs only outside hardened environments.
+    docs_url=None if is_hardened_environment() else "/docs",
+    redoc_url=None if is_hardened_environment() else "/redoc",
+    openapi_url=None if is_hardened_environment() else "/openapi.json",
     lifespan=lifespan,
 )
 
@@ -980,13 +982,35 @@ if settings.PRODUCTION_URL:
     for _origin in [settings.PRODUCTION_URL.rstrip("/")]:
         if _origin not in _cors_origins:
             _cors_origins.append(_origin)
+if settings.FRONTEND_URL:
+    _fe = settings.FRONTEND_URL.rstrip("/")
+    if _fe not in _cors_origins:
+        _cors_origins.append(_fe)
 
+# H3: in hardened environments, never fall back to localhost dev origins and
+# never reflect arbitrary origins. Drop loopback origins and require that at
+# least one real origin is configured.
+if is_hardened_environment():
+    _cors_origins = [
+        o for o in _cors_origins
+        if not (o.startswith("http://localhost") or o.startswith("http://127.0.0.1"))
+    ]
+    if not _cors_origins:
+        logger.warning(
+            "cors_no_production_origins",
+            hint="Set ALLOWED_ORIGINS / PRODUCTION_URL / FRONTEND_URL to your real "
+                 "frontend origin(s); CORS will reject all cross-origin requests until then.",
+        )
+
+# Explicit method/header allow-lists instead of "*" (required anyway once
+# allow_credentials=True is combined with concrete origins).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
+    max_age=600,
 )
 
 # ---------------------------------------------------------------------------

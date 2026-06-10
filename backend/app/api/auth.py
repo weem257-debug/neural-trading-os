@@ -759,7 +759,7 @@ async def get_current_user_optional(
         "environments only; it is disabled automatically in production."
     ),
 )
-@limiter.limit("5/minute")
+@limiter.limit("5/minute;30/hour")
 async def login_for_access_token(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -825,7 +825,7 @@ async def refresh_token(
     summary="Neuen Benutzer registrieren",
     description="Erstellt ein neues Benutzerkonto. Neue Nutzer erhalten automatisch den kostenlosen Tarif.",
 )
-@limiter.limit("3/minute")
+@limiter.limit("3/minute;20/hour")
 async def register(
     request: Request,
     body: RegisterRequest,
