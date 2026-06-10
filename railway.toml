@@ -6,8 +6,19 @@
 # Required env vars to set in Railway dashboard:
 #   ANTHROPIC_API_KEY      — your Anthropic key
 #   JWT_SECRET_KEY         — min 32 chars, use: openssl rand -hex 32
+#                            (app refuses to boot in production without it)
+#   APP_ENCRYPTION_KEY     — Fernet key for at-rest credential encryption.
+#                            REQUIRED in production (boot aborts without it).
+#                            Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+#   APP_ENCRYPTION_KEYS_OLD— (optional) comma-separated old keys during rotation
+#   TRUST_PROXY            — set "true" on Railway so rate-limiting reads the
+#                            real client IP from X-Forwarded-For
 #   DEMO_USERNAME          — login username (default: admin)
-#   DEMO_PASSWORD          — login password (change from default!)
+#   DEMO_PASSWORD          — leave default to DISABLE the demo account in prod,
+#                            or set a strong non-default value to keep it enabled.
+#                            A known-weak value (e.g. neural123) aborts startup.
+#   ALLOWED_ORIGINS        — comma-separated real frontend origin(s); no localhost
+#                            is honoured in production (CORS lockdown)
 #   PRODUCTION_URL         — your Railway frontend URL after first deploy
 #                            e.g. https://neural-trading-os-frontend.up.railway.app
 #   NEXT_PUBLIC_APP_URL    — same URL for sitemap/OG image base
