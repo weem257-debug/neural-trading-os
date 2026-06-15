@@ -44,11 +44,13 @@ _PLAN_LIMITS: dict[str, int] = {
 }
 
 
-# In-memory de-dup: "username:YYYY-MM-DD" → already sent quota-exhaustion email/telegram today
-_quota_notified: set[str] = set()
-_quota_telegram_notified: set[str] = set()
-# In-memory de-dup: "username:YYYY-MM-DD" → 80%-approaching email already sent today
-_quota_approaching_notified: set[str] = set()
+# In-memory de-dup: "username:YYYY-MM-DD" → already sent quota-exhaustion email/telegram today.
+# FIFO-bounded so the marker sets can't grow without limit in a long-lived process.
+from app.core.cache import BoundedDedupSet
+_quota_notified: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
+_quota_telegram_notified: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
+# "username:YYYY-MM-DD" → 80%-approaching email already sent today
+_quota_approaching_notified: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
 
 
 async def _send_quota_notification(username: str, email: str, plan: str, limit: int) -> None:

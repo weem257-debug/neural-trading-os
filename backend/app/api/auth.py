@@ -182,9 +182,14 @@ def _hash_reset_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 # In-memory unsubscribe set (username → True).  Persists for the lifetime
-# of the process; a DB column is the production upgrade path.
+# of the process; mirrors the email_unsubscribed DB column (rehydrated on
+# startup). Intentionally an unbounded set: it is naturally bounded by the
+# user count and correctness (never silently re-subscribe someone) outranks
+# the marginal memory cost here.
 _unsubscribed: set[str] = set()
-_referral_notified: set[str] = set()
+# Pure dedup marker ("referrer:referee") — safe to bound with FIFO eviction.
+from app.core.cache import BoundedDedupSet
+_referral_notified: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
 
 
 def _make_unsubscribe_token(username: str) -> str:

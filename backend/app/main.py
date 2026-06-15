@@ -157,8 +157,10 @@ async def _notify_signal_win(user_id: str, ticker: str, direction: str, entry: f
         logger.warning("signal_win_notification_failed", user_id=user_id, reason=str(e))
 
 
-# De-dup: "user_id:signal_ticker:YYYY-MM-DD" — one win email per ticker per day
-_signal_win_email_sent: set[str] = set()
+# De-dup: "user_id:signal_ticker:YYYY-MM-DD" — one win email per ticker per day.
+# Bounded so a long-lived process can't grow this marker set without limit.
+from app.core.cache import BoundedDedupSet
+_signal_win_email_sent: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
 
 
 async def _send_signal_win_email(user_id: str, ticker: str, direction: str, entry: float, current: float, return_pct: float) -> None:

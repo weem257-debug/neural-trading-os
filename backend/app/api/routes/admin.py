@@ -24,14 +24,18 @@ from app.db.models import User, SignalRecord, WaitlistEntry, SignalPerformance
 
 logger = logging.getLogger(__name__)
 
-# In-memory de-dup: "username:YYYY-MM-DD" → upgrade email sent today
-_upgrade_email_sent: set[str] = set()
-# In-memory de-dup: "email:YYYY-MM-DD" → waitlist invite sent today
-_waitlist_invited: set[str] = set()
-# In-memory de-dup: "username:YYYY-MM-DD" → daily signal notification sent today
-_daily_signal_notified: set[str] = set()
-# In-memory de-dup: "username" → activation follow-up sent (once per user, no date key)
-_activation_followup_sent: set[str] = set()
+# In-memory de-dup marker sets. All are pure "have I already sent X?" markers
+# (date-keyed or once-per-user), so FIFO-bounded sets prevent unbounded growth
+# in the long-lived scheduler process without changing send semantics.
+from app.core.cache import BoundedDedupSet
+# "username:YYYY-MM-DD" → upgrade email sent today
+_upgrade_email_sent: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
+# "email:YYYY-MM-DD" → waitlist invite sent today
+_waitlist_invited: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
+# "username:YYYY-MM-DD" → daily signal notification sent today
+_daily_signal_notified: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
+# "username" → activation follow-up sent (once per user, no date key)
+_activation_followup_sent: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -530,7 +534,7 @@ class BulkReengagementResponse(BaseModel):
 
 
 # In-memory de-dup: "username:YYYY-MM-DD" → reengagement email sent today
-_reengagement_sent: set[str] = set()
+_reengagement_sent: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
 
 
 @router.post("/bulk-reengagement-email", response_model=BulkReengagementResponse)
@@ -755,7 +759,7 @@ class WeeklyDigestResponse(BaseModel):
 
 
 # In-memory de-dup: "username:YYYY-WW" → weekly digest sent this calendar week
-_weekly_digest_sent: set[str] = set()
+_weekly_digest_sent: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
 
 
 @router.post("/send-weekly-digest", response_model=WeeklyDigestResponse)
