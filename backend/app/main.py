@@ -31,6 +31,7 @@ from app.core.config import (
     jwt_key_is_secure,
     is_hardened_environment,
     demo_password_is_default,
+    stripe_webhook_secret_missing,
 )
 from app.core.rate_limits import limiter
 from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing, telegram, settings as settings_routes, brokers, admin
@@ -732,6 +733,22 @@ async def lifespan(app: FastAPI):
                 "python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\" "
                 "and set it as the APP_ENCRYPTION_KEY environment variable before starting."
             )
+
+    # C4 — when Stripe billing is enabled (STRIPE_SECRET_KEY set) a hardened
+    # deployment MUST also carry the webhook signing secret. Without it the
+    # signature check in the /api/billing/webhook handler fails on every event,
+    # so paid upgrades/downgrades silently never apply — a cash-critical, hard
+    # to detect failure. Fail closed at boot instead.
+    if is_production and stripe_webhook_secret_missing():
+        raise RuntimeError(
+            "FATAL: STRIPE_SECRET_KEY is set but STRIPE_WEBHOOK_SECRET is missing while "
+            f"ENVIRONMENT={os.getenv('ENVIRONMENT', 'development')!r}. Inbound Stripe "
+            "webhooks are authenticated solely by their signature; without the signing "
+            "secret every event is rejected and paid subscription changes never reach the "
+            "database. Set STRIPE_WEBHOOK_SECRET (Stripe Dashboard → Developers → Webhooks → "
+            "signing secret, 'whsec_...') before starting, or unset STRIPE_SECRET_KEY to run "
+            "without billing."
+        )
 
     # Apply Alembic migrations (idempotent — safe to run on every startup)
     try:

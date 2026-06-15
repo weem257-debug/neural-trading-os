@@ -247,3 +247,27 @@ def jwt_key_is_secure() -> bool:
     if len(key) < 32:
         return False
     return key not in _JWT_WEAK_KEYS
+
+
+def stripe_billing_enabled() -> bool:
+    """True when Stripe billing is switched on (a live secret key is configured).
+
+    Stripe is opt-in: an instance with no STRIPE_SECRET_KEY runs without any
+    billing surface (the /webhook route returns 503). This mirrors the
+    ``_stripe_enabled()`` check in app/api/routes/billing.py and is the
+    precondition for the webhook-secret startup guard.
+    """
+    return bool((settings.STRIPE_SECRET_KEY or "").strip())
+
+
+def stripe_webhook_secret_missing() -> bool:
+    """True when a webhook signing secret is required but absent.
+
+    The Stripe webhook handler authenticates inbound events purely via the
+    ``STRIPE_WEBHOOK_SECRET`` signature. If billing is enabled but the secret
+    is unset, ``stripe.Webhook.construct_event`` runs against an empty secret
+    and every signature check fails — i.e. the cash-critical upgrade/downgrade
+    path is silently dead. We treat that as a fail-closed startup condition in
+    hardened environments rather than discovering it on the first live event.
+    """
+    return stripe_billing_enabled() and not (settings.STRIPE_WEBHOOK_SECRET or "").strip()
