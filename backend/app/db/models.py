@@ -425,3 +425,28 @@ class User(Base):
     )
     referred_by: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default=None)
     email_unsubscribed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class PasswordResetToken(Base):
+    """
+    Persistent password-reset token store (replaces the in-memory dict).
+
+    SECURITY (P0 #5):
+      - Only the SHA-256 *hash* of the token is stored, never the raw token.
+      - `expires_at` enforces a TTL (default 1h, set by the issuer).
+      - `used_at` enforces single-use: a token with used_at != NULL is dead.
+    Survives redeploys and works across >1 replica (DB is the single source of truth).
+    """
+
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    username: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )

@@ -46,7 +46,7 @@ class WebhookCreateRequest(BaseModel):
     response_model=WebhookRecord,
     status_code=200,
 )
-async def create_webhook(req: WebhookCreateRequest, _: UserInfo = Depends(get_current_user)) -> WebhookRecord:
+async def create_webhook(req: WebhookCreateRequest, current_user: UserInfo = Depends(get_current_user)) -> WebhookRecord:
     """
     Register a webhook endpoint.
 
@@ -62,6 +62,7 @@ async def create_webhook(req: WebhookCreateRequest, _: UserInfo = Depends(get_cu
             url=req.url,
             events=req.events,
             secret=req.secret or "",
+            owner_username=current_user.username,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -73,10 +74,10 @@ async def create_webhook(req: WebhookCreateRequest, _: UserInfo = Depends(get_cu
     summary="List all registered webhooks",
     response_model=list[WebhookRecord],
 )
-async def list_webhooks(_: UserInfo = Depends(get_current_user)) -> list[WebhookRecord]:
-    """Return all registered webhook registrations."""
+async def list_webhooks(current_user: UserInfo = Depends(get_current_user)) -> list[WebhookRecord]:
+    """Return the current user's registered webhook registrations."""
     mgr = get_webhook_manager()
-    return [WebhookRecord(**wh.to_dict()) for wh in mgr.get_all()]
+    return [WebhookRecord(**wh.to_dict()) for wh in mgr.get_all(owner_username=current_user.username)]
 
 
 @router.delete(
@@ -84,10 +85,10 @@ async def list_webhooks(_: UserInfo = Depends(get_current_user)) -> list[Webhook
     summary="Delete a webhook registration",
     response_model=WebhookDeleteResponse,
 )
-async def delete_webhook(webhook_id: str, _: UserInfo = Depends(get_current_user)) -> WebhookDeleteResponse:
-    """Permanently remove a webhook registration by its ID."""
+async def delete_webhook(webhook_id: str, current_user: UserInfo = Depends(get_current_user)) -> WebhookDeleteResponse:
+    """Permanently remove one of the current user's webhook registrations by ID."""
     mgr = get_webhook_manager()
-    deleted = mgr.delete(webhook_id)
+    deleted = mgr.delete(webhook_id, owner_username=current_user.username)
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Webhook {webhook_id} nicht gefunden")
     return WebhookDeleteResponse(deleted=True, webhook_id=webhook_id)
@@ -98,14 +99,14 @@ async def delete_webhook(webhook_id: str, _: UserInfo = Depends(get_current_user
     summary="Send a test event to a webhook",
     response_model=WebhookTestResponse,
 )
-async def test_webhook(webhook_id: str, _: UserInfo = Depends(get_current_user)) -> WebhookTestResponse:
+async def test_webhook(webhook_id: str, current_user: UserInfo = Depends(get_current_user)) -> WebhookTestResponse:
     """
     Send a test `test` event payload to the specified webhook URL.
     Returns the HTTP status code received from the remote endpoint.
     """
     mgr = get_webhook_manager()
     try:
-        result = await mgr.send_test(webhook_id)
+        result = await mgr.send_test(webhook_id, owner_username=current_user.username)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     return WebhookTestResponse(**result)

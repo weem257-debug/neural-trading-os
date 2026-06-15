@@ -128,6 +128,7 @@ class WebhookRegistration:
     url: str
     events: list[str]
     secret: str
+    owner_username: Optional[str] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     last_delivery_at: Optional[datetime] = None
     last_delivery_status: Optional[int] = None
@@ -165,9 +166,15 @@ class WebhookManager:
         url: str,
         events: list[str],
         secret: str = "",
+        owner_username: Optional[str] = None,
     ) -> WebhookRegistration:
-        """Register a new outbound webhook. Returns the registration."""
-        if len(self._webhooks) >= _MAX_WEBHOOKS:
+        """Register a new outbound webhook for a specific owner. Returns the registration."""
+        # SECURITY (P0 #4): the per-owner limit is enforced over the owner's own
+        # webhooks so one user cannot exhaust the registry for everyone.
+        owned_count = sum(
+            1 for w in self._webhooks.values() if w.owner_username == owner_username
+        )
+        if owned_count >= _MAX_WEBHOOKS:
             raise ValueError(f"Maximale Anzahl von {_MAX_WEBHOOKS} Webhooks erreicht. Bitte zuerst einen löschen.")
 
         unknown = set(events) - WEBHOOK_EVENTS
@@ -187,23 +194,39 @@ class WebhookManager:
             url=url,
             events=events,
             secret=secret or _default_secret(),
+            owner_username=owner_username,
         )
         self._webhooks[wh.id] = wh
-        logger.info("webhook_registered id=%s url=%s events=%s", wh.id, url, events)
+        logger.info("webhook_registered id=%s owner=%s url=%s events=%s", wh.id, owner_username, url, events)
         return wh
 
-    def get_all(self) -> list[WebhookRegistration]:
-        return list(self._webhooks.values())
+    def get_all(self, owner_username: Optional[str] = None) -> list[WebhookRegistration]:
+        """Return webhooks. SECURITY (P0 #4): scoped to owner when given."""
+        items = list(self._webhooks.values())
+        if owner_username is not None:
+            items = [w for w in items if w.owner_username == owner_username]
+        return items
 
-    def get(self, webhook_id: str) -> Optional[WebhookRegistration]:
-        return self._webhooks.get(webhook_id)
+    def get(self, webhook_id: str, owner_username: Optional[str] = None) -> Optional[WebhookRegistration]:
+        """Return one webhook, only if owned by owner_username (IDOR guard)."""
+        wh = self._webhooks.get(webhook_id)
+        if wh is None:
+            return None
+        if owner_username is not None and wh.owner_username != owner_username:
+            return None
+        return wh
 
-    def delete(self, webhook_id: str) -> bool:
-        if webhook_id in self._webhooks:
-            del self._webhooks[webhook_id]
-            logger.info("webhook_deleted id=%s", webhook_id)
-            return True
-        return False
+    def delete(self, webhook_id: str, owner_username: Optional[str] = None) -> bool:
+        """Delete one webhook, only if owned by owner_username (IDOR guard)."""
+        wh = self._webhooks.get(webhook_id)
+        if wh is None:
+            return False
+        if owner_username is not None and wh.owner_username != owner_username:
+            # Do not reveal existence of another user's webhook.
+            return False
+        del self._webhooks[webhook_id]
+        logger.info("webhook_deleted id=%s owner=%s", webhook_id, owner_username)
+        return True
 
     # ------------------------------------------------------------------
     # Delivery
@@ -228,9 +251,9 @@ class WebhookManager:
             return_exceptions=True,
         )
 
-    async def send_test(self, webhook_id: str) -> dict:
-        """Send a test event to a specific webhook. Returns delivery result."""
-        wh = self._webhooks.get(webhook_id)
+    async def send_test(self, webhook_id: str, owner_username: Optional[str] = None) -> dict:
+        """Send a test event to a specific owned webhook. Returns delivery result."""
+        wh = self.get(webhook_id, owner_username=owner_username)
         if not wh:
             raise KeyError(f"Webhook {webhook_id} not found")
 

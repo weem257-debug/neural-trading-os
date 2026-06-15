@@ -32,16 +32,20 @@ _ALLOWED_KEYS = frozenset({
     "COMDIRECT_REFRESH_TOKEN",
     # ---- Neue Broker (Phase 2: Community-Libs) ----
     "DEGIRO_USERNAME",
-    "DEGIRO_PASSWORD",
+    # DEGIRO_PASSWORD ist NICHT in der Whitelist — Passwort wird NIE in der DB
+    # gespeichert. Per Request übergeben oder via ENV (os.getenv-Fallback in
+    # get_credential / broker-service-Layer). [SECURITY P0]
     "DEGIRO_TOTP_TOKEN",
     "FLATEX_FINTS_USER",
     # FLATEX_FINTS_PIN ist NICHT in der Whitelist — PIN wird NIE in der DB gespeichert
     "FLATEX_FINTS_ACCOUNT",
     "CROWDESTOR_EMAIL",
-    "CROWDESTOR_PASSWORD",
+    # CROWDESTOR_PASSWORD ist NICHT in der Whitelist — Passwort wird NIE in der DB
+    # gespeichert. Per Request oder ENV. [SECURITY P0]
     # ---- Neue Broker (Phase 3: Reverse Engineering) ----
     "TR_PHONE_NUMBER",
-    "TR_PIN",
+    # TR_PIN ist NICHT in der Whitelist — PIN wird NIE in der DB gespeichert.
+    # Per Request oder ENV. [SECURITY P0]
     "WH_CTRADER_CLIENT_ID",
     "WH_CTRADER_CLIENT_SECRET",
     "WH_CTRADER_ACCESS_TOKEN",

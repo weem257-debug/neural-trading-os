@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.auth import get_current_user, UserInfo
+from app.api.routes.admin import _require_admin
 from app.services.credentials import (
     get_all_statuses,
     set_credential,
@@ -38,9 +39,9 @@ async def list_credentials(
 @router.post("/credentials")
 async def save_credential(
     body: CredentialBody,
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_admin),
 ) -> dict:
-    """Upsert a single credential in the DB."""
+    """Upsert a single credential in the DB. Admin-only (system-wide secret store)."""
     if body.key not in _ALLOWED_KEYS:
         raise HTTPException(status_code=400, detail=f"Schlüssel '{body.key}' ist nicht erlaubt")
     if not body.value.strip():
@@ -53,9 +54,9 @@ async def save_credential(
 @router.delete("/credentials/{key}")
 async def remove_credential(
     key: str,
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_admin),
 ) -> dict:
-    """Remove a credential from the DB (env var fallback still applies)."""
+    """Remove a credential from the DB (env var fallback still applies). Admin-only."""
     if key not in _ALLOWED_KEYS:
         raise HTTPException(status_code=400, detail=f"Schlüssel '{key}' ist nicht erlaubt")
     found = await delete_credential(key)

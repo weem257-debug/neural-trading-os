@@ -14,8 +14,9 @@ import asyncio
 import logging
 from datetime import datetime, UTC
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.api.auth import get_current_user, UserInfo
 from app.models.schemas import RiskMetrics, RiskLimits, ErrorResponse
 from app.services.jesse.client import compute_risk_metrics
 from app.services.nautilus.client import get_execution_client
@@ -148,9 +149,11 @@ async def _evaluate_and_broadcast(ws_manager) -> None:
     summary="Get portfolio risk metrics (alias)",
     responses={500: {"model": ErrorResponse}},
 )
-async def get_risk_metrics_root() -> RiskMetrics:
+async def get_risk_metrics_root(
+    current_user: UserInfo = Depends(get_current_user),
+) -> RiskMetrics:
     """Alias for /metrics — convenience root endpoint."""
-    return await get_risk_metrics()
+    return await get_risk_metrics(current_user=current_user)
 
 
 @router.get(
@@ -159,7 +162,9 @@ async def get_risk_metrics_root() -> RiskMetrics:
     summary="Get portfolio risk metrics",
     responses={500: {"model": ErrorResponse}},
 )
-async def get_risk_metrics() -> RiskMetrics:
+async def get_risk_metrics(
+    current_user: UserInfo = Depends(get_current_user),
+) -> RiskMetrics:
     """
     Compute and return risk metrics for the current portfolio.
 
@@ -188,7 +193,9 @@ async def get_risk_metrics() -> RiskMetrics:
     response_model=RiskLimits,
     summary="Get configured risk limits",
 )
-async def get_risk_limits() -> RiskLimits:
+async def get_risk_limits(
+    current_user: UserInfo = Depends(get_current_user),
+) -> RiskLimits:
     """Return the currently configured risk limits from settings."""
     from app.core.config import settings
     return RiskLimits(
@@ -204,7 +211,9 @@ async def get_risk_limits() -> RiskLimits:
     response_model=list[str],
     summary="Get active risk alerts",
 )
-async def get_risk_alerts() -> list[str]:
+async def get_risk_alerts(
+    current_user: UserInfo = Depends(get_current_user),
+) -> list[str]:
     """
     Return list of active risk alerts.
     Combines alerts from jesse risk module and TradingAgents Risk Agent.

@@ -172,9 +172,14 @@ class ResetPasswordRequest(BaseModel):
 
 _logger = logging.getLogger("auth")
 
-# In-memory password-reset token store  { token: {username, email, expires} }
-# Tokens are single-use and expire after 1 hour.
-_reset_tokens: dict[str, dict] = {}
+# Password-reset tokens are persisted in the DB (PasswordResetToken) — single-use,
+# TTL-enforced, redeploy- and multi-replica-safe. Only the SHA-256 hash is stored.
+# SECURITY (P0 #5): the previous in-memory dict did not survive redeploys and broke
+# with >1 replica; it has been replaced by DB-backed storage.
+
+def _hash_reset_token(token: str) -> str:
+    """SHA-256 hex digest of a reset token — only the hash is ever persisted."""
+    return hashlib.sha256(token.encode()).hexdigest()
 
 # In-memory unsubscribe set (username → True).  Persists for the lifetime
 # of the process; a DB column is the production upgrade path.
@@ -922,15 +927,22 @@ async def forgot_password(request: Request, body: ForgotPasswordRequest) -> dict
 
     if user:
         token = secrets.token_urlsafe(32)
-        _reset_tokens[token] = {
-            "username": user.username,
-            "email": user.email,
-            "expires": datetime.now(timezone.utc) + timedelta(hours=1),
-        }
         try:
-            await _send_reset_email(user.email, token, user.username)
+            from app.db.models import PasswordResetToken
+            async with get_session() as session:
+                session.add(PasswordResetToken(
+                    token_hash=_hash_reset_token(token),
+                    username=user.username,
+                    expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+                ))
+                await session.commit()
         except Exception as exc:
-            _logger.warning("Reset-E-Mail konnte nicht gesendet werden: %s", exc)
+            _logger.warning("Reset-Token konnte nicht gespeichert werden: %s", exc)
+        else:
+            try:
+                await _send_reset_email(user.email, token, user.username)
+            except Exception as exc:
+                _logger.warning("Reset-E-Mail konnte nicht gesendet werden: %s", exc)
 
     # Always 202 — don't reveal whether the email exists
     return {"message": "Falls ein Konto mit dieser E-Mail existiert, haben wir eine Zurücksetz-E-Mail gesendet."}
@@ -943,33 +955,47 @@ async def forgot_password(request: Request, body: ForgotPasswordRequest) -> dict
 )
 @limiter.limit("5/minute")
 async def reset_password(request: Request, body: ResetPasswordRequest) -> dict:
-    token_data = _reset_tokens.get(body.token)
+    from app.db.models import PasswordResetToken
 
-    if not token_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ungültiger oder abgelaufener Reset-Link",
-        )
-
-    if datetime.now(timezone.utc) > token_data["expires"]:
-        _reset_tokens.pop(body.token, None)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Der Reset-Link ist abgelaufen. Bitte fordere einen neuen an.",
-        )
+    token_hash = _hash_reset_token(body.token)
 
     try:
         async with get_session() as session:
             result = await session.execute(
-                select(User).where(User.username == token_data["username"])
+                select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash)
             )
-            user = result.scalar_one_or_none()
+            token_row = result.scalar_one_or_none()
+
+            # Invalid or already-consumed token (single-use enforcement).
+            if token_row is None or token_row.used_at is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Ungültiger oder abgelaufener Reset-Link",
+                )
+
+            # TTL enforcement.
+            expires_at = token_row.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > expires_at:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Der Reset-Link ist abgelaufen. Bitte fordere einen neuen an.",
+                )
+
+            user_result = await session.execute(
+                select(User).where(User.username == token_row.username)
+            )
+            user = user_result.scalar_one_or_none()
             if not user:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Benutzer nicht gefunden",
                 )
+
+            # Atomically: set new password AND mark token used (single-use).
             user.hashed_password = pwd_context.hash(body.password)
+            token_row.used_at = datetime.now(timezone.utc)
             await session.commit()
     except HTTPException:
         raise
@@ -979,7 +1005,6 @@ async def reset_password(request: Request, body: ResetPasswordRequest) -> dict:
             detail="Datenbankfehler beim Passwort-Reset",
         )
 
-    _reset_tokens.pop(body.token, None)
     return {"message": "Passwort erfolgreich geändert. Du kannst dich jetzt anmelden."}
 
 
