@@ -138,6 +138,15 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_HOURS: int = 24
 
+    # Cookie settings (P1-3 httpOnly-Cookie migration)
+    # AUTH_COOKIE_NAME: name of the httpOnly JWT cookie
+    # CSRF_COOKIE_NAME: name of the JS-readable CSRF cookie (Double-Submit pattern)
+    # COOKIE_SECURE: False in dev; set True via env in production (also auto-enabled
+    #                in is_hardened_environment() regardless of this flag)
+    AUTH_COOKIE_NAME: str = "access_token"
+    CSRF_COOKIE_NAME: str = "csrf_token"
+    COOKIE_SECURE: bool = False
+
     # At-rest credential encryption (Fernet). See app/core/crypto.py.
     # Empty in dev → credentials stored as clear text (with a warning).
     # Required in production (startup guard in main.py aborts if missing).

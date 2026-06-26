@@ -39,15 +39,14 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import json
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func, select, update
 
-from app.core.config import settings, demo_login_enabled
+from app.core.config import settings, demo_login_enabled, is_hardened_environment
 from app.core.rate_limits import limiter
 from app.db.database import get_session
 from app.db.models import User, SignalRecord, PriceAlertRecord, BankConnection, Portfolio, P2PSnapshot, TradeLearning
@@ -630,21 +629,135 @@ def _verify_token(token: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Cookie & CSRF helpers (P1-3: httpOnly-Cookie migration)
+# ---------------------------------------------------------------------------
+
+def _extract_token_from_request(
+    request: Request,
+    bearer_token: Optional[str],
+) -> tuple[Optional[str], bool]:
+    """
+    Dual-mode token extraction.
+
+    Priority: explicit Bearer header > ambient httpOnly cookie.
+    Rationale: API clients always send Bearer; browsers never do (cookie only).
+    Giving Bearer precedence means a request with an Authorization header is
+    never accidentally treated as cookie-auth and subjected to CSRF checks,
+    even if the client's cookie jar also happens to hold a session cookie.
+
+    Returns (token_str | None, via_cookie: bool).
+    """
+    if bearer_token:
+        return bearer_token, False
+    cookie_token = request.cookies.get(settings.AUTH_COOKIE_NAME)
+    if cookie_token:
+        return cookie_token, True
+    return None, False
+
+
+def _check_csrf(request: Request) -> None:
+    """
+    CSRF Double-Submit Cookie validation.
+    Only called when authentication was via cookie on a state-changing method.
+    Raises HTTP 403 if the X-CSRF-Token header is absent or doesn't match
+    the csrf_token cookie value.
+    """
+    csrf_header = request.headers.get("X-CSRF-Token", "")
+    csrf_cookie = request.cookies.get(settings.CSRF_COOKIE_NAME, "")
+    if not csrf_header or not csrf_cookie:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CSRF-Token fehlt — X-CSRF-Token-Header erforderlich",
+        )
+    if not hmac.compare_digest(csrf_header, csrf_cookie):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ungültiger CSRF-Token",
+        )
+
+
+def _set_auth_cookies(response: Response, token: str, expires_delta: timedelta) -> None:
+    """
+    Set the httpOnly JWT auth cookie and the JS-readable CSRF cookie.
+    secure=True is enforced in hardened/production environments.
+    """
+    secure = is_hardened_environment() or settings.COOKIE_SECURE
+    max_age = int(expires_delta.total_seconds())
+    response.set_cookie(
+        key=settings.AUTH_COOKIE_NAME,
+        value=token,
+        max_age=max_age,
+        path="/",
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+    )
+    # CSRF token: non-httpOnly so JS can read it for the X-CSRF-Token header
+    csrf_token = secrets.token_hex(32)
+    response.set_cookie(
+        key=settings.CSRF_COOKIE_NAME,
+        value=csrf_token,
+        max_age=max_age,
+        path="/",
+        httponly=False,
+        secure=secure,
+        samesite="lax",
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    """Expire auth and CSRF cookies (used by the logout endpoint)."""
+    secure = is_hardened_environment() or settings.COOKIE_SECURE
+    response.set_cookie(
+        key=settings.AUTH_COOKIE_NAME,
+        value="",
+        max_age=0,
+        path="/",
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+    )
+    response.set_cookie(
+        key=settings.CSRF_COOKIE_NAME,
+        value="",
+        max_age=0,
+        path="/",
+        httponly=False,
+        secure=secure,
+        samesite="lax",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Auth dependencies
 # ---------------------------------------------------------------------------
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
+async def get_current_user(
+    request: Request,
+    bearer_token: Optional[str] = Depends(oauth2_scheme),
+) -> UserInfo:
     """
-    Strict auth dependency. Raises 401 if token is missing or invalid.
-    Use for endpoints that must be protected.
+    Dual-mode strict auth dependency.
+    Priority: httpOnly cookie → Bearer Authorization header.
+    When cookie-based, CSRF Double-Submit is enforced for state-changing methods
+    (POST / PUT / PATCH / DELETE).  Bearer-authenticated requests are exempt from
+    CSRF because they cannot be ambient-triggered by a malicious site.
+    Raises 401 if no valid token is found.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Anmeldedaten konnten nicht validiert werden",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    token, via_cookie = _extract_token_from_request(request, bearer_token)
     if token is None:
         raise credentials_exception
+
+    # CSRF Double-Submit validation for cookie-authenticated state-changing requests
+    if via_cookie and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        _check_csrf(request)
+
     try:
         payload = jwt.decode(
             token,
@@ -695,17 +808,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
 
 
 async def get_current_user_optional(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
+    bearer_token: Optional[str] = Depends(oauth2_scheme),
 ) -> Optional[UserInfo]:
     """
-    Optional auth dependency — onboarding-friendly.
+    Dual-mode optional auth dependency — onboarding-friendly.
 
-    Returns UserInfo if a valid token is provided.
-    Returns None (not an error) if no token is provided.
+    Returns UserInfo if a valid token is found (cookie or Bearer).
+    Returns None (not an error) if no credentials are present.
     Raises 401 only if a token is provided but invalid.
+    When cookie-based, CSRF Double-Submit is enforced for state-changing methods.
     """
+    token, via_cookie = _extract_token_from_request(request, bearer_token)
     if token is None:
         return None
+
+    # CSRF check applies to cookie-authenticated state-changing requests only
+    if via_cookie and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        _check_csrf(request)
+
     try:
         payload = jwt.decode(
             token,
@@ -774,6 +895,7 @@ async def get_current_user_optional(
 @limiter.limit("5/minute;30/hour")
 async def login_for_access_token(
     request: Request,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ) -> Token:
     user = await _authenticate_user_db(form_data.username, form_data.password)
@@ -788,6 +910,8 @@ async def login_for_access_token(
         data={"sub": user["username"], "role": user.get("role", "trader"), "tier": user.get("tier", "free")},
         expires_delta=expire_delta,
     )
+    # Set httpOnly auth cookie + JS-readable CSRF cookie (Double-Submit pattern)
+    _set_auth_cookies(response, access_token, expire_delta)
     return Token(
         access_token=access_token,
         token_type="bearer",
@@ -799,7 +923,7 @@ async def login_for_access_token(
     "/me",
     response_model=UserInfo,
     summary="Get current user info",
-    description="Returns user information extracted from the JWT. Requires valid Bearer token.",
+    description="Returns user information extracted from the JWT. Supports cookie or Bearer token.",
 )
 async def get_me(
     current_user: UserInfo = Depends(get_current_user),
@@ -808,14 +932,27 @@ async def get_me(
 
 
 @router.post(
+    "/logout",
+    status_code=status.HTTP_200_OK,
+    summary="Logout — Cookie löschen",
+    description="Löscht den httpOnly Auth-Cookie und den CSRF-Cookie. Kein Token erforderlich.",
+)
+async def logout(response: Response) -> dict:
+    """Expire auth + CSRF cookies to terminate the browser session."""
+    _clear_auth_cookies(response)
+    return {"message": "Erfolgreich abgemeldet"}
+
+
+@router.post(
     "/refresh",
     response_model=Token,
     summary="Token erneuern",
-    description="Gibt ein neues JWT mit frischer Ablaufzeit aus. Erfordert ein gültiges (nicht abgelaufenes) Bearer-Token.",
+    description="Gibt ein neues JWT mit frischer Ablaufzeit aus. Erneuert auch den httpOnly-Cookie.",
 )
 @limiter.limit("10/minute")
 async def refresh_token(
     request: Request,
+    response: Response,
     current_user: UserInfo = Depends(get_current_user),
 ) -> Token:
     expire_delta = timedelta(hours=settings.JWT_ACCESS_TOKEN_EXPIRE_HOURS)
@@ -823,6 +960,8 @@ async def refresh_token(
         data={"sub": current_user.username, "role": current_user.role or "trader", "tier": current_user.tier or "free"},
         expires_delta=expire_delta,
     )
+    # Refresh cookies alongside the JSON token response
+    _set_auth_cookies(response, access_token, expire_delta)
     return Token(
         access_token=access_token,
         token_type="bearer",

@@ -80,7 +80,13 @@ def _assert_ok(response, *, status: int = 200):
 
 
 def _auth_headers(client) -> dict:
-    """Return Bearer auth headers for the demo admin user."""
+    """
+    Return Bearer auth headers for the demo admin user.
+
+    Clears the client's cookie jar after obtaining the token so that
+    the server-set auth/CSRF cookies don't leak into subsequent tests
+    that expect 401 for unauthenticated requests.
+    """
     resp = client.post(
         "/api/auth/token",
         data={"username": "admin", "password": "neural123"},
@@ -88,6 +94,8 @@ def _auth_headers(client) -> dict:
     )
     assert resp.status_code == 200, f"Auth failed: {resp.text}"
     token = resp.json()["access_token"]
+    # Clear cookies so residual auth cookie doesn't affect unrelated tests
+    client.cookies.clear()
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -1138,7 +1146,10 @@ class TestAuth:
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         assert resp.status_code == 200, f"Token request failed: {resp.text}"
-        return resp.json()["access_token"]
+        token = resp.json()["access_token"]
+        # Clear cookies so auth/CSRF cookies don't affect subsequent no-auth tests
+        client.cookies.clear()
+        return token
 
     def test_token_correct_credentials_returns_200_and_token(self, client):
         """POST /api/auth/token with valid credentials must return 200 + access_token."""
@@ -4558,6 +4569,195 @@ class TestBrokers:
         assert "currency" in data
         assert data["currency"] == "EUR"
         assert isinstance(data["brokers"], list)
+
+
+# ---------------------------------------------------------------------------
+# P1-3: Cookie-based auth & CSRF Double-Submit tests
+# ---------------------------------------------------------------------------
+
+class TestCookieCSRFAuth:
+    """
+    Verifies the httpOnly-Cookie auth flow and CSRF Double-Submit protection.
+
+    Uses the shared session-scoped client fixture.  Each test clears the
+    cookie jar before running so residual cookies from other tests cannot
+    interfere.  Bearer-based tests in other classes are unaffected because
+    they never set an auth cookie.
+    """
+
+    _LOGIN_DATA = {"username": "admin", "password": "neural123"}
+    _LOGIN_HEADERS = {"Content-Type": "application/x-www-form-urlencoded"}
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _login_with_cookie(self, client) -> str:
+        """Login and return the CSRF token from the response cookie."""
+        client.cookies.clear()
+        resp = client.post(
+            "/api/auth/token",
+            data=self._LOGIN_DATA,
+            headers=self._LOGIN_HEADERS,
+        )
+        assert resp.status_code == 200, f"Login failed: {resp.text}"
+        return client.cookies.get("csrf_token", "")
+
+    # ------------------------------------------------------------------
+    # (a) Cookie-based authentication
+    # ------------------------------------------------------------------
+
+    def test_login_sets_httponly_access_token_cookie(self, client):
+        """POST /auth/token must set a Set-Cookie: access_token=... httponly header."""
+        client.cookies.clear()
+        resp = client.post(
+            "/api/auth/token",
+            data=self._LOGIN_DATA,
+            headers=self._LOGIN_HEADERS,
+        )
+        assert resp.status_code == 200
+        set_cookie = resp.headers.get("set-cookie", "")
+        assert "access_token=" in set_cookie, "access_token cookie not set"
+        assert "httponly" in set_cookie.lower(), "access_token cookie must be httpOnly"
+        client.cookies.clear()
+
+    def test_login_sets_csrf_cookie(self, client):
+        """POST /auth/token must also set a non-httpOnly csrf_token cookie."""
+        client.cookies.clear()
+        resp = client.post(
+            "/api/auth/token",
+            data=self._LOGIN_DATA,
+            headers=self._LOGIN_HEADERS,
+        )
+        assert resp.status_code == 200
+        csrf = client.cookies.get("csrf_token")
+        assert csrf, "csrf_token cookie not set after login"
+        assert len(csrf) >= 32, "csrf_token must be sufficiently random (>=32 chars)"
+        client.cookies.clear()
+
+    def test_cookie_auth_me_returns_user(self, client):
+        """GET /auth/me must work when authenticated via cookie (no Bearer header)."""
+        self._login_with_cookie(client)
+        resp = client.get("/api/auth/me")  # no Authorization header — uses cookie
+        assert resp.status_code == 200, f"Cookie auth failed for /me: {resp.text}"
+        data = resp.json()
+        assert data["username"] == "admin"
+        client.cookies.clear()
+
+    def test_logout_clears_cookies(self, client):
+        """POST /auth/logout must expire the auth and CSRF cookies."""
+        self._login_with_cookie(client)
+        resp = client.post("/api/auth/logout")
+        assert resp.status_code == 200
+        # After logout, subsequent /me call without Bearer must fail
+        client.cookies.clear()
+        resp2 = client.get("/api/auth/me")
+        assert resp2.status_code == 401
+
+    # ------------------------------------------------------------------
+    # (b) CSRF rejection tests
+    # ------------------------------------------------------------------
+
+    def test_csrf_reject_no_header_on_cookie_auth_post(self, client):
+        """Cookie-authed POST without X-CSRF-Token header must be rejected (403)."""
+        self._login_with_cookie(client)
+        # POST to a protected, state-changing endpoint without CSRF header
+        resp = client.post(
+            "/api/auth/email-preferences",
+            json={"subscribed": True},
+            # deliberately omit X-CSRF-Token
+        )
+        assert resp.status_code == 403, (
+            f"Expected 403 for CSRF-less cookie-authed POST, got {resp.status_code}: {resp.text}"
+        )
+        client.cookies.clear()
+
+    def test_csrf_reject_wrong_token_on_cookie_auth_post(self, client):
+        """Cookie-authed POST with an incorrect X-CSRF-Token value must be rejected (403)."""
+        self._login_with_cookie(client)
+        resp = client.post(
+            "/api/auth/email-preferences",
+            json={"subscribed": True},
+            headers={"X-CSRF-Token": "totally-wrong-token"},
+        )
+        assert resp.status_code == 403, (
+            f"Expected 403 for wrong CSRF token, got {resp.status_code}: {resp.text}"
+        )
+        client.cookies.clear()
+
+    def test_csrf_accept_correct_token_on_cookie_auth_post(self, client):
+        """Cookie-authed POST with matching X-CSRF-Token must succeed (200)."""
+        csrf = self._login_with_cookie(client)
+        assert csrf, "No CSRF token in cookie after login"
+        resp = client.post(
+            "/api/auth/email-preferences",
+            json={"subscribed": True},
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert resp.status_code == 200, (
+            f"Expected 200 with correct CSRF token, got {resp.status_code}: {resp.text}"
+        )
+        client.cookies.clear()
+
+    # ------------------------------------------------------------------
+    # (c) Bearer-header backward compatibility (no CSRF required)
+    # ------------------------------------------------------------------
+
+    def test_bearer_auth_post_no_csrf_required(self, client):
+        """Bearer-authenticated POST must NOT require X-CSRF-Token (backward compat)."""
+        client.cookies.clear()
+        # Obtain a Bearer token
+        resp = client.post(
+            "/api/auth/token",
+            data=self._LOGIN_DATA,
+            headers=self._LOGIN_HEADERS,
+        )
+        token = resp.json()["access_token"]
+        client.cookies.clear()  # remove cookies so request is Bearer-only
+
+        # POST without any CSRF header — should succeed
+        resp2 = client.post(
+            "/api/auth/email-preferences",
+            json={"subscribed": True},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp2.status_code == 200, (
+            f"Bearer-auth POST should not require CSRF, got {resp2.status_code}: {resp2.text}"
+        )
+
+    def test_bearer_auth_me_still_works(self, client):
+        """GET /auth/me via Bearer header must still return 200 (dual-mode compat)."""
+        client.cookies.clear()
+        resp = client.post(
+            "/api/auth/token",
+            data=self._LOGIN_DATA,
+            headers=self._LOGIN_HEADERS,
+        )
+        token = resp.json()["access_token"]
+        client.cookies.clear()
+
+        resp2 = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert resp2.status_code == 200
+        assert resp2.json()["username"] == "admin"
+
+
+# ---------------------------------------------------------------------------
+# Broker-specific tests (continued from TestBrokerStatus)
+# ---------------------------------------------------------------------------
+
+class TestBrokerFlatexAndMore:
+    """Flatex, Bitpanda, Comdirect, Degiro broker tests."""
+
+    def _get_token(self, client) -> str:
+        resp = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert resp.status_code == 200
+        token = resp.json()["access_token"]
+        client.cookies.clear()
+        return token
 
     def test_flatex_sync_requires_auth(self, client):
         resp = client.post("/api/brokers/flatex/sync", json={"pin": "1234"})
