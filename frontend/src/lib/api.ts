@@ -37,6 +37,7 @@ import type {
   PriceAlertDeleteResponse,
   BacktestResult,
   ElliottWaveAnalysis,
+  StockReport,
 } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -417,6 +418,18 @@ export const api = {
       apiFetch<ElliottWaveAnalysis>(`/api/analysis/elliott/${ticker}?period=${period}`),
     elliottDemo: () =>
       apiFetch<ElliottWaveAnalysis>("/api/analysis/elliott/demo"),
+  },
+
+  // -------------------------------------------------------------------------
+  // Stock Report (unified KI-Analyse mit Verdikt)
+  // -------------------------------------------------------------------------
+  report: {
+    /** Full report for the given ticker. Pass an optional share key when the
+     *  backend gate REPORT_SHARE_TOKEN is active. */
+    get: (ticker: string, key?: string): Promise<StockReport> => {
+      const qs = key ? `?key=${encodeURIComponent(key)}` : "";
+      return apiFetch<StockReport>(`/api/report/${encodeURIComponent(ticker)}${qs}`);
+    },
   },
 
   // -------------------------------------------------------------------------

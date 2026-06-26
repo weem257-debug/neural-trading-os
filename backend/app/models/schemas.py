@@ -458,6 +458,68 @@ class ErrorResponse(BaseModel):
 # Elliott Wave Analysis
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Stock Report (Technical, Risk, Verdict)
+# ---------------------------------------------------------------------------
+
+class TechnicalIndicators(BaseModel):
+    """Computed technical indicators for a single asset."""
+    rsi: Optional[float] = None
+    macd_hist: Optional[float] = None
+    bollinger_pct_b: Optional[float] = None
+    sma_trend: str = "neutral"           # "bullish" | "bearish" | "neutral"
+    volume_trend: str = "neutral"        # "rising"  | "falling" | "neutral"
+    atr: Optional[float] = None
+    regime: str = "ranging"             # "trending" | "ranging" | "high_volatility"
+    tech_score: float = 0.0             # composite in [-1, +1]
+    notes: list[str] = []
+
+
+class SingleAssetRisk(BaseModel):
+    """Single-asset risk metrics and position sizing."""
+    var_95_pct: float                   # Historical VaR 95 % (in %)
+    var_99_pct: float                   # Historical VaR 99 % (in %)
+    cvar_95_pct: float                  # CVaR / Expected Shortfall 95 % (in %)
+    ann_vol_pct: float                  # Annualized volatility (in %)
+    kelly_fraction: float               # Raw Kelly fraction (before halving)
+    recommended_position_pct: float     # Position size as fraction of equity
+    recommended_position_value: float   # Position size in base currency
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    circuit_breaker: bool = False
+    circuit_breaker_reasons: list[str] = []
+
+
+class StockReportVerdict(str, Enum):
+    BUY              = "BUY"
+    STRONG_BUY       = "STRONG_BUY"
+    HOLD             = "HOLD"
+    SELL             = "SELL"
+    STRONG_SELL      = "STRONG_SELL"
+    NO_RECOMMENDATION = "NO_RECOMMENDATION"
+
+
+class StockReport(BaseModel):
+    """Unified stock report with AI verdict and risk assessment."""
+    ticker: str
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    verdict: StockReportVerdict
+    verdict_label_de: str               # "KAUFEN" | "HALTEN" | "VERKAUFEN" | "KEINE EMPFEHLUNG"
+    confidence: float = Field(ge=0.0, le=1.0)
+    composite_score: float = Field(ge=-1.0, le=1.0)
+    position_size_pct: float            # Recommended position as fraction of equity
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    summary: str                        # German-language 3-6 sentence justification
+    components: dict[str, Any]          # Sub-module results + sub-scores
+    agreement: float = Field(ge=0.0, le=1.0)
+    data_quality: str                   # "good" | "limited" | "insufficient"
+
+
+# ---------------------------------------------------------------------------
+# Elliott Wave Analysis
+# ---------------------------------------------------------------------------
+
 class ElliottWavePoint(BaseModel):
     label: str
     price: float

@@ -325,6 +325,44 @@ export interface OhlcvCandle {
   volume: number;
 }
 
+// ---------------------------------------------------------------------------
+// Stock Report (GET /api/report/{ticker})
+// ---------------------------------------------------------------------------
+
+export type StockVerdikt =
+  | "BUY"
+  | "STRONG_BUY"
+  | "HOLD"
+  | "SELL"
+  | "STRONG_SELL"
+  | "NO_RECOMMENDATION";
+
+export interface StockReportComponents {
+  ai_signal?: number | null;
+  technical?: number | null;
+  elliott?: number | null;
+  sentiment?: number | null;
+  backtest?: number | null;
+  risk?: number | null;
+  [key: string]: number | null | undefined;
+}
+
+export interface StockReport {
+  ticker: string;
+  generated_at: string;
+  verdict: StockVerdikt;
+  verdict_label_de: string;
+  confidence: number;          // 0..1
+  composite_score: number;     // -1..1
+  position_size_pct: number;   // e.g. 0.0421 = 4.21%
+  stop_loss: number | null;
+  take_profit: number | null;
+  summary: string;
+  components: StockReportComponents;
+  agreement: number;           // 0..1
+  data_quality: string;
+}
+
 export interface ElliottWaveAnalysis {
   ticker: string;
   period: string;

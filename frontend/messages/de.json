@@ -18,7 +18,8 @@
     "performance": "KI-Performance",
     "brokers": "Broker & Depots",
     "settings": "Einstellungen",
-    "account": "Mein Konto"
+    "account": "Mein Konto",
+    "aktienanalyse": "Aktienanalyse"
   },
   "dashboard": {
     "title": "Übersicht",

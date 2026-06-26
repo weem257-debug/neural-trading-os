@@ -161,6 +161,10 @@ class Settings(BaseSettings):
     # E-Mail-Adresse für Admin-Benachrichtigungen (neue Registrierungen etc.)
     ADMIN_NOTIFICATION_EMAIL: str = ""
 
+    # Report Share Token (optional) — if set, GET /api/report/* requires ?key=<token>
+    # or header X-Report-Key:<token>. Leave empty to keep the endpoint open.
+    REPORT_SHARE_TOKEN: str = ""
+
     # Risk limits
     MAX_POSITION_SIZE_PCT: float = 0.05   # 5% of portfolio per position
     MAX_DAILY_LOSS_PCT: float = 0.02      # 2% daily stop-loss

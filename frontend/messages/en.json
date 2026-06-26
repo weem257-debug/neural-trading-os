@@ -18,7 +18,8 @@
     "performance": "AI Performance",
     "brokers": "Brokers & Depots",
     "settings": "Settings",
-    "account": "My Account"
+    "account": "My Account",
+    "aktienanalyse": "Stock Analysis"
   },
   "dashboard": {
     "title": "Overview",
