@@ -576,11 +576,13 @@ async def _handle_performance(chat_id: str) -> None:
         await send_message(chat_id, "⚠️ Performance-Daten konnten nicht geladen werden.")
 
 
-# In-memory de-dup: "chat_id:YYYY-MM-DD" → morning briefing already sent today
-_morning_briefing_sent: set[str] = set()
-
-# In-memory de-dup: "chat_id:YYYY-MM-DD" → daily signal digest already sent today
-_signal_digest_sent: set[str] = set()
+# In-memory de-dup markers. FIFO-bounded so they can't grow without limit in
+# the long-lived scheduler process.
+from app.core.cache import BoundedDedupSet
+# "chat_id:YYYY-MM-DD" → morning briefing already sent today
+_morning_briefing_sent: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
+# "chat_id:YYYY-MM-DD" → daily signal digest already sent today
+_signal_digest_sent: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
 
 _DIR_EMOJI = {
     "STRONG_BUY": "🟢🟢",

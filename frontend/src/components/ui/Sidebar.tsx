@@ -26,6 +26,7 @@ import {
   Building2,
   UserCircle,
   Award,
+  LineChart,
 } from "lucide-react";
 import { LanguageToggle, useI18n } from "@/i18n/context";
 import { api } from "@/lib/api";
@@ -40,7 +41,8 @@ const navItems = [
   { href: "/brokers",    labelKey: "nav.brokers",    icon: Building2,       color: "cyan" },
   { href: "/networth",   labelKey: "nav.networth",   icon: Wallet,          color: "green" },
   { href: "/learning",   labelKey: "nav.learning",   icon: Brain,           color: "purple" },
-  { href: "/analysis",   labelKey: "nav.analysis",   icon: Waves,           color: "purple" },
+  { href: "/analysis",        labelKey: "nav.analysis",        icon: Waves,       color: "purple" },
+  { href: "/aktienanalyse",  labelKey: "nav.aktienanalyse",  icon: LineChart,   color: "green"  },
   { href: "/backtest",   labelKey: "nav.backtest",   icon: BarChart2,       color: "cyan" },
   { href: "/sentiment",  labelKey: "nav.sentiment",  icon: Newspaper,       color: "yellow" },
   { href: "/risk",       labelKey: "nav.risk",       icon: Shield,          color: "pink" },
@@ -421,8 +423,8 @@ export function Sidebar() {
   if (pathname.startsWith("/invite/")) return null;
 
   // Public share surface: anonymous visitors arriving from a shared signal link
-  // get a clean page instead of a dashboard sidebar full of gated nav links.
-  if (!isAuthenticated && pathname.startsWith("/signals/view/")) return null;
+  // or the public stock-analysis page get a clean page without the sidebar.
+  if (!isAuthenticated && (pathname.startsWith("/signals/view/") || pathname.startsWith("/aktienanalyse"))) return null;
 
   return (
     <>

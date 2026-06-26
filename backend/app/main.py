@@ -26,9 +26,15 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.core.config import settings, jwt_key_is_secure
+from app.core.config import (
+    settings,
+    jwt_key_is_secure,
+    is_hardened_environment,
+    demo_password_is_default,
+    stripe_webhook_secret_missing,
+)
 from app.core.rate_limits import limiter
-from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing, telegram, settings as settings_routes, brokers, admin
+from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing, telegram, settings as settings_routes, brokers, admin, report
 from app.api import auth
 from app.websocket.manager import ws_manager
 
@@ -151,8 +157,10 @@ async def _notify_signal_win(user_id: str, ticker: str, direction: str, entry: f
         logger.warning("signal_win_notification_failed", user_id=user_id, reason=str(e))
 
 
-# De-dup: "user_id:signal_ticker:YYYY-MM-DD" — one win email per ticker per day
-_signal_win_email_sent: set[str] = set()
+# De-dup: "user_id:signal_ticker:YYYY-MM-DD" — one win email per ticker per day.
+# Bounded so a long-lived process can't grow this marker set without limit.
+from app.core.cache import BoundedDedupSet
+_signal_win_email_sent: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
 
 
 async def _send_signal_win_email(user_id: str, ticker: str, direction: str, entry: float, current: float, return_pct: float) -> None:
@@ -691,7 +699,7 @@ async def lifespan(app: FastAPI):
         environment=os.getenv("ENVIRONMENT", "development"),
     )
 
-    is_production = os.getenv("ENVIRONMENT", "development").lower() in ("production", "prod", "staging")
+    is_production = is_hardened_environment()
     if not jwt_key_is_secure():
         if is_production:
             raise RuntimeError(
@@ -702,6 +710,46 @@ async def lifespan(app: FastAPI):
         logger.warning(
             "jwt_secret_weak",
             hint="Set a strong JWT_SECRET_KEY (≥32 random chars) in .env before production",
+        )
+
+    # C3 — never boot a hardened deployment with the built-in demo/admin
+    # credentials still set to their default value.
+    if is_production and demo_password_is_default():
+        raise RuntimeError(
+            "FATAL: DEMO_PASSWORD is unset or uses a well-known default value while "
+            f"ENVIRONMENT={os.getenv('ENVIRONMENT', 'development')!r}. The built-in demo/admin "
+            "account would be exploitable. Either set a strong DEMO_PASSWORD via environment "
+            "variable, or (recommended) leave it at the default and rely solely on registered "
+            "users — the demo account is automatically disabled in production. This guard exists "
+            "to prevent an accidental admin/neural123 login in production."
+        )
+
+    # APP_ENCRYPTION_KEY guard (C2): refuse to boot a hardened deployment
+    # without an at-rest encryption key for stored credentials.
+    if is_production:
+        from app.core.crypto import encryption_key_configured
+        if not encryption_key_configured():
+            raise RuntimeError(
+                "FATAL: APP_ENCRYPTION_KEY is not configured. Stored broker/API credentials "
+                "would be written to the database in clear text. Generate a key with: "
+                "python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\" "
+                "and set it as the APP_ENCRYPTION_KEY environment variable before starting."
+            )
+
+    # C4 — when Stripe billing is enabled (STRIPE_SECRET_KEY set) a hardened
+    # deployment MUST also carry the webhook signing secret. Without it the
+    # signature check in the /api/billing/webhook handler fails on every event,
+    # so paid upgrades/downgrades silently never apply — a cash-critical, hard
+    # to detect failure. Fail closed at boot instead.
+    if is_production and stripe_webhook_secret_missing():
+        raise RuntimeError(
+            "FATAL: STRIPE_SECRET_KEY is set but STRIPE_WEBHOOK_SECRET is missing while "
+            f"ENVIRONMENT={os.getenv('ENVIRONMENT', 'development')!r}. Inbound Stripe "
+            "webhooks are authenticated solely by their signature; without the signing "
+            "secret every event is rejected and paid subscription changes never reach the "
+            "database. Set STRIPE_WEBHOOK_SECRET (Stripe Dashboard → Developers → Webhooks → "
+            "signing secret, 'whsec_...') before starting, or unset STRIPE_SECRET_KEY to run "
+            "without billing."
         )
 
     # Apply Alembic migrations (idempotent — safe to run on every startup)
@@ -924,8 +972,10 @@ Central orchestrator for 9 specialized trading repos:
 
 All LLM calls use Anthropic Claude (Sonnet 4.6 for analysis, Haiku for fast tasks).
     """,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # H4: expose interactive API docs only outside hardened environments.
+    docs_url=None if is_hardened_environment() else "/docs",
+    redoc_url=None if is_hardened_environment() else "/redoc",
+    openapi_url=None if is_hardened_environment() else "/openapi.json",
     lifespan=lifespan,
 )
 
@@ -951,13 +1001,35 @@ if settings.PRODUCTION_URL:
     for _origin in [settings.PRODUCTION_URL.rstrip("/")]:
         if _origin not in _cors_origins:
             _cors_origins.append(_origin)
+if settings.FRONTEND_URL:
+    _fe = settings.FRONTEND_URL.rstrip("/")
+    if _fe not in _cors_origins:
+        _cors_origins.append(_fe)
 
+# H3: in hardened environments, never fall back to localhost dev origins and
+# never reflect arbitrary origins. Drop loopback origins and require that at
+# least one real origin is configured.
+if is_hardened_environment():
+    _cors_origins = [
+        o for o in _cors_origins
+        if not (o.startswith("http://localhost") or o.startswith("http://127.0.0.1"))
+    ]
+    if not _cors_origins:
+        logger.warning(
+            "cors_no_production_origins",
+            hint="Set ALLOWED_ORIGINS / PRODUCTION_URL / FRONTEND_URL to your real "
+                 "frontend origin(s); CORS will reject all cross-origin requests until then.",
+        )
+
+# Explicit method/header allow-lists instead of "*" (required anyway once
+# allow_credentials=True is combined with concrete origins).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "X-CSRF-Token"],
+    max_age=600,
 )
 
 # ---------------------------------------------------------------------------
@@ -984,6 +1056,7 @@ app.include_router(telegram.router, prefix="/api")
 app.include_router(settings_routes.router, prefix="/api")
 app.include_router(brokers.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(report.router, prefix="/api")
 
 
 # ---------------------------------------------------------------------------

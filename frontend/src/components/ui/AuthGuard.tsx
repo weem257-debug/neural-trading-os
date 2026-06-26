@@ -37,7 +37,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const isPublic =
     PUBLIC_PATHS.has(pathname) ||
     pathname.startsWith("/signals/view/") ||
-    pathname.startsWith("/invite/");
+    pathname.startsWith("/invite/") ||
+    pathname.startsWith("/aktienanalyse");
 
   useEffect(() => {
     if (!mounted) return;

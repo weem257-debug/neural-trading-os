@@ -80,7 +80,13 @@ def _assert_ok(response, *, status: int = 200):
 
 
 def _auth_headers(client) -> dict:
-    """Return Bearer auth headers for the demo admin user."""
+    """
+    Return Bearer auth headers for the demo admin user.
+
+    Clears the client's cookie jar after obtaining the token so that
+    the server-set auth/CSRF cookies don't leak into subsequent tests
+    that expect 401 for unauthenticated requests.
+    """
     resp = client.post(
         "/api/auth/token",
         data={"username": "admin", "password": "neural123"},
@@ -88,6 +94,8 @@ def _auth_headers(client) -> dict:
     )
     assert resp.status_code == 200, f"Auth failed: {resp.text}"
     token = resp.json()["access_token"]
+    # Clear cookies so residual auth cookie doesn't affect unrelated tests
+    client.cookies.clear()
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -462,7 +470,7 @@ class TestRisk:
             mock_client.get_positions = AsyncMock(return_value=[])
             mock_get.return_value = mock_client
 
-            resp = client.get("/api/risk/metrics")
+            resp = client.get("/api/risk/metrics", headers=_auth_headers(client))
             # Accept 200 (success) or 500 with useful message (service unavailable)
             # but never 422 (schema/validation error)
             assert resp.status_code != 422, f"Unexpected 422: {resp.text}"
@@ -475,7 +483,7 @@ class TestRisk:
             mock_client.get_positions = AsyncMock(return_value=[])
             mock_get.return_value = mock_client
 
-            resp = client.get("/api/risk/metrics")
+            resp = client.get("/api/risk/metrics", headers=_auth_headers(client))
             if resp.status_code == 200:
                 data = resp.json()
                 required = {"portfolio_var_95", "portfolio_var_99", "max_drawdown", "sharpe_ratio"}
@@ -948,12 +956,12 @@ class TestRiskMetricsFields:
 
     def test_risk_root_returns_200_or_graceful(self, client):
         """GET /api/risk/ must return RiskMetrics or graceful error (not 422)."""
-        resp = client.get("/api/risk/")
+        resp = client.get("/api/risk/", headers=_auth_headers(client))
         assert resp.status_code != 422, f"Unexpected 422: {resp.text}"
 
     def test_risk_metrics_has_var_and_drawdown(self, client):
         """When /api/risk/metrics returns 200, VaR and Drawdown fields must be present."""
-        resp = client.get("/api/risk/metrics")
+        resp = client.get("/api/risk/metrics", headers=_auth_headers(client))
         if resp.status_code == 200:
             data = resp.json()
             required = {
@@ -967,18 +975,24 @@ class TestRiskMetricsFields:
 
     def test_risk_metrics_sharpe_ratio_present(self, client):
         """sharpe_ratio must be present in RiskMetrics response."""
-        resp = client.get("/api/risk/metrics")
+        resp = client.get("/api/risk/metrics", headers=_auth_headers(client))
         if resp.status_code == 200:
             data = resp.json()
             assert "sharpe_ratio" in data
 
     def test_risk_metrics_alerts_is_list(self, client):
         """alerts field must be a list."""
-        resp = client.get("/api/risk/metrics")
+        resp = client.get("/api/risk/metrics", headers=_auth_headers(client))
         if resp.status_code == 200:
             data = resp.json()
             assert "alerts" in data
             assert isinstance(data["alerts"], list)
+
+    def test_risk_endpoints_require_auth(self, client):
+        """SECURITY (P0): all /api/risk/* endpoints must reject anonymous access."""
+        for path in ("/api/risk/", "/api/risk/metrics", "/api/risk/limits", "/api/risk/alerts"):
+            resp = client.get(path)
+            assert resp.status_code == 401, f"{path} must be 401 without auth, got {resp.status_code}"
 
 
 # ---------------------------------------------------------------------------
@@ -1132,7 +1146,10 @@ class TestAuth:
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         assert resp.status_code == 200, f"Token request failed: {resp.text}"
-        return resp.json()["access_token"]
+        token = resp.json()["access_token"]
+        # Clear cookies so auth/CSRF cookies don't affect subsequent no-auth tests
+        client.cookies.clear()
+        return token
 
     def test_token_correct_credentials_returns_200_and_token(self, client):
         """POST /api/auth/token with valid credentials must return 200 + access_token."""
@@ -1420,6 +1437,54 @@ class TestPriceAlerts:
         payload = {"ticker": "AAPL", "condition": "invalid_cond", "threshold": 100.0}
         resp = client.post("/api/alerts/", json=payload, headers=auth)
         assert resp.status_code == 422
+
+    # ---- Cross-user IDOR tests (SECURITY P0 #4) ----
+
+    def _register_and_auth(self, client) -> dict | None:
+        import uuid
+        uname = f"alertuser_{uuid.uuid4().hex[:10]}"
+        reg = client.post("/api/auth/register", json={
+            "username": uname,
+            "email": f"{uname}@example.com",
+            "password": "Password1!",
+            "gdpr_consent": True,
+        })
+        if reg.status_code not in (200, 201):
+            return None
+        tok = client.post(
+            "/api/auth/token",
+            data={"username": uname, "password": "Password1!"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        if tok.status_code != 200:
+            return None
+        return {"Authorization": f"Bearer {tok.json()['access_token']}"}
+
+    def test_alert_not_visible_or_deletable_by_other_user(self, client):
+        """User B must neither see nor delete User A's price alert (IDOR)."""
+        auth_a = self._register_and_auth(client)
+        auth_b = self._register_and_auth(client)
+        if auth_a is None or auth_b is None:
+            import pytest
+            pytest.skip("multi-user registration not available in this env")
+        created = client.post(
+            "/api/alerts/",
+            json={"ticker": "AAPL", "condition": "above", "threshold": 250.0},
+            headers=auth_a,
+        ).json()
+        alert_id = created["alert_id"]
+
+        # B cannot see it.
+        b_ids = {a["alert_id"] for a in client.get("/api/alerts/", headers=auth_b).json()}
+        assert alert_id not in b_ids, "User B must not see User A's alert (IDOR)"
+
+        # B cannot delete it (404, not 200).
+        resp = client.delete(f"/api/alerts/{alert_id}", headers=auth_b)
+        assert resp.status_code == 404, f"Cross-user delete must be 404, got {resp.status_code}"
+
+        # A still owns it.
+        a_ids = {a["alert_id"] for a in client.get("/api/alerts/", headers=auth_a).json()}
+        assert alert_id in a_ids, "Owner's alert must survive a foreign delete attempt"
 
 
 # ---------------------------------------------------------------------------
@@ -2337,6 +2402,77 @@ class TestWebhooks:
             f"Expected 422 for invalid event, got {resp.status_code}: {resp.text}"
         )
 
+    # ---- Cross-user IDOR tests (SECURITY P0 #4) ----
+
+    def _register_and_auth(self, client) -> dict | None:
+        import uuid
+        uname = f"whuser_{uuid.uuid4().hex[:10]}"
+        reg = client.post("/api/auth/register", json={
+            "username": uname,
+            "email": f"{uname}@example.com",
+            "password": "Password1!",
+            "gdpr_consent": True,
+        })
+        if reg.status_code not in (200, 201):
+            return None
+        tok = client.post(
+            "/api/auth/token",
+            data={"username": uname, "password": "Password1!"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        if tok.status_code != 200:
+            return None
+        return {"Authorization": f"Bearer {tok.json()['access_token']}"}
+
+    def _create_webhook_as(self, client, auth) -> str:
+        data = client.post(
+            "/api/webhooks/",
+            json={"url": "https://example.com/owned", "events": ["signal.generated"]},
+            headers=auth,
+        ).json()
+        return data["id"]
+
+    def test_webhook_not_visible_to_other_user(self, client):
+        """User B must not see User A's webhook in the list."""
+        auth_a = self._register_and_auth(client)
+        auth_b = self._register_and_auth(client)
+        if auth_a is None or auth_b is None:
+            import pytest
+            pytest.skip("multi-user registration not available in this env")
+        wid = self._create_webhook_as(client, auth_a)
+        b_list = client.get("/api/webhooks/", headers=auth_b).json()
+        b_ids = {w["id"] for w in b_list}
+        assert wid not in b_ids, "User B must not see User A's webhook (IDOR)"
+
+    def test_webhook_not_deletable_by_other_user(self, client):
+        """User B must not delete User A's webhook (must 404, not 200)."""
+        auth_a = self._register_and_auth(client)
+        auth_b = self._register_and_auth(client)
+        if auth_a is None or auth_b is None:
+            import pytest
+            pytest.skip("multi-user registration not available in this env")
+        wid = self._create_webhook_as(client, auth_a)
+        resp = client.delete(f"/api/webhooks/{wid}", headers=auth_b)
+        assert resp.status_code == 404, (
+            f"Cross-user delete must be 404, got {resp.status_code}"
+        )
+        # And it must still exist for the owner.
+        a_ids = {w["id"] for w in client.get("/api/webhooks/", headers=auth_a).json()}
+        assert wid in a_ids, "Owner's webhook must survive a foreign delete attempt"
+
+    def test_webhook_not_testable_by_other_user(self, client):
+        """User B must not trigger a test on User A's webhook (must 404)."""
+        auth_a = self._register_and_auth(client)
+        auth_b = self._register_and_auth(client)
+        if auth_a is None or auth_b is None:
+            import pytest
+            pytest.skip("multi-user registration not available in this env")
+        wid = self._create_webhook_as(client, auth_a)
+        resp = client.post(f"/api/webhooks/{wid}/test", headers=auth_b)
+        assert resp.status_code == 404, (
+            f"Cross-user test-trigger must be 404, got {resp.status_code}"
+        )
+
 
 class TestBatchSignals:
     """Tests for POST /api/signals/batch"""
@@ -2588,24 +2724,24 @@ class TestStrategyParams:
 
 class TestRiskLimits:
     def test_limits_returns_200(self, client):
-        data = _assert_ok(client.get("/api/risk/limits"))
+        data = _assert_ok(client.get("/api/risk/limits", headers=_auth_headers(client)))
         assert isinstance(data, dict)
 
     def test_limits_has_required_fields(self, client):
-        data = _assert_ok(client.get("/api/risk/limits"))
+        data = _assert_ok(client.get("/api/risk/limits", headers=_auth_headers(client)))
         for field in ("max_position_size_pct", "max_daily_loss_pct", "max_leverage", "enable_live_trading"):
             assert field in data, f"Missing field: {field}"
 
     def test_limits_max_leverage_positive(self, client):
-        data = _assert_ok(client.get("/api/risk/limits"))
+        data = _assert_ok(client.get("/api/risk/limits", headers=_auth_headers(client)))
         assert data["max_leverage"] > 0
 
     def test_limits_enable_live_trading_is_bool(self, client):
-        data = _assert_ok(client.get("/api/risk/limits"))
+        data = _assert_ok(client.get("/api/risk/limits", headers=_auth_headers(client)))
         assert isinstance(data["enable_live_trading"], bool)
 
     def test_limits_pct_fields_in_valid_range(self, client):
-        data = _assert_ok(client.get("/api/risk/limits"))
+        data = _assert_ok(client.get("/api/risk/limits", headers=_auth_headers(client)))
         assert 0 < data["max_position_size_pct"] <= 1.0, "max_position_size_pct must be in (0, 1]"
         assert 0 < data["max_daily_loss_pct"] <= 1.0, "max_daily_loss_pct must be in (0, 1]"
 
@@ -2677,15 +2813,15 @@ class TestBacktestJobDelete:
 
 class TestRiskAlerts:
     def test_risk_alerts_returns_200(self, client):
-        resp = client.get("/api/risk/alerts")
+        resp = client.get("/api/risk/alerts", headers=_auth_headers(client))
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}. Body: {resp.text[:300]}"
 
     def test_risk_alerts_returns_list(self, client):
-        data = _assert_ok(client.get("/api/risk/alerts"))
+        data = _assert_ok(client.get("/api/risk/alerts", headers=_auth_headers(client)))
         assert isinstance(data, list), f"Expected list, got {type(data)}"
 
     def test_risk_alerts_items_are_strings(self, client):
-        data = _assert_ok(client.get("/api/risk/alerts"))
+        data = _assert_ok(client.get("/api/risk/alerts", headers=_auth_headers(client)))
         for item in data:
             assert isinstance(item, str), f"Alert item must be str, got {type(item)}: {item!r}"
 
@@ -3199,15 +3335,22 @@ class TestAuthEdgeCases:
         )
 
     def test_empty_password_returns_401(self, client):
-        """Empty password must not grant a token."""
+        """Empty password must not grant a token.
+
+        OAuth2PasswordRequestForm treats an empty form value as a missing field,
+        so the request is rejected at validation time (422) rather than reaching
+        the credential check (401). Either way no token is issued — that is the
+        security invariant under test, mirroring test_empty_username_returns_401_or_422.
+        """
         resp = client.post(
             "/api/auth/token",
             data={"username": "admin", "password": ""},
             headers=self._HEADERS,
         )
-        assert resp.status_code == 401, (
-            f"Empty password should return 401, got {resp.status_code}"
+        assert resp.status_code in {401, 422}, (
+            f"Empty password must be rejected without a token, got {resp.status_code}"
         )
+        assert "access_token" not in resp.json()
 
     def test_nonexistent_user_returns_401(self, client):
         """Completely unknown username must return 401."""
@@ -3988,6 +4131,72 @@ class TestSettingsCredentials:
         resp = client.get("/api/settings/credentials")
         assert resp.status_code == 401
 
+    def test_sensitive_secrets_cannot_be_persisted(self, client):
+        """SECURITY (P0 #3): passwords/PINs must never be storable in the DB."""
+        auth = self._auth(client)
+        for key in ("TR_PIN", "DEGIRO_PASSWORD", "CROWDESTOR_PASSWORD"):
+            resp = client.post(
+                "/api/settings/credentials",
+                json={"key": key, "value": "should-be-rejected"},
+                headers=auth,
+            )
+            assert resp.status_code == 400, (
+                f"{key} must be rejected for DB persistence, got {resp.status_code}"
+            )
+
+    def test_sensitive_secrets_not_listed(self, client):
+        """SECURITY (P0 #3): removed secrets must not appear in the credential status list."""
+        data = client.get("/api/settings/credentials", headers=self._auth(client)).json()
+        for key in ("TR_PIN", "DEGIRO_PASSWORD", "CROWDESTOR_PASSWORD"):
+            assert key not in data, f"{key} must not be in credential whitelist/status"
+
+    def _non_admin_auth(self, client) -> dict | None:
+        """Register + login a fresh non-admin (trader) user; return auth headers or None."""
+        import uuid
+        uname = f"trader_{uuid.uuid4().hex[:10]}"
+        reg = client.post("/api/auth/register", json={
+            "username": uname,
+            "email": f"{uname}@example.com",
+            "password": "Password1!",
+            "gdpr_consent": True,
+        })
+        if reg.status_code not in (200, 201):
+            return None
+        tok = client.post(
+            "/api/auth/token",
+            data={"username": uname, "password": "Password1!"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        if tok.status_code != 200:
+            return None
+        return {"Authorization": f"Bearer {tok.json()['access_token']}"}
+
+    def test_non_admin_cannot_write_system_credentials(self, client):
+        """SECURITY (P0 #2): a logged-in non-admin user must NOT write system-wide secrets."""
+        headers = self._non_admin_auth(client)
+        if headers is None:
+            import pytest
+            pytest.skip("non-admin registration/login not available in this env")
+        resp = client.post(
+            "/api/settings/credentials",
+            json={"key": "STRIPE_SECRET_KEY", "value": "sk_attacker"},
+            headers=headers,
+        )
+        assert resp.status_code == 403, (
+            f"Non-admin must be forbidden from writing credentials, got {resp.status_code}"
+        )
+
+    def test_non_admin_cannot_delete_system_credentials(self, client):
+        """SECURITY (P0 #2): a logged-in non-admin user must NOT delete system-wide secrets."""
+        headers = self._non_admin_auth(client)
+        if headers is None:
+            import pytest
+            pytest.skip("non-admin registration/login not available in this env")
+        resp = client.delete("/api/settings/credentials/ANTHROPIC_API_KEY", headers=headers)
+        assert resp.status_code == 403, (
+            f"Non-admin must be forbidden from deleting credentials, got {resp.status_code}"
+        )
+
 
 # ---------------------------------------------------------------------------
 # Auth — new endpoints (register, check-username, forgot-password, etc.)
@@ -4110,6 +4319,49 @@ class TestAuthNewEndpoints:
     def test_reset_password_missing_fields_returns_422(self, client):
         resp = client.post("/api/auth/reset-password", json={"token": "x"})
         assert resp.status_code == 422
+
+    def test_reset_password_db_roundtrip_and_single_use(self, client):
+        """SECURITY (P0 #5): DB-backed reset token — full happy path + single-use enforcement."""
+        import uuid
+        from unittest.mock import AsyncMock, patch
+
+        uname = f"resetuser_{uuid.uuid4().hex[:10]}"
+        email = f"{uname}@example.com"
+        reg = client.post("/api/auth/register", json={
+            "username": uname,
+            "email": email,
+            "password": "OldPass1!",
+            "gdpr_consent": True,
+        })
+        assert reg.status_code in (200, 201), f"register failed: {reg.text}"
+
+        # Capture the raw reset token by intercepting the email send.
+        captured = {}
+
+        async def _capture(to_email, token, username):
+            captured["token"] = token
+
+        with patch("app.api.auth._send_reset_email", new=AsyncMock(side_effect=_capture)):
+            fp = client.post("/api/auth/forgot-password", json={"email": email})
+            assert fp.status_code == 202
+        assert "token" in captured, "reset token was not issued/persisted"
+        token = captured["token"]
+
+        # First reset — must succeed and set the new password.
+        r1 = client.post("/api/auth/reset-password", json={"token": token, "password": "NewPass1!"})
+        assert r1.status_code == 200, f"first reset should succeed: {r1.text}"
+
+        # New password works for login.
+        login = client.post(
+            "/api/auth/token",
+            data={"username": uname, "password": "NewPass1!"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert login.status_code == 200, f"login with new password failed: {login.text}"
+
+        # Single-use: reusing the same token must now fail.
+        r2 = client.post("/api/auth/reset-password", json={"token": token, "password": "Another1!"})
+        assert r2.status_code == 400, f"token reuse must be rejected, got {r2.status_code}"
 
     # ---- GET /api/auth/referral-stats ----
 
@@ -4317,6 +4569,195 @@ class TestBrokers:
         assert "currency" in data
         assert data["currency"] == "EUR"
         assert isinstance(data["brokers"], list)
+
+
+# ---------------------------------------------------------------------------
+# P1-3: Cookie-based auth & CSRF Double-Submit tests
+# ---------------------------------------------------------------------------
+
+class TestCookieCSRFAuth:
+    """
+    Verifies the httpOnly-Cookie auth flow and CSRF Double-Submit protection.
+
+    Uses the shared session-scoped client fixture.  Each test clears the
+    cookie jar before running so residual cookies from other tests cannot
+    interfere.  Bearer-based tests in other classes are unaffected because
+    they never set an auth cookie.
+    """
+
+    _LOGIN_DATA = {"username": "admin", "password": "neural123"}
+    _LOGIN_HEADERS = {"Content-Type": "application/x-www-form-urlencoded"}
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _login_with_cookie(self, client) -> str:
+        """Login and return the CSRF token from the response cookie."""
+        client.cookies.clear()
+        resp = client.post(
+            "/api/auth/token",
+            data=self._LOGIN_DATA,
+            headers=self._LOGIN_HEADERS,
+        )
+        assert resp.status_code == 200, f"Login failed: {resp.text}"
+        return client.cookies.get("csrf_token", "")
+
+    # ------------------------------------------------------------------
+    # (a) Cookie-based authentication
+    # ------------------------------------------------------------------
+
+    def test_login_sets_httponly_access_token_cookie(self, client):
+        """POST /auth/token must set a Set-Cookie: access_token=... httponly header."""
+        client.cookies.clear()
+        resp = client.post(
+            "/api/auth/token",
+            data=self._LOGIN_DATA,
+            headers=self._LOGIN_HEADERS,
+        )
+        assert resp.status_code == 200
+        set_cookie = resp.headers.get("set-cookie", "")
+        assert "access_token=" in set_cookie, "access_token cookie not set"
+        assert "httponly" in set_cookie.lower(), "access_token cookie must be httpOnly"
+        client.cookies.clear()
+
+    def test_login_sets_csrf_cookie(self, client):
+        """POST /auth/token must also set a non-httpOnly csrf_token cookie."""
+        client.cookies.clear()
+        resp = client.post(
+            "/api/auth/token",
+            data=self._LOGIN_DATA,
+            headers=self._LOGIN_HEADERS,
+        )
+        assert resp.status_code == 200
+        csrf = client.cookies.get("csrf_token")
+        assert csrf, "csrf_token cookie not set after login"
+        assert len(csrf) >= 32, "csrf_token must be sufficiently random (>=32 chars)"
+        client.cookies.clear()
+
+    def test_cookie_auth_me_returns_user(self, client):
+        """GET /auth/me must work when authenticated via cookie (no Bearer header)."""
+        self._login_with_cookie(client)
+        resp = client.get("/api/auth/me")  # no Authorization header — uses cookie
+        assert resp.status_code == 200, f"Cookie auth failed for /me: {resp.text}"
+        data = resp.json()
+        assert data["username"] == "admin"
+        client.cookies.clear()
+
+    def test_logout_clears_cookies(self, client):
+        """POST /auth/logout must expire the auth and CSRF cookies."""
+        self._login_with_cookie(client)
+        resp = client.post("/api/auth/logout")
+        assert resp.status_code == 200
+        # After logout, subsequent /me call without Bearer must fail
+        client.cookies.clear()
+        resp2 = client.get("/api/auth/me")
+        assert resp2.status_code == 401
+
+    # ------------------------------------------------------------------
+    # (b) CSRF rejection tests
+    # ------------------------------------------------------------------
+
+    def test_csrf_reject_no_header_on_cookie_auth_post(self, client):
+        """Cookie-authed POST without X-CSRF-Token header must be rejected (403)."""
+        self._login_with_cookie(client)
+        # POST to a protected, state-changing endpoint without CSRF header
+        resp = client.post(
+            "/api/auth/email-preferences",
+            json={"subscribed": True},
+            # deliberately omit X-CSRF-Token
+        )
+        assert resp.status_code == 403, (
+            f"Expected 403 for CSRF-less cookie-authed POST, got {resp.status_code}: {resp.text}"
+        )
+        client.cookies.clear()
+
+    def test_csrf_reject_wrong_token_on_cookie_auth_post(self, client):
+        """Cookie-authed POST with an incorrect X-CSRF-Token value must be rejected (403)."""
+        self._login_with_cookie(client)
+        resp = client.post(
+            "/api/auth/email-preferences",
+            json={"subscribed": True},
+            headers={"X-CSRF-Token": "totally-wrong-token"},
+        )
+        assert resp.status_code == 403, (
+            f"Expected 403 for wrong CSRF token, got {resp.status_code}: {resp.text}"
+        )
+        client.cookies.clear()
+
+    def test_csrf_accept_correct_token_on_cookie_auth_post(self, client):
+        """Cookie-authed POST with matching X-CSRF-Token must succeed (200)."""
+        csrf = self._login_with_cookie(client)
+        assert csrf, "No CSRF token in cookie after login"
+        resp = client.post(
+            "/api/auth/email-preferences",
+            json={"subscribed": True},
+            headers={"X-CSRF-Token": csrf},
+        )
+        assert resp.status_code == 200, (
+            f"Expected 200 with correct CSRF token, got {resp.status_code}: {resp.text}"
+        )
+        client.cookies.clear()
+
+    # ------------------------------------------------------------------
+    # (c) Bearer-header backward compatibility (no CSRF required)
+    # ------------------------------------------------------------------
+
+    def test_bearer_auth_post_no_csrf_required(self, client):
+        """Bearer-authenticated POST must NOT require X-CSRF-Token (backward compat)."""
+        client.cookies.clear()
+        # Obtain a Bearer token
+        resp = client.post(
+            "/api/auth/token",
+            data=self._LOGIN_DATA,
+            headers=self._LOGIN_HEADERS,
+        )
+        token = resp.json()["access_token"]
+        client.cookies.clear()  # remove cookies so request is Bearer-only
+
+        # POST without any CSRF header — should succeed
+        resp2 = client.post(
+            "/api/auth/email-preferences",
+            json={"subscribed": True},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert resp2.status_code == 200, (
+            f"Bearer-auth POST should not require CSRF, got {resp2.status_code}: {resp2.text}"
+        )
+
+    def test_bearer_auth_me_still_works(self, client):
+        """GET /auth/me via Bearer header must still return 200 (dual-mode compat)."""
+        client.cookies.clear()
+        resp = client.post(
+            "/api/auth/token",
+            data=self._LOGIN_DATA,
+            headers=self._LOGIN_HEADERS,
+        )
+        token = resp.json()["access_token"]
+        client.cookies.clear()
+
+        resp2 = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert resp2.status_code == 200
+        assert resp2.json()["username"] == "admin"
+
+
+# ---------------------------------------------------------------------------
+# Broker-specific tests (continued from TestBrokerStatus)
+# ---------------------------------------------------------------------------
+
+class TestBrokerFlatexAndMore:
+    """Flatex, Bitpanda, Comdirect, Degiro broker tests."""
+
+    def _get_token(self, client) -> str:
+        resp = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        assert resp.status_code == 200
+        token = resp.json()["access_token"]
+        client.cookies.clear()
+        return token
 
     def test_flatex_sync_requires_auth(self, client):
         resp = client.post("/api/brokers/flatex/sync", json={"pin": "1234"})

@@ -13,10 +13,22 @@ import asyncio
 import json
 import logging
 import os
+import re
 from datetime import datetime, UTC
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# Canonical YouTube video-ID shape: exactly 11 chars of [A-Za-z0-9_-].
+# Validating at the service boundary prevents URL/parameter injection into the
+# oEmbed request (Bandit B310 / CWE-22): a crafted id such as
+# "x&url=http://attacker" must never reach urllib.request.urlopen.
+_VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+
+
+def _is_valid_video_id(video_id: str) -> bool:
+    """True only for a syntactically valid YouTube video id."""
+    return bool(video_id) and bool(_VIDEO_ID_RE.match(video_id))
 
 # ---------------------------------------------------------------------------
 # Default channels to track (YouTube video IDs, not channel IDs)
@@ -98,10 +110,19 @@ def _get_video_info_sync(video_id: str) -> dict:
     Get basic video info from YouTube oEmbed API (no API key needed).
     Returns {"title": ..., "channel": ...} or defaults on failure.
     """
+    if not _is_valid_video_id(video_id):
+        logger.warning("Rejected malformed video_id in _get_video_info_sync")
+        return {"title": "Unbekanntes Video", "channel": "Unbekannter Kanal"}
     try:
         import urllib.request
-        url = f"https://www.youtube.com/oembed?url=https://youtube.com/watch?v={video_id}&format=json"
-        with urllib.request.urlopen(url, timeout=10) as resp:
+        import urllib.parse
+        # Build the watch URL from the validated id and percent-encode the whole
+        # value before embedding it as the oEmbed `url` query parameter. The id
+        # is already constrained to [A-Za-z0-9_-]{11}, so this is defence in
+        # depth against parameter injection (B310 / CWE-22).
+        watch_url = f"https://youtube.com/watch?v={video_id}"
+        url = "https://www.youtube.com/oembed?url=" + urllib.parse.quote(watch_url, safe="") + "&format=json"
+        with urllib.request.urlopen(url, timeout=10) as resp:  # nosec B310 — fixed https host, validated+encoded video id
             data = json.loads(resp.read())
             return {
                 "title": data.get("title", f"Video {video_id}"),

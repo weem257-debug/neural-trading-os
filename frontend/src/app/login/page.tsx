@@ -39,6 +39,7 @@ function LoginForm() {
 
         const resp = await fetch(`${API_BASE}/api/auth/token`, {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: body.toString(),
         });

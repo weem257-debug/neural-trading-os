@@ -32,16 +32,20 @@ _ALLOWED_KEYS = frozenset({
     "COMDIRECT_REFRESH_TOKEN",
     # ---- Neue Broker (Phase 2: Community-Libs) ----
     "DEGIRO_USERNAME",
-    "DEGIRO_PASSWORD",
+    # DEGIRO_PASSWORD ist NICHT in der Whitelist — Passwort wird NIE in der DB
+    # gespeichert. Per Request übergeben oder via ENV (os.getenv-Fallback in
+    # get_credential / broker-service-Layer). [SECURITY P0]
     "DEGIRO_TOTP_TOKEN",
     "FLATEX_FINTS_USER",
     # FLATEX_FINTS_PIN ist NICHT in der Whitelist — PIN wird NIE in der DB gespeichert
     "FLATEX_FINTS_ACCOUNT",
     "CROWDESTOR_EMAIL",
-    "CROWDESTOR_PASSWORD",
+    # CROWDESTOR_PASSWORD ist NICHT in der Whitelist — Passwort wird NIE in der DB
+    # gespeichert. Per Request oder ENV. [SECURITY P0]
     # ---- Neue Broker (Phase 3: Reverse Engineering) ----
     "TR_PHONE_NUMBER",
-    "TR_PIN",
+    # TR_PIN ist NICHT in der Whitelist — PIN wird NIE in der DB gespeichert.
+    # Per Request oder ENV. [SECURITY P0]
     "WH_CTRADER_CLIENT_ID",
     "WH_CTRADER_CLIENT_SECRET",
     "WH_CTRADER_ACCESS_TOKEN",
@@ -50,14 +54,20 @@ _ALLOWED_KEYS = frozenset({
 
 
 async def get_credential(key: str) -> Optional[str]:
-    """Return credential value: DB row first, then os.environ fallback."""
+    """
+    Return credential value: DB row first, then os.environ fallback.
+
+    DB values are transparently decrypted (legacy clear-text rows are
+    returned unchanged — see app.core.crypto).
+    """
     try:
         from app.db.database import _AsyncSessionFactory
         from app.db.models import AppSecret
+        from app.core.crypto import decrypt
         async with _AsyncSessionFactory() as session:
             row = await session.get(AppSecret, key)
             if row and row.value:
-                return row.value
+                return decrypt(row.value)
     except Exception as exc:
         logger.debug("credential_db_lookup_failed", extra={"key": key, "reason": str(exc)})
     return os.getenv(key) or None
@@ -68,19 +78,20 @@ async def set_credential(key: str, value: str) -> None:
     if key not in _ALLOWED_KEYS:
         raise ValueError(f"Schlüssel '{key}' ist nicht in der erlaubten Liste")
     from datetime import datetime, UTC
-    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-    from sqlalchemy.dialects.postgresql import insert as pg_insert
     from app.db.database import _AsyncSessionFactory
     from app.db.models import AppSecret
+    from app.core.crypto import encrypt
+
+    stored_value = encrypt(value)
 
     async with _AsyncSessionFactory() as session:
         async with session.begin():
             existing = await session.get(AppSecret, key)
             if existing:
-                existing.value = value
+                existing.value = stored_value
                 existing.updated_at = datetime.now(UTC)
             else:
-                session.add(AppSecret(key=key, value=value))
+                session.add(AppSecret(key=key, value=stored_value))
 
 
 async def delete_credential(key: str) -> bool:
@@ -108,8 +119,8 @@ async def get_all_statuses() -> dict[str, str]:
         async with _AsyncSessionFactory() as session:
             result = await session.execute(select(AppSecret.key))
             db_keys = {row[0] for row in result.fetchall() if row[0]}
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.warning("credential_status_db_lookup_failed", extra={"reason": str(exc)})
 
     statuses: dict[str, str] = {}
     for key in _ALLOWED_KEYS:

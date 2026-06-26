@@ -216,3 +216,61 @@ def cache_clear_all() -> int:
 def cache_size() -> int:
     """Return current number of cache entries."""
     return _store.size()
+
+
+# ---------------------------------------------------------------------------
+# BoundedDedupSet — memory-safe "have I already done X?" marker set
+# ---------------------------------------------------------------------------
+
+class BoundedDedupSet:
+    """A set with a hard upper bound and FIFO eviction.
+
+    Background processing loops use module-level ``set()`` markers to avoid
+    re-sending the same notification (keys like ``"user:ticker:YYYY-MM-DD"``).
+    In a long-lived worker process those sets grow without limit — one entry
+    per unique event, forever — a slow but real memory leak.
+
+    This drop-in replacement keeps at most ``maxsize`` recent keys and evicts
+    the oldest first. The semantics callers rely on are preserved:
+      - ``key in s``        → membership test
+      - ``s.add(key)``      → mark as seen
+      - ``s.discard(key)``  → forget (e.g. on unsubscribe re-subscribe)
+
+    Eviction is per-day-style keys friendly: the oldest markers fall out long
+    after their relevant day has passed, so re-sends are not a practical risk
+    at any sane ``maxsize``. Thread-safe (loops may run under different threads).
+    """
+
+    __slots__ = ("_maxsize", "_data", "_lock")
+
+    def __init__(self, maxsize: int = 50_000) -> None:
+        if maxsize < 1:
+            raise ValueError("maxsize must be >= 1")
+        self._maxsize = maxsize
+        self._data: "OrderedDict[str, None]" = OrderedDict()
+        self._lock = threading.Lock()
+
+    def add(self, key: str) -> None:
+        with self._lock:
+            if key in self._data:
+                self._data.move_to_end(key)
+            else:
+                self._data[key] = None
+                if len(self._data) > self._maxsize:
+                    self._data.popitem(last=False)  # evict oldest
+
+    def discard(self, key: str) -> None:
+        with self._lock:
+            self._data.pop(key, None)
+
+    def __contains__(self, key: object) -> bool:
+        with self._lock:
+            return key in self._data
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._data)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._data.clear()

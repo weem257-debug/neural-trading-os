@@ -37,6 +37,7 @@ import type {
   PriceAlertDeleteResponse,
   BacktestResult,
   ElliottWaveAnalysis,
+  StockReport,
 } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -112,6 +113,11 @@ export interface BrokerTransaction {
   executed_at?: string;
 }
 
+/**
+ * Returns the JWT from localStorage if still present (legacy / API-client path).
+ * With cookie-based auth the token is no longer persisted to localStorage, so
+ * this returns null for browser sessions — the httpOnly cookie carries the session.
+ */
 export function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -121,6 +127,16 @@ export function getAuthToken(): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Reads the CSRF token from the non-httpOnly csrf_token cookie set by the server.
+ * Must only be called in the browser context.
+ */
+function getCsrfToken(): string {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : "";
 }
 
 export const API_BASE =
@@ -136,13 +152,27 @@ async function apiFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${BASE_URL}${path}`;
+
+  // Bearer fallback: only present when a legacy token exists in localStorage.
+  // For cookie-based browser sessions this is null and the httpOnly cookie
+  // is sent automatically via credentials: "include".
   const token = getAuthToken();
   const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+
+  // CSRF Double-Submit: include X-CSRF-Token header for state-changing methods
+  // when the session is cookie-based (csrf_token cookie is present).
+  const method = (options.method ?? "GET").toUpperCase();
+  const isStateMutating = ["POST", "PUT", "PATCH", "DELETE"].includes(method);
+  const csrf = isStateMutating ? getCsrfToken() : "";
+  const csrfHeader: Record<string, string> = csrf ? { "X-CSRF-Token": csrf } : {};
+
   const res = await fetch(url, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...authHeader,
+      ...csrfHeader,
       ...options.headers,
     },
   });
@@ -178,9 +208,10 @@ export const api = {
     checkUsername: (username: string) =>
       apiFetch<{ available: boolean }>(`/api/auth/check-username?username=${encodeURIComponent(username)}`),
     exportData: async (): Promise<void> => {
-      const token = getAuthToken() ?? "";
+      const token = getAuthToken();
       const res = await fetch(`${API_BASE}/api/auth/export-data`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) {
         if (res.status === 401 && typeof window !== "undefined") {
@@ -420,6 +451,18 @@ export const api = {
   },
 
   // -------------------------------------------------------------------------
+  // Stock Report (unified KI-Analyse mit Verdikt)
+  // -------------------------------------------------------------------------
+  report: {
+    /** Full report for the given ticker. Pass an optional share key when the
+     *  backend gate REPORT_SHARE_TOKEN is active. */
+    get: (ticker: string, key?: string): Promise<StockReport> => {
+      const qs = key ? `?key=${encodeURIComponent(key)}` : "";
+      return apiFetch<StockReport>(`/api/report/${encodeURIComponent(ticker)}${qs}`);
+    },
+  },
+
+  // -------------------------------------------------------------------------
   // Settings / Credentials
   // -------------------------------------------------------------------------
   settings: {
@@ -515,9 +558,14 @@ export const api = {
       const form = new FormData();
       form.append("file", file);
       const token = getAuthToken();
+      const csrf = getCsrfToken();
       return fetch(`${API_BASE}/api/brokers/flatex/import-csv`, {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+        },
         body: form,
       }).then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

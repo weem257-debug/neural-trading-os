@@ -39,15 +39,14 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import json
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func, select, update
 
-from app.core.config import settings
+from app.core.config import settings, demo_login_enabled, is_hardened_environment
 from app.core.rate_limits import limiter
 from app.db.database import get_session
 from app.db.models import User, SignalRecord, PriceAlertRecord, BankConnection, Portfolio, P2PSnapshot, TradeLearning
@@ -172,14 +171,24 @@ class ResetPasswordRequest(BaseModel):
 
 _logger = logging.getLogger("auth")
 
-# In-memory password-reset token store  { token: {username, email, expires} }
-# Tokens are single-use and expire after 1 hour.
-_reset_tokens: dict[str, dict] = {}
+# Password-reset tokens are persisted in the DB (PasswordResetToken) — single-use,
+# TTL-enforced, redeploy- and multi-replica-safe. Only the SHA-256 hash is stored.
+# SECURITY (P0 #5): the previous in-memory dict did not survive redeploys and broke
+# with >1 replica; it has been replaced by DB-backed storage.
+
+def _hash_reset_token(token: str) -> str:
+    """SHA-256 hex digest of a reset token — only the hash is ever persisted."""
+    return hashlib.sha256(token.encode()).hexdigest()
 
 # In-memory unsubscribe set (username → True).  Persists for the lifetime
-# of the process; a DB column is the production upgrade path.
+# of the process; mirrors the email_unsubscribed DB column (rehydrated on
+# startup). Intentionally an unbounded set: it is naturally bounded by the
+# user count and correctness (never silently re-subscribe someone) outranks
+# the marginal memory cost here.
 _unsubscribed: set[str] = set()
-_referral_notified: set[str] = set()
+# Pure dedup marker ("referrer:referee") — safe to bound with FIFO eviction.
+from app.core.cache import BoundedDedupSet
+_referral_notified: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
 
 
 def _make_unsubscribe_token(username: str) -> str:
@@ -535,8 +544,18 @@ _DEMO_USER_DB: dict | None = None
 
 
 def _get_demo_user_db() -> dict:
-    """Returns a minimal user store. Password is hashed exactly once at first call."""
+    """
+    Returns a minimal user store for the built-in demo/admin account.
+
+    In hardened environments (production/staging) the demo account is
+    disabled unless DEMO_PASSWORD was explicitly overridden with a
+    non-default value — in that case an empty store is returned so the
+    fallback authentication path matches no one. Password is hashed
+    exactly once at first call.
+    """
     global _DEMO_USER_DB
+    if not demo_login_enabled():
+        return {}
     if _DEMO_USER_DB is None:
         hashed_pw = pwd_context.hash(settings.DEMO_PASSWORD)
         _DEMO_USER_DB = {
@@ -584,8 +603,10 @@ async def _authenticate_user_db(username: str, password: str) -> Optional[dict]:
                     "role": db_user.role,
                     "tier": db_user.tier,
                 }
-    except Exception:
-        pass
+    except Exception as exc:
+        # DB unreachable / schema issue — log so an outage is visible, then
+        # fall back to the (off-prod) demo account instead of hard-failing login.
+        _logger.warning("auth_db_lookup_failed username=%s reason=%s", username, exc)
     return _authenticate_user(username, password)
 
 
@@ -608,21 +629,135 @@ def _verify_token(token: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Cookie & CSRF helpers (P1-3: httpOnly-Cookie migration)
+# ---------------------------------------------------------------------------
+
+def _extract_token_from_request(
+    request: Request,
+    bearer_token: Optional[str],
+) -> tuple[Optional[str], bool]:
+    """
+    Dual-mode token extraction.
+
+    Priority: explicit Bearer header > ambient httpOnly cookie.
+    Rationale: API clients always send Bearer; browsers never do (cookie only).
+    Giving Bearer precedence means a request with an Authorization header is
+    never accidentally treated as cookie-auth and subjected to CSRF checks,
+    even if the client's cookie jar also happens to hold a session cookie.
+
+    Returns (token_str | None, via_cookie: bool).
+    """
+    if bearer_token:
+        return bearer_token, False
+    cookie_token = request.cookies.get(settings.AUTH_COOKIE_NAME)
+    if cookie_token:
+        return cookie_token, True
+    return None, False
+
+
+def _check_csrf(request: Request) -> None:
+    """
+    CSRF Double-Submit Cookie validation.
+    Only called when authentication was via cookie on a state-changing method.
+    Raises HTTP 403 if the X-CSRF-Token header is absent or doesn't match
+    the csrf_token cookie value.
+    """
+    csrf_header = request.headers.get("X-CSRF-Token", "")
+    csrf_cookie = request.cookies.get(settings.CSRF_COOKIE_NAME, "")
+    if not csrf_header or not csrf_cookie:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="CSRF-Token fehlt — X-CSRF-Token-Header erforderlich",
+        )
+    if not hmac.compare_digest(csrf_header, csrf_cookie):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Ungültiger CSRF-Token",
+        )
+
+
+def _set_auth_cookies(response: Response, token: str, expires_delta: timedelta) -> None:
+    """
+    Set the httpOnly JWT auth cookie and the JS-readable CSRF cookie.
+    secure=True is enforced in hardened/production environments.
+    """
+    secure = is_hardened_environment() or settings.COOKIE_SECURE
+    max_age = int(expires_delta.total_seconds())
+    response.set_cookie(
+        key=settings.AUTH_COOKIE_NAME,
+        value=token,
+        max_age=max_age,
+        path="/",
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+    )
+    # CSRF token: non-httpOnly so JS can read it for the X-CSRF-Token header
+    csrf_token = secrets.token_hex(32)
+    response.set_cookie(
+        key=settings.CSRF_COOKIE_NAME,
+        value=csrf_token,
+        max_age=max_age,
+        path="/",
+        httponly=False,
+        secure=secure,
+        samesite="lax",
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    """Expire auth and CSRF cookies (used by the logout endpoint)."""
+    secure = is_hardened_environment() or settings.COOKIE_SECURE
+    response.set_cookie(
+        key=settings.AUTH_COOKIE_NAME,
+        value="",
+        max_age=0,
+        path="/",
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+    )
+    response.set_cookie(
+        key=settings.CSRF_COOKIE_NAME,
+        value="",
+        max_age=0,
+        path="/",
+        httponly=False,
+        secure=secure,
+        samesite="lax",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Auth dependencies
 # ---------------------------------------------------------------------------
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
+async def get_current_user(
+    request: Request,
+    bearer_token: Optional[str] = Depends(oauth2_scheme),
+) -> UserInfo:
     """
-    Strict auth dependency. Raises 401 if token is missing or invalid.
-    Use for endpoints that must be protected.
+    Dual-mode strict auth dependency.
+    Priority: httpOnly cookie → Bearer Authorization header.
+    When cookie-based, CSRF Double-Submit is enforced for state-changing methods
+    (POST / PUT / PATCH / DELETE).  Bearer-authenticated requests are exempt from
+    CSRF because they cannot be ambient-triggered by a malicious site.
+    Raises 401 if no valid token is found.
     """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Anmeldedaten konnten nicht validiert werden",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    token, via_cookie = _extract_token_from_request(request, bearer_token)
     if token is None:
         raise credentials_exception
+
+    # CSRF Double-Submit validation for cookie-authenticated state-changing requests
+    if via_cookie and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        _check_csrf(request)
+
     try:
         payload = jwt.decode(
             token,
@@ -652,8 +787,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
                     "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
                     "email_unsubscribed": bool(db_user.email_unsubscribed),
                 }
-    except Exception:
-        pass
+    except Exception as exc:
+        _logger.warning("get_current_user_db_lookup_failed username=%s reason=%s", username, exc)
 
     if user is None:
         db = _get_demo_user_db()
@@ -673,17 +808,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInfo:
 
 
 async def get_current_user_optional(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
+    bearer_token: Optional[str] = Depends(oauth2_scheme),
 ) -> Optional[UserInfo]:
     """
-    Optional auth dependency — onboarding-friendly.
+    Dual-mode optional auth dependency — onboarding-friendly.
 
-    Returns UserInfo if a valid token is provided.
-    Returns None (not an error) if no token is provided.
+    Returns UserInfo if a valid token is found (cookie or Bearer).
+    Returns None (not an error) if no credentials are present.
     Raises 401 only if a token is provided but invalid.
+    When cookie-based, CSRF Double-Submit is enforced for state-changing methods.
     """
+    token, via_cookie = _extract_token_from_request(request, bearer_token)
     if token is None:
         return None
+
+    # CSRF check applies to cookie-authenticated state-changing requests only
+    if via_cookie and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        _check_csrf(request)
+
     try:
         payload = jwt.decode(
             token,
@@ -745,12 +888,14 @@ async def get_current_user_optional(
     summary="Get JWT access token",
     description=(
         "Exchange username and password for a JWT. "
-        "Demo credentials: `admin` / `neural123`."
+        "A built-in demo account (`admin`) is available in non-production "
+        "environments only; it is disabled automatically in production."
     ),
 )
-@limiter.limit("5/minute")
+@limiter.limit("5/minute;30/hour")
 async def login_for_access_token(
     request: Request,
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
 ) -> Token:
     user = await _authenticate_user_db(form_data.username, form_data.password)
@@ -765,6 +910,8 @@ async def login_for_access_token(
         data={"sub": user["username"], "role": user.get("role", "trader"), "tier": user.get("tier", "free")},
         expires_delta=expire_delta,
     )
+    # Set httpOnly auth cookie + JS-readable CSRF cookie (Double-Submit pattern)
+    _set_auth_cookies(response, access_token, expire_delta)
     return Token(
         access_token=access_token,
         token_type="bearer",
@@ -776,7 +923,7 @@ async def login_for_access_token(
     "/me",
     response_model=UserInfo,
     summary="Get current user info",
-    description="Returns user information extracted from the JWT. Requires valid Bearer token.",
+    description="Returns user information extracted from the JWT. Supports cookie or Bearer token.",
 )
 async def get_me(
     current_user: UserInfo = Depends(get_current_user),
@@ -785,14 +932,27 @@ async def get_me(
 
 
 @router.post(
+    "/logout",
+    status_code=status.HTTP_200_OK,
+    summary="Logout — Cookie löschen",
+    description="Löscht den httpOnly Auth-Cookie und den CSRF-Cookie. Kein Token erforderlich.",
+)
+async def logout(response: Response) -> dict:
+    """Expire auth + CSRF cookies to terminate the browser session."""
+    _clear_auth_cookies(response)
+    return {"message": "Erfolgreich abgemeldet"}
+
+
+@router.post(
     "/refresh",
     response_model=Token,
     summary="Token erneuern",
-    description="Gibt ein neues JWT mit frischer Ablaufzeit aus. Erfordert ein gültiges (nicht abgelaufenes) Bearer-Token.",
+    description="Gibt ein neues JWT mit frischer Ablaufzeit aus. Erneuert auch den httpOnly-Cookie.",
 )
 @limiter.limit("10/minute")
 async def refresh_token(
     request: Request,
+    response: Response,
     current_user: UserInfo = Depends(get_current_user),
 ) -> Token:
     expire_delta = timedelta(hours=settings.JWT_ACCESS_TOKEN_EXPIRE_HOURS)
@@ -800,6 +960,8 @@ async def refresh_token(
         data={"sub": current_user.username, "role": current_user.role or "trader", "tier": current_user.tier or "free"},
         expires_delta=expire_delta,
     )
+    # Refresh cookies alongside the JSON token response
+    _set_auth_cookies(response, access_token, expire_delta)
     return Token(
         access_token=access_token,
         token_type="bearer",
@@ -814,7 +976,7 @@ async def refresh_token(
     summary="Neuen Benutzer registrieren",
     description="Erstellt ein neues Benutzerkonto. Neue Nutzer erhalten automatisch den kostenlosen Tarif.",
 )
-@limiter.limit("3/minute")
+@limiter.limit("3/minute;20/hour")
 async def register(
     request: Request,
     body: RegisterRequest,
@@ -909,15 +1071,22 @@ async def forgot_password(request: Request, body: ForgotPasswordRequest) -> dict
 
     if user:
         token = secrets.token_urlsafe(32)
-        _reset_tokens[token] = {
-            "username": user.username,
-            "email": user.email,
-            "expires": datetime.now(timezone.utc) + timedelta(hours=1),
-        }
         try:
-            await _send_reset_email(user.email, token, user.username)
+            from app.db.models import PasswordResetToken
+            async with get_session() as session:
+                session.add(PasswordResetToken(
+                    token_hash=_hash_reset_token(token),
+                    username=user.username,
+                    expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+                ))
+                await session.commit()
         except Exception as exc:
-            _logger.warning("Reset-E-Mail konnte nicht gesendet werden: %s", exc)
+            _logger.warning("Reset-Token konnte nicht gespeichert werden: %s", exc)
+        else:
+            try:
+                await _send_reset_email(user.email, token, user.username)
+            except Exception as exc:
+                _logger.warning("Reset-E-Mail konnte nicht gesendet werden: %s", exc)
 
     # Always 202 — don't reveal whether the email exists
     return {"message": "Falls ein Konto mit dieser E-Mail existiert, haben wir eine Zurücksetz-E-Mail gesendet."}
@@ -930,33 +1099,47 @@ async def forgot_password(request: Request, body: ForgotPasswordRequest) -> dict
 )
 @limiter.limit("5/minute")
 async def reset_password(request: Request, body: ResetPasswordRequest) -> dict:
-    token_data = _reset_tokens.get(body.token)
+    from app.db.models import PasswordResetToken
 
-    if not token_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ungültiger oder abgelaufener Reset-Link",
-        )
-
-    if datetime.now(timezone.utc) > token_data["expires"]:
-        _reset_tokens.pop(body.token, None)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Der Reset-Link ist abgelaufen. Bitte fordere einen neuen an.",
-        )
+    token_hash = _hash_reset_token(body.token)
 
     try:
         async with get_session() as session:
             result = await session.execute(
-                select(User).where(User.username == token_data["username"])
+                select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash)
             )
-            user = result.scalar_one_or_none()
+            token_row = result.scalar_one_or_none()
+
+            # Invalid or already-consumed token (single-use enforcement).
+            if token_row is None or token_row.used_at is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Ungültiger oder abgelaufener Reset-Link",
+                )
+
+            # TTL enforcement.
+            expires_at = token_row.expires_at
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
+            if datetime.now(timezone.utc) > expires_at:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Der Reset-Link ist abgelaufen. Bitte fordere einen neuen an.",
+                )
+
+            user_result = await session.execute(
+                select(User).where(User.username == token_row.username)
+            )
+            user = user_result.scalar_one_or_none()
             if not user:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Benutzer nicht gefunden",
                 )
+
+            # Atomically: set new password AND mark token used (single-use).
             user.hashed_password = pwd_context.hash(body.password)
+            token_row.used_at = datetime.now(timezone.utc)
             await session.commit()
     except HTTPException:
         raise
@@ -966,7 +1149,6 @@ async def reset_password(request: Request, body: ResetPasswordRequest) -> dict:
             detail="Datenbankfehler beim Passwort-Reset",
         )
 
-    _reset_tokens.pop(body.token, None)
     return {"message": "Passwort erfolgreich geändert. Du kannst dich jetzt anmelden."}
 
 

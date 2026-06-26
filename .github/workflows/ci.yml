@@ -1,0 +1,78 @@
+name: CI — Neural Trading OS
+
+# NOTE on paths: this workflow lives inside the dashboard/ git repo (remote
+# origin neural-trading-os), so the repo root IS the former `dashboard/`
+# directory. Paths here are therefore `backend/` and `frontend/`, NOT
+# `dashboard/backend/`. A second, non-executing copy of this pipeline exists
+# at the monorepo root (../.github/workflows/ci.yml) for local reference only;
+# THIS file is the one GitHub Actions actually runs.
+
+on:
+  push:
+    branches: [main, develop, "security/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install -r backend/requirements.txt
+      - run: python -m pytest backend/tests/ -q
+        working-directory: ${{ github.workspace }}
+        env:
+          ANTHROPIC_API_KEY: "test-key"
+          JWT_SECRET_KEY: "test-secret-32-chars-minimum-len"
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+        working-directory: frontend
+      # Type safety gate — tsconfig.json + `type-check` script both exist, so
+      # this is safe to enforce as a blocking step.
+      - run: npm run type-check
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: "http://localhost:8000"
+          NEXT_PUBLIC_WS_URL: "ws://localhost:8000"
+          NEXT_PUBLIC_APP_NAME: "Neural Trading OS"
+          NEXT_PUBLIC_PAPER_MODE: "true"
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install bandit
+      # Hardened (P1-4): the `|| true` swallow is removed — a medium/high
+      # Bandit finding now fails the build instead of being silently ignored.
+      - run: bandit -r backend/app/ -ll -q
+
+  # TODO(P1-4 follow-up): enable mypy as a BLOCKING step once a baseline is
+  # established. mypy==1.11.0 is already in backend/requirements.txt, but the
+  # codebase has no [tool.mypy] config yet and a cold run reports a large
+  # backlog. Turning it on blocking now would red-wall every PR. Plan:
+  #   1. Add [tool.mypy] to backend/pyproject.toml (start lenient:
+  #      ignore_missing_imports, no strict optional).
+  #   2. Run `mypy backend/app` locally, triage, ratchet module-by-module.
+  #   3. Replace this TODO with a real `type-check-backend` job (no `|| true`).
+  # Until then it runs NON-BLOCKING so the signal is visible without gating.
+  type-check-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install -r backend/requirements.txt
+      - name: "mypy (non-blocking — see TODO above)"
+        run: mypy backend/app || true

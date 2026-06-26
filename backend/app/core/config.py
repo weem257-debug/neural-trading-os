@@ -138,6 +138,21 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_HOURS: int = 24
 
+    # Cookie settings (P1-3 httpOnly-Cookie migration)
+    # AUTH_COOKIE_NAME: name of the httpOnly JWT cookie
+    # CSRF_COOKIE_NAME: name of the JS-readable CSRF cookie (Double-Submit pattern)
+    # COOKIE_SECURE: False in dev; set True via env in production (also auto-enabled
+    #                in is_hardened_environment() regardless of this flag)
+    AUTH_COOKIE_NAME: str = "access_token"
+    CSRF_COOKIE_NAME: str = "csrf_token"
+    COOKIE_SECURE: bool = False
+
+    # At-rest credential encryption (Fernet). See app/core/crypto.py.
+    # Empty in dev → credentials stored as clear text (with a warning).
+    # Required in production (startup guard in main.py aborts if missing).
+    APP_ENCRYPTION_KEY: str = ""
+    APP_ENCRYPTION_KEYS_OLD: str = ""  # comma-separated old keys for rotation
+
     # Demo credentials (override via env in production)
     DEMO_USERNAME: str = "admin"
     DEMO_PASSWORD: str = "neural123"
@@ -154,6 +169,10 @@ class Settings(BaseSettings):
     SMTP_FROM: str = ""  # falls leer → SMTP_USER
     # E-Mail-Adresse für Admin-Benachrichtigungen (neue Registrierungen etc.)
     ADMIN_NOTIFICATION_EMAIL: str = ""
+
+    # Report Share Token (optional) — if set, GET /api/report/* requires ?key=<token>
+    # or header X-Report-Key:<token>. Leave empty to keep the endpoint open.
+    REPORT_SHARE_TOKEN: str = ""
 
     # Risk limits
     MAX_POSITION_SIZE_PCT: float = 0.05   # 5% of portfolio per position
@@ -185,6 +204,46 @@ _JWT_WEAK_KEYS = {
     "your-jwt-secret",
 }
 
+# Known default/demo passwords that must never reach a production deployment.
+_DEFAULT_DEMO_PASSWORDS = {
+    "neural123",
+    "admin",
+    "password",
+    "changeme",
+    "demo",
+}
+
+# Environments treated as "hardened" (no demo fallbacks, fail-closed checks).
+_HARDENED_ENVIRONMENTS = {"production", "prod", "staging"}
+
+
+def is_hardened_environment() -> bool:
+    """True for production/staging — used to disable demo fallbacks and
+    enforce fail-closed startup checks. Reads the live ENVIRONMENT value."""
+    import os as _os
+    env = (_os.getenv("ENVIRONMENT", settings.ENVIRONMENT) or "").strip().lower()
+    return env in _HARDENED_ENVIRONMENTS
+
+
+def demo_password_is_default() -> bool:
+    """True when DEMO_PASSWORD is empty or a well-known default."""
+    pw = (settings.DEMO_PASSWORD or "").strip()
+    return (not pw) or pw.lower() in _DEFAULT_DEMO_PASSWORDS
+
+
+def demo_login_enabled() -> bool:
+    """
+    The built-in demo/admin account is only available outside hardened
+    environments, OR in a hardened environment when DEMO_PASSWORD has been
+    explicitly overridden with a non-default value.
+
+    In production with a default password the account is fully disabled
+    (the startup guard in main.py additionally aborts the boot).
+    """
+    if not is_hardened_environment():
+        return True
+    return not demo_password_is_default()
+
 
 def anthropic_key_configured() -> bool:
     """Return True only when ANTHROPIC_API_KEY is set and not a known placeholder."""
@@ -201,3 +260,27 @@ def jwt_key_is_secure() -> bool:
     if len(key) < 32:
         return False
     return key not in _JWT_WEAK_KEYS
+
+
+def stripe_billing_enabled() -> bool:
+    """True when Stripe billing is switched on (a live secret key is configured).
+
+    Stripe is opt-in: an instance with no STRIPE_SECRET_KEY runs without any
+    billing surface (the /webhook route returns 503). This mirrors the
+    ``_stripe_enabled()`` check in app/api/routes/billing.py and is the
+    precondition for the webhook-secret startup guard.
+    """
+    return bool((settings.STRIPE_SECRET_KEY or "").strip())
+
+
+def stripe_webhook_secret_missing() -> bool:
+    """True when a webhook signing secret is required but absent.
+
+    The Stripe webhook handler authenticates inbound events purely via the
+    ``STRIPE_WEBHOOK_SECRET`` signature. If billing is enabled but the secret
+    is unset, ``stripe.Webhook.construct_event`` runs against an empty secret
+    and every signature check fails — i.e. the cash-critical upgrade/downgrade
+    path is silently dead. We treat that as a fail-closed startup condition in
+    hardened environments rather than discovering it on the first live event.
+    """
+    return stripe_billing_enabled() and not (settings.STRIPE_WEBHOOK_SECRET or "").strip()

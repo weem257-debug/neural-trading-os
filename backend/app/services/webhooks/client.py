@@ -20,16 +20,92 @@ Usage:
 import asyncio
 import hashlib
 import hmac
+import ipaddress
 import json
 import logging
+import socket
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+# The cloud instance-metadata address — a classic SSRF target.
+_METADATA_IPS = frozenset({"169.254.169.254", "fd00:ec2::254"})
+
+
+class WebhookURLError(ValueError):
+    """Raised when a webhook URL fails SSRF / format validation."""
+
+
+def _ip_is_blocked(ip: ipaddress._BaseAddress) -> bool:
+    """True for any address class that must never be reachable from a webhook."""
+    return (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+        or str(ip) in _METADATA_IPS
+    )
+
+
+def validate_webhook_url(url: str, *, allow_local: bool = False) -> None:
+    """
+    SSRF guard for outbound webhook targets (H2).
+
+    Rejects:
+      * non-HTTP(S) schemes; only https is allowed (http only when allow_local).
+      * URLs whose host resolves to private / loopback / link-local / reserved /
+        multicast / metadata addresses.
+
+    ``allow_local`` is enabled only in non-hardened (dev/test) environments so
+    local development against http://localhost keeps working. Raises
+    WebhookURLError on any violation.
+    """
+    parsed = urlparse(url)
+
+    if parsed.scheme not in ("https", "http"):
+        raise WebhookURLError("Webhook-URL muss mit https:// beginnen.")
+    if parsed.scheme == "http" and not allow_local:
+        raise WebhookURLError("Webhook-URL muss HTTPS verwenden (http ist nicht erlaubt).")
+
+    host = parsed.hostname
+    if not host:
+        raise WebhookURLError("Webhook-URL enthält keinen gültigen Host.")
+
+    # Resolve every address the host maps to and block if ANY is internal.
+    try:
+        infos = socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80))
+    except socket.gaierror as exc:
+        raise WebhookURLError(f"Webhook-Host konnte nicht aufgelöst werden: {host}") from exc
+
+    resolved_ips = {info[4][0] for info in infos}
+    for raw_ip in resolved_ips:
+        try:
+            ip = ipaddress.ip_address(raw_ip.split("%")[0])  # strip scope id
+        except ValueError:
+            continue
+        if _ip_is_blocked(ip):
+            # Dev convenience: localhost/private targets allowed off-prod — but
+            # NEVER the cloud-metadata address or other link-local/reserved
+            # ranges, which are pure SSRF targets with no legitimate dev use.
+            dev_allowed = (
+                allow_local
+                and (ip.is_loopback or ip.is_private)
+                and str(ip) not in _METADATA_IPS
+                and not ip.is_link_local
+            )
+            if dev_allowed:
+                continue
+            raise WebhookURLError(
+                f"Webhook-Ziel ist nicht erlaubt (interne/reservierte Adresse: {ip})."
+            )
 
 # Valid event types
 WEBHOOK_EVENTS = frozenset([
@@ -52,6 +128,7 @@ class WebhookRegistration:
     url: str
     events: list[str]
     secret: str
+    owner_username: Optional[str] = None
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     last_delivery_at: Optional[datetime] = None
     last_delivery_status: Optional[int] = None
@@ -89,37 +166,67 @@ class WebhookManager:
         url: str,
         events: list[str],
         secret: str = "",
+        owner_username: Optional[str] = None,
     ) -> WebhookRegistration:
-        """Register a new outbound webhook. Returns the registration."""
-        if len(self._webhooks) >= _MAX_WEBHOOKS:
+        """Register a new outbound webhook for a specific owner. Returns the registration."""
+        # SECURITY (P0 #4): the per-owner limit is enforced over the owner's own
+        # webhooks so one user cannot exhaust the registry for everyone.
+        owned_count = sum(
+            1 for w in self._webhooks.values() if w.owner_username == owner_username
+        )
+        if owned_count >= _MAX_WEBHOOKS:
             raise ValueError(f"Maximale Anzahl von {_MAX_WEBHOOKS} Webhooks erreicht. Bitte zuerst einen löschen.")
 
         unknown = set(events) - WEBHOOK_EVENTS
         if unknown:
             raise ValueError(f"Unbekannte Event-Typen: {unknown}. Erlaubt: {sorted(WEBHOOK_EVENTS)}")
 
+        # H2 — SSRF guard. Allow http/localhost targets only off-production.
+        try:
+            from app.core.config import is_hardened_environment
+            allow_local = not is_hardened_environment()
+        except Exception:
+            allow_local = False
+        validate_webhook_url(url, allow_local=allow_local)
+
         wh = WebhookRegistration(
             id=str(uuid.uuid4()),
             url=url,
             events=events,
             secret=secret or _default_secret(),
+            owner_username=owner_username,
         )
         self._webhooks[wh.id] = wh
-        logger.info("webhook_registered id=%s url=%s events=%s", wh.id, url, events)
+        logger.info("webhook_registered id=%s owner=%s url=%s events=%s", wh.id, owner_username, url, events)
         return wh
 
-    def get_all(self) -> list[WebhookRegistration]:
-        return list(self._webhooks.values())
+    def get_all(self, owner_username: Optional[str] = None) -> list[WebhookRegistration]:
+        """Return webhooks. SECURITY (P0 #4): scoped to owner when given."""
+        items = list(self._webhooks.values())
+        if owner_username is not None:
+            items = [w for w in items if w.owner_username == owner_username]
+        return items
 
-    def get(self, webhook_id: str) -> Optional[WebhookRegistration]:
-        return self._webhooks.get(webhook_id)
+    def get(self, webhook_id: str, owner_username: Optional[str] = None) -> Optional[WebhookRegistration]:
+        """Return one webhook, only if owned by owner_username (IDOR guard)."""
+        wh = self._webhooks.get(webhook_id)
+        if wh is None:
+            return None
+        if owner_username is not None and wh.owner_username != owner_username:
+            return None
+        return wh
 
-    def delete(self, webhook_id: str) -> bool:
-        if webhook_id in self._webhooks:
-            del self._webhooks[webhook_id]
-            logger.info("webhook_deleted id=%s", webhook_id)
-            return True
-        return False
+    def delete(self, webhook_id: str, owner_username: Optional[str] = None) -> bool:
+        """Delete one webhook, only if owned by owner_username (IDOR guard)."""
+        wh = self._webhooks.get(webhook_id)
+        if wh is None:
+            return False
+        if owner_username is not None and wh.owner_username != owner_username:
+            # Do not reveal existence of another user's webhook.
+            return False
+        del self._webhooks[webhook_id]
+        logger.info("webhook_deleted id=%s owner=%s", webhook_id, owner_username)
+        return True
 
     # ------------------------------------------------------------------
     # Delivery
@@ -144,9 +251,9 @@ class WebhookManager:
             return_exceptions=True,
         )
 
-    async def send_test(self, webhook_id: str) -> dict:
-        """Send a test event to a specific webhook. Returns delivery result."""
-        wh = self._webhooks.get(webhook_id)
+    async def send_test(self, webhook_id: str, owner_username: Optional[str] = None) -> dict:
+        """Send a test event to a specific owned webhook. Returns delivery result."""
+        wh = self.get(webhook_id, owner_username=owner_username)
         if not wh:
             raise KeyError(f"Webhook {webhook_id} not found")
 
