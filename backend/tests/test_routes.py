@@ -3324,15 +3324,22 @@ class TestAuthEdgeCases:
         )
 
     def test_empty_password_returns_401(self, client):
-        """Empty password must not grant a token."""
+        """Empty password must not grant a token.
+
+        OAuth2PasswordRequestForm treats an empty form value as a missing field,
+        so the request is rejected at validation time (422) rather than reaching
+        the credential check (401). Either way no token is issued — that is the
+        security invariant under test, mirroring test_empty_username_returns_401_or_422.
+        """
         resp = client.post(
             "/api/auth/token",
             data={"username": "admin", "password": ""},
             headers=self._HEADERS,
         )
-        assert resp.status_code == 401, (
-            f"Empty password should return 401, got {resp.status_code}"
+        assert resp.status_code in {401, 422}, (
+            f"Empty password must be rejected without a token, got {resp.status_code}"
         )
+        assert "access_token" not in resp.json()
 
     def test_nonexistent_user_returns_401(self, client):
         """Completely unknown username must return 401."""

@@ -87,6 +87,15 @@ async def _get_insight_by_id(get_session, models, insight_id):
         return res.scalar_one_or_none()
 
 
+async def _purge_insights(get_session, models):
+    """Remove all YoutubeInsight rows so retrieval-ranking tests are isolated from
+    insights left in the shared module DB by earlier test modules."""
+    from sqlalchemy import delete
+    async with get_session() as session:
+        await session.execute(delete(models.YoutubeInsight))
+        await session.commit()
+
+
 async def _record_usage(get_session, models, signal_id, insight_ids):
     async with get_session() as session:
         for rank, iid in enumerate(insight_ids):
@@ -107,6 +116,14 @@ def test_retriever_returns_injected_ids_capped_at_prompt_limit(attr_db):
     gs, models = attr_db["get_session"], attr_db["models"]
     from app.services.learning import rag_retriever
     from app.services.learning.rag_retriever import get_relevant_context_with_attribution
+
+    # The module DB is shared across the whole suite (the async engine is bound
+    # once at import time), so earlier modules leave YoutubeInsight rows behind.
+    # rank_bm25 is an optional dependency; when absent the retriever falls back to
+    # ranking purely by learned validation boost, which would let a foreign,
+    # previously-validated insight outrank this test's freshly-seeded ones. Purge
+    # the table first so retrieval sees only the candidates this test controls.
+    _run(_purge_insights(gs, models))
 
     # Seed more candidates than the prompt limit, all matching the query keyword.
     ids = []
