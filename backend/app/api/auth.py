@@ -682,6 +682,9 @@ def _set_auth_cookies(response: Response, token: str, expires_delta: timedelta) 
     secure=True is enforced in hardened/production environments.
     """
     secure = is_hardened_environment() or settings.COOKIE_SECURE
+    # Cross-site (frontend on a different *.railway.app subdomain than the API)
+    # requires SameSite=None; browsers only accept None together with Secure.
+    samesite_val = "none" if secure else "lax"
     max_age = int(expires_delta.total_seconds())
     response.set_cookie(
         key=settings.AUTH_COOKIE_NAME,
@@ -690,7 +693,7 @@ def _set_auth_cookies(response: Response, token: str, expires_delta: timedelta) 
         path="/",
         httponly=True,
         secure=secure,
-        samesite="lax",
+        samesite=samesite_val,
     )
     # CSRF token: non-httpOnly so JS can read it for the X-CSRF-Token header
     csrf_token = secrets.token_hex(32)
@@ -701,13 +704,14 @@ def _set_auth_cookies(response: Response, token: str, expires_delta: timedelta) 
         path="/",
         httponly=False,
         secure=secure,
-        samesite="lax",
+        samesite=samesite_val,
     )
 
 
 def _clear_auth_cookies(response: Response) -> None:
     """Expire auth and CSRF cookies (used by the logout endpoint)."""
     secure = is_hardened_environment() or settings.COOKIE_SECURE
+    samesite_val = "none" if secure else "lax"
     response.set_cookie(
         key=settings.AUTH_COOKIE_NAME,
         value="",
@@ -715,7 +719,7 @@ def _clear_auth_cookies(response: Response) -> None:
         path="/",
         httponly=True,
         secure=secure,
-        samesite="lax",
+        samesite=samesite_val,
     )
     response.set_cookie(
         key=settings.CSRF_COOKIE_NAME,
@@ -724,7 +728,7 @@ def _clear_auth_cookies(response: Response) -> None:
         path="/",
         httponly=False,
         secure=secure,
-        samesite="lax",
+        samesite=samesite_val,
     )
 
 
