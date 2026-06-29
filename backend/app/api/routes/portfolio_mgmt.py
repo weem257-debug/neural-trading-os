@@ -69,7 +69,7 @@ class PortfolioOut(BaseModel):
 def _validate_type(v: Optional[str]) -> Optional[str]:
     if v is not None and v not in VALID_TYPES:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"portfolio_type muss einer der folgenden sein: {', '.join(sorted(VALID_TYPES))}",
         )
     return v
@@ -78,7 +78,7 @@ def _validate_type(v: Optional[str]) -> Optional[str]:
 def _validate_category(v: Optional[str]) -> Optional[str]:
     if v is not None and v not in VALID_CATEGORIES:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"category muss einer der folgenden sein: {', '.join(sorted(VALID_CATEGORIES))}",
         )
     return v

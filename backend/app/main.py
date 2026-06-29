@@ -34,7 +34,7 @@ from app.core.config import (
     stripe_webhook_secret_missing,
 )
 from app.core.rate_limits import limiter
-from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing, telegram, settings as settings_routes, brokers, admin, report
+from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing, telegram, settings as settings_routes, brokers, admin, report, legal
 from app.api import auth
 from app.websocket.manager import ws_manager
 
@@ -1033,6 +1033,22 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
+# Regulatory disclaimer header (P2 audit finding)
+# ---------------------------------------------------------------------------
+# Attach a "not investment advice" notice to every response so the
+# disclaimer travels with the data regardless of which client consumes it.
+# Header values must be latin-1 / ASCII-safe, so we use the EN short notice.
+from app.core.disclaimer import DISCLAIMER_SHORT_EN as _DISCLAIMER_HEADER
+
+
+@app.middleware("http")
+async def _add_disclaimer_header(request, call_next):
+    response = await call_next(request)
+    response.headers["X-Legal-Disclaimer"] = _DISCLAIMER_HEADER
+    return response
+
+
+# ---------------------------------------------------------------------------
 # REST Routes
 # ---------------------------------------------------------------------------
 app.include_router(health.router, prefix="/api")
@@ -1057,6 +1073,7 @@ app.include_router(settings_routes.router, prefix="/api")
 app.include_router(brokers.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(report.router, prefix="/api")
+app.include_router(legal.router, prefix="/api")
 
 
 # ---------------------------------------------------------------------------

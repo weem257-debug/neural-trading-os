@@ -69,7 +69,7 @@ def _extract_video_id(url_or_id: str) -> str:
     if m:
         return m.group(1)
     raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail="Konnte keine gültige YouTube-Video-ID aus der URL extrahieren.",
     )
 

@@ -46,7 +46,7 @@ from passlib.context import CryptContext
 from pydantic import BaseModel, field_validator
 from sqlalchemy import func, select, update
 
-from app.core.config import settings, demo_login_enabled, is_hardened_environment
+from app.core.config import settings, demo_login_enabled, is_hardened_environment, jwt_key_is_secure
 from app.core.rate_limits import limiter
 from app.db.database import get_session
 from app.db.models import User, SignalRecord, PriceAlertRecord, BankConnection, Portfolio, P2PSnapshot, TradeLearning
@@ -192,7 +192,20 @@ _referral_notified: BoundedDedupSet = BoundedDedupSet(maxsize=50_000)
 
 
 def _make_unsubscribe_token(username: str) -> str:
-    """HMAC-SHA256 token — no DB column needed."""
+    """HMAC-SHA256 token — no DB column needed.
+
+    Fail-closed (P1-3): in hardened environments we never sign with the weak
+    ``"fallback"`` default. A missing/weak JWT_SECRET_KEY there is a hard error
+    rather than a silently-forgeable token. This mirrors the startup guard in
+    app/main.py and is defense-in-depth at the mint site.
+    """
+    if not jwt_key_is_secure():
+        if is_hardened_environment():
+            raise RuntimeError(
+                "JWT_SECRET_KEY is missing or weak; refusing to mint unsubscribe "
+                "tokens in a hardened environment. Set a strong key (>=32 random chars)."
+            )
+        # Non-hardened (dev/test) only: tolerate a deterministic dev key.
     key = (settings.JWT_SECRET_KEY or "fallback").encode()
     return hmac.new(key, f"unsub:{username}".encode(), hashlib.sha256).hexdigest()
 
