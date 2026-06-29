@@ -12,7 +12,16 @@ import json
 from datetime import datetime, UTC
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, Integer, Numeric, String, Text
+
+# P1-2 money-math: money/price/quantity columns use NUMERIC for exact storage in
+# Postgres (production), eliminating binary-float drift in the ledger. asdecimal
+# is left False so the Python layer continues to receive floats — this keeps the
+# storage fix decoupled from a (larger) Python-side Decimal-arithmetic refactor
+# and avoids mixed Decimal/float TypeErrors across the codebase. Statistical
+# ratios (confidence, return_pct, win_rate, ...) intentionally remain Float.
+_MONEY = Numeric(20, 8, asdecimal=False)   # prices, balances, amounts
+_QTY = Numeric(28, 10, asdecimal=False)    # share / unit quantities
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -42,8 +51,8 @@ class SignalRecord(Base):
     user_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
 
     # Optional fields
-    price_target: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    stop_loss: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    price_target: Mapped[Optional[float]] = mapped_column(_MONEY, nullable=True)
+    stop_loss: Mapped[Optional[float]] = mapped_column(_MONEY, nullable=True)
     time_horizon: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
 
     def agents_consensus_as_dict(self) -> dict:
@@ -64,8 +73,8 @@ class SignalPerformance(Base):
     signal_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     ticker: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     direction: Mapped[str] = mapped_column(String(20), nullable=False)
-    entry_price: Mapped[float] = mapped_column(Float, nullable=False)
-    current_price: Mapped[float] = mapped_column(Float, nullable=False)
+    entry_price: Mapped[float] = mapped_column(_MONEY, nullable=False)
+    current_price: Mapped[float] = mapped_column(_MONEY, nullable=False)
     return_pct: Mapped[float] = mapped_column(Float, nullable=False)
     evaluated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -237,12 +246,12 @@ class P2PSnapshot(Base):
     portfolio_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
     # platform: "mintos" | "bondora" | "peerberry" | "manual"
     platform: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
-    total_invested: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    outstanding_principal: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    interest_month: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    total_interest: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    defaulted_amount: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
-    cash_balance: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    total_invested: Mapped[float] = mapped_column(_MONEY, nullable=False, default=0.0)
+    outstanding_principal: Mapped[float] = mapped_column(_MONEY, nullable=False, default=0.0)
+    interest_month: Mapped[float] = mapped_column(_MONEY, nullable=False, default=0.0)
+    total_interest: Mapped[float] = mapped_column(_MONEY, nullable=False, default=0.0)
+    defaulted_amount: Mapped[float] = mapped_column(_MONEY, nullable=False, default=0.0)
+    cash_balance: Mapped[float] = mapped_column(_MONEY, nullable=False, default=0.0)
     net_annual_return: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     num_active_loans: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
@@ -270,7 +279,7 @@ class BankConnection(Base):
     username: Mapped[str] = mapped_column(String(100), nullable=False)
     account_iban: Mapped[Optional[str]] = mapped_column(String(34), nullable=True)
     last_synced: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_balance: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    last_balance: Mapped[Optional[float]] = mapped_column(_MONEY, nullable=True)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -288,11 +297,11 @@ class OrderRecord(Base):
     order_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True, index=True)
     ticker: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     side: Mapped[str] = mapped_column(String(10), nullable=False)
-    quantity: Mapped[float] = mapped_column(Float, nullable=False)
+    quantity: Mapped[float] = mapped_column(_QTY, nullable=False)
     order_type: Mapped[str] = mapped_column(String(20), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
-    fill_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    fill_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fill_price: Mapped[Optional[float]] = mapped_column(_MONEY, nullable=True)
+    fill_qty: Mapped[Optional[float]] = mapped_column(_QTY, nullable=True)
     reason: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -389,7 +398,7 @@ class PriceAlertRecord(Base):
     alert_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True, index=True)
     ticker: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     condition: Mapped[str] = mapped_column(String(20), nullable=False)
-    threshold: Mapped[float] = mapped_column(Float, nullable=False)
+    threshold: Mapped[float] = mapped_column(_MONEY, nullable=False)
     status: Mapped[str] = mapped_column(String(10), nullable=False, default="active", index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -398,7 +407,7 @@ class PriceAlertRecord(Base):
         index=True,
     )
     fired_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    fired_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    fired_price: Mapped[Optional[float]] = mapped_column(_MONEY, nullable=True)
     username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
 
 
