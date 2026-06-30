@@ -112,6 +112,15 @@ export default function CandlestickChart({
   // Store latest bars so indicator toggles can re-render without refetch
   const barsRef = useRef<OHLCVBar[]>([]);
 
+  // Responsive chart height — SSR-safe (no window access at init time)
+  const [displayHeight, setDisplayHeight] = useState(height);
+  useEffect(() => {
+    const update = () => setDisplayHeight(window.innerWidth < 768 ? 220 : height);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [height]);
+
   // Sync with externally controlled ticker
   useEffect(() => {
     if (controlledTicker && controlledTicker.trim().length > 0) {
@@ -136,7 +145,7 @@ export default function CandlestickChart({
 
       chart = createChart(containerRef.current, {
         width:  containerRef.current.clientWidth,
-        height,
+        height: displayHeight,
         layout: {
           background: { type: ColorType.Solid, color: "#080B14" },
           textColor: "#64748B",
@@ -206,7 +215,7 @@ export default function CandlestickChart({
       lineSeriesRefs.current  = {};
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [height]);
+  }, [displayHeight]);
 
   // ------------------------------------------------------------------
   // Render indicator lines onto chart (pure client-side calculation)
@@ -380,7 +389,7 @@ export default function CandlestickChart({
             <button
               key={t}
               onClick={() => setActiveTicker(t)}
-              className="px-3 py-1 rounded-lg text-xs font-bold font-mono transition-all"
+              className="px-3 py-1 min-h-[44px] inline-flex items-center justify-center rounded-lg text-xs font-bold font-mono transition-all"
               style={
                 t === activeTicker
                   ? {
@@ -410,7 +419,7 @@ export default function CandlestickChart({
               <button
                 key={key}
                 onClick={() => toggleIndicator(key)}
-                className="px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition-all"
+                className="px-2.5 py-1 min-h-[44px] inline-flex items-center justify-center rounded-lg text-xs font-bold font-mono transition-all"
                 style={
                   on
                     ? {
@@ -458,7 +467,7 @@ export default function CandlestickChart({
           <button
             onClick={() => loadCandles(activeTicker)}
             disabled={loading}
-            className="p-1.5 rounded-lg transition-all disabled:opacity-40"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg transition-all disabled:opacity-40"
             style={{
               background: "rgba(255,255,255,0.04)",
               border:     "1px solid rgba(255,255,255,0.08)",
@@ -473,7 +482,7 @@ export default function CandlestickChart({
       </div>
 
       {/* Chart area */}
-      <div className="relative" style={{ height }}>
+      <div className="relative" style={{ height: displayHeight }}>
         {loading && (
           <div
             className="absolute inset-0 z-10 flex items-center justify-center"
