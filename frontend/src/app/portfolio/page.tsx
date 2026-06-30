@@ -362,7 +362,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* Hero stats */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Gesamtwert",   value: livePortfolio.total_value,  prefix: "$", color: "#00D4FF", icon: DollarSign  },
           { label: "Cash",         value: livePortfolio.cash,          prefix: "$", color: "#7B2FFF", icon: PieChart    },

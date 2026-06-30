@@ -577,8 +577,8 @@ function KiKontextTab() {
         <p className="text-xs text-slate-500 mb-4">
           Zeigt, welches Wissen die KI aus YouTube-Videos und Trade-Auswertungen für diesen Ticker gelernt hat und in die Signalgeneration einfließt.
         </p>
-        <div className="grid grid-cols-3 gap-3 mb-3">
-          <div className="col-span-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+          <div className="sm:col-span-1">
             <label className="block text-xs text-slate-500 mb-1">Ticker</label>
             <input
               value={ticker}
@@ -588,7 +588,7 @@ function KiKontextTab() {
               className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-purple-500/50 uppercase"
             />
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <label className="block text-xs text-slate-500 mb-1">Suchanfrage</label>
             <input
               value={query}

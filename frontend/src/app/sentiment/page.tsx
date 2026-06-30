@@ -303,7 +303,7 @@ export default function SentimentPage() {
       {/* Heatmap */}
       <GlassCard delay={0.15}>
         <SectionLabel>Sentiment-Heatmap</SectionLabel>
-        <div className="grid grid-cols-6 gap-2 mt-3">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3">
           {heatTickers.map((t, i) => (
             <motion.div
               key={t.ticker}

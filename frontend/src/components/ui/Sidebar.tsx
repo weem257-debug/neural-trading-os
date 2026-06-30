@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -31,6 +31,8 @@ import {
 import { LanguageToggle, useI18n } from "@/i18n/context";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+import { App } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 
 const navItems = [
   { href: "/dashboard",  labelKey: "nav.dashboard",  icon: LayoutDashboard, color: "cyan" },
@@ -413,6 +415,21 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
 /* ------------------------------------------------------------------ */
 export function Sidebar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileOpenRef = useRef(mobileOpen);
+  useEffect(() => { mobileOpenRef.current = mobileOpen; }, [mobileOpen]);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const listenerPromise = App.addListener("backButton", ({ canGoBack }) => {
+      if (mobileOpenRef.current) {
+        setMobileOpen(false);
+      } else if (canGoBack) {
+        window.history.back();
+      } else {
+        App.exitApp();
+      }
+    });
+    return () => { listenerPromise.then((h) => h.remove()); };
+  }, []);
   const pathname = usePathname();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
 

@@ -533,18 +533,18 @@ export default function DashboardPage() {
           </div>
         </div>
         {/* KPI cards skeleton */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[0, 1, 2, 3].map((i) => <SkeletonCard key={i} />)}
         </div>
         {/* Main grid skeleton */}
-        <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-5">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div className="md:col-span-5">
             <SkeletonChart height={180} />
           </div>
-          <div className="col-span-4">
+          <div className="md:col-span-4">
             <SkeletonChart height={240} showLegend={false} />
           </div>
-          <div className="col-span-3 space-y-4">
+          <div className="md:col-span-3 space-y-4">
             <SkeletonCard />
             <SkeletonCard />
           </div>
@@ -570,7 +570,7 @@ export default function DashboardPage() {
           )}
           <div className="flex items-baseline gap-3 mt-1">
             <h1
-              className="text-4xl font-bold font-mono"
+              className="text-2xl sm:text-4xl font-bold font-mono"
               style={{
                 color: "#00D4FF",
                 textShadow: "0 0 30px rgba(0,212,255,0.5), 0 0 60px rgba(0,212,255,0.2)",
@@ -591,7 +591,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Status indicators + Refresh */}
-        <div className="flex items-center gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
           <div
             className="flex items-center gap-2 px-3 py-2 rounded-lg"
             style={{
@@ -703,7 +703,7 @@ export default function DashboardPage() {
       )}
 
       {/* ---- KPI Cards ---- */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
           label="Gesamt P&L"
           value={<span style={{ color: pnlPos ? "#00FF88" : "#FF0080" }}>
@@ -743,9 +743,9 @@ export default function DashboardPage() {
       </div>
 
       {/* ---- Main Grid ---- */}
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         {/* Portfolio Donut + Top Holdings — 5 cols */}
-        <div className="col-span-5 space-y-4">
+        <div className="md:col-span-5 space-y-4">
           {/* Donut */}
           <GlassCard variant="cyan" delay={0.25}>
             <div className="flex items-center justify-between">
@@ -834,7 +834,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Live Signal Feed — 4 cols */}
-        <div className="col-span-4">
+        <div className="md:col-span-4">
           <GlassCard variant="green" padding="p-4" delay={0.2} className="h-full">
             <div className="flex items-center justify-between mb-3">
               <SectionLabel>Live-Signal-Feed</SectionLabel>
@@ -895,7 +895,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Watchlist + Neural Activity + Risk Mini — 3 cols */}
-        <div className="col-span-3 space-y-4">
+        <div className="md:col-span-3 space-y-4">
           {/* Watchlist */}
           <Watchlist />
 

@@ -15,7 +15,7 @@ export default function PortfolioLoading() {
       </div>
 
       {/* Hero stats — 4 cols */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
@@ -100,7 +100,7 @@ export default function PortfolioLoading() {
           <div className="h-3 w-48 rounded" style={{ background: "rgba(255,255,255,0.06)" }} />
           <div className="h-7 w-7 rounded-lg" style={{ background: "rgba(255,255,255,0.04)" }} />
         </div>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="rounded-xl p-3 space-y-2" style={{ background: "rgba(255,255,255,0.03)" }}>
               <div className="h-3 w-20 rounded" style={{ background: "rgba(255,255,255,0.04)" }} />

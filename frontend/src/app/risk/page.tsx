@@ -367,7 +367,7 @@ export default function RiskPage() {
           <SectionLabel>Risikoanzeigen</SectionLabel>
           <InfoButton onClick={() => setExplainContent(EXPLAIN_VAR)} color="pink" className="-mt-2" />
         </div>
-        <div className="grid grid-cols-4 gap-4 mt-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
           <TachometerGauge
             value={metrics.current_drawdown}
             max={0.2}
@@ -404,7 +404,7 @@ export default function RiskPage() {
       </GlassCard>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "VaR 95%",      value: `$${metrics.portfolio_var_95.toLocaleString()}`, color: "#00D4FF", icon: BarChart2 },
           { label: "VaR 99%",      value: `$${metrics.portfolio_var_99.toLocaleString()}`, color: "#7B2FFF", icon: TrendingDown },

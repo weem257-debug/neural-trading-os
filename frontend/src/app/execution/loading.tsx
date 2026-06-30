@@ -20,9 +20,9 @@ export default function ExecutionLoading() {
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         {/* Order form skeleton — 7 cols */}
-        <div className="col-span-7">
+        <div className="md:col-span-7">
           <div
             className="rounded-2xl p-5 space-y-4"
             style={{ background: "rgba(8,11,20,0.7)", border: "1px solid rgba(0,255,136,0.1)" }}
@@ -58,7 +58,7 @@ export default function ExecutionLoading() {
         </div>
 
         {/* Order book + recent — 5 cols */}
-        <div className="col-span-5 space-y-4">
+        <div className="md:col-span-5 space-y-4">
           <div
             className="rounded-2xl p-5"
             style={{ background: "rgba(8,11,20,0.7)", border: "1px solid rgba(255,255,255,0.07)" }}

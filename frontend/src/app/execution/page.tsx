@@ -289,9 +289,9 @@ export default function ExecutionPage() {
         )}
       </motion.div>
 
-      <div className="grid grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
         {/* Order Form — 7 cols */}
-        <div className="col-span-7">
+        <div className="md:col-span-7">
           <GlassCard
             variant={form.side === "buy" ? "green" : "pink"}
             delay={0.1}
@@ -482,7 +482,7 @@ export default function ExecutionPage() {
         </div>
 
         {/* Order Book + Recent — 5 cols */}
-        <div className="col-span-5 space-y-4">
+        <div className="md:col-span-5 space-y-4">
           <GlassCard delay={0.15}>
             <OrderBook ticker={form.ticker} />
           </GlassCard>

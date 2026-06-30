@@ -37,7 +37,7 @@ export default function SentimentLoading() {
         }}
       >
         <SkeletonBlock height={10} width={140} className="mb-4" />
-        <div className="grid grid-cols-6 gap-2">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
           {Array.from({ length: 12 }).map((_, i) => (
             <div
               key={i}
