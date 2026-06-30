@@ -13,6 +13,59 @@ that is correct in substance but not yet a substitute for legal review.
 
 from __future__ import annotations
 
+from datetime import datetime, UTC
+
+# ---------------------------------------------------------------------------
+# Creator / provider identity (MAR Art. 20 + Delegierte VO (EU) 2016/958 Art. 2;
+# Impressum § 5 DDG). These are PLACEHOLDERS — the CEO must replace every
+# TODO-FIRMENDATEN value with the real registered company data before go-live.
+# ---------------------------------------------------------------------------
+COMPANY_NAME: str = "TODO-FIRMENDATEN: Firmenname GmbH"
+COMPANY_LEGAL_FORM: str = "TODO-FIRMENDATEN: Rechtsform"
+COMPANY_ADDRESS: str = "TODO-FIRMENDATEN: Straße Hausnr., PLZ Ort, Deutschland"
+COMPANY_REPRESENTED_BY: str = "TODO-FIRMENDATEN: Geschäftsführer/Vertretungsberechtigte:r"
+COMPANY_REGISTER: str = "TODO-FIRMENDATEN: Amtsgericht / HRB-Nummer"
+COMPANY_VAT_ID: str = "TODO-FIRMENDATEN: USt-IdNr. (§ 27a UStG)"
+COMPANY_EMAIL: str = "TODO-FIRMENDATEN: kontakt@example.com"
+COMPANY_PHONE: str = "TODO-FIRMENDATEN: +49 ..."
+COMPANY_CONTENT_RESPONSIBLE: str = "TODO-FIRMENDATEN: inhaltlich Verantwortliche:r (§ 18 Abs. 2 MStV)"
+
+# Short methodology description (MAR — Grundlage der Empfehlung).
+METHODOLOGY_SHORT_DE: str = (
+    "Die Empfehlung wird automatisiert durch ein KI-gestütztes Multi-Agenten-System "
+    "erzeugt, das öffentlich verfügbare Marktdaten, Fundamentaldaten, Nachrichten- und "
+    "Stimmungssignale sowie technische Indikatoren auswertet. Die Aussage ist "
+    "nicht-individuell und für einen unbestimmten Personenkreis bestimmt."
+)
+
+# Interessenkonflikt-Hinweis (MAR Art. 20 Abs. 1).
+CONFLICT_OF_INTEREST_DE: str = (
+    "Zum Zeitpunkt der Erstellung bestehen keine offenzulegenden eigenen Positionen "
+    "oder Interessenkonflikte des Erstellers in Bezug auf das genannte Finanzinstrument. "
+    "TODO-FIRMENDATEN: Sofern Eigenpositionen oder Vergütungen durch Dritte bestehen, "
+    "sind diese hier offenzulegen."
+)
+
+# Prominente Kapitalverlust-Warnung.
+CAPITAL_LOSS_WARNING_DE: str = (
+    "⚠️ Risikohinweis: Der Handel mit Finanzinstrumenten ist mit dem Risiko des "
+    "vollständigen Verlusts des eingesetzten Kapitals verbunden. Vergangene oder im "
+    "Backtest erzielte Wertentwicklungen sind kein verlässlicher Indikator für die "
+    "Zukunft."
+)
+
+# Explizite Negativabgrenzung (keine individuelle Anlageberatung).
+NON_ADVICE_CLAUSE_DE: str = (
+    "Dies ist eine allgemeine, nicht-individuelle Anlageempfehlung und keine auf Ihre "
+    "persönliche Situation zugeschnittene Anlageberatung."
+)
+
+# KI-Kennzeichnung (KI-Verordnung (EU) 2024/1689 — AI Act Art. 50).
+AI_GENERATED_NOTICE_DE: str = (
+    "Dieser Inhalt wurde mithilfe künstlicher Intelligenz (KI) automatisiert erzeugt "
+    "(Kennzeichnung gem. Art. 50 KI-VO)."
+)
+
 # Short notice — suitable for an HTTP response header / footer.
 DISCLAIMER_SHORT_DE: str = (
     "Keine Anlageberatung. Alle Inhalte dienen nur zu Informations- und "
@@ -86,4 +139,52 @@ def disclaimer_payload() -> dict[str, str]:
         "full_de": DISCLAIMER_FULL_DE,
         "full_en": DISCLAIMER_FULL_EN,
         "not_investment_advice": True,
+    }
+
+
+def mar_disclosure(*, ai_generated: bool = True, timestamp: datetime | None = None) -> dict:
+    """Structured MAR / AI-Act disclosure attached to every recommendation/signal.
+
+    Implements the mandatory disclosures of Art. 20 MAR in conjunction with
+    Delegated Regulation (EU) 2016/958 (creator identity, methodology, conflict
+    of interest, timestamp), the AI-Act Art. 50 "AI-generated" label, and the
+    prominent capital-loss warning plus the explicit non-advice clause.
+
+    Designed to be embedded as a structured field (``regulatory_notice``) in API
+    payloads so the frontend can render it consistently next to each signal.
+    """
+    ts = (timestamp or datetime.now(UTC))
+    return {
+        "creator_identity": COMPANY_NAME,
+        "methodology": METHODOLOGY_SHORT_DE,
+        "conflict_of_interest": CONFLICT_OF_INTEREST_DE,
+        "disclosure_timestamp": ts.isoformat(),
+        "ai_generated": ai_generated,
+        "ai_act_notice": AI_GENERATED_NOTICE_DE if ai_generated else None,
+        "capital_loss_warning": CAPITAL_LOSS_WARNING_DE,
+        "non_advice_clause": NON_ADVICE_CLAUSE_DE,
+        "not_investment_advice": True,
+    }
+
+
+def imprint_payload() -> dict:
+    """Impressum data (§ 5 DDG, § 18 MStV) — machine-readable for the frontend.
+
+    All values are TODO-FIRMENDATEN placeholders the CEO must fill in with the
+    real registered company data before public go-live.
+    """
+    return {
+        "company_name": COMPANY_NAME,
+        "legal_form": COMPANY_LEGAL_FORM,
+        "address": COMPANY_ADDRESS,
+        "represented_by": COMPANY_REPRESENTED_BY,
+        "register": COMPANY_REGISTER,
+        "vat_id": COMPANY_VAT_ID,
+        "email": COMPANY_EMAIL,
+        "phone": COMPANY_PHONE,
+        "content_responsible": COMPANY_CONTENT_RESPONSIBLE,
+        "placeholder_notice": (
+            "Diese Angaben sind Platzhalter (TODO-FIRMENDATEN) und müssen vor dem "
+            "öffentlichen Go-Live durch die echten Unternehmensdaten ersetzt werden."
+        ),
     }

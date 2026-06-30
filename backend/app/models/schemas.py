@@ -6,6 +6,8 @@ from typing import Optional, Any
 from datetime import datetime, UTC
 from enum import Enum
 
+from app.core.disclaimer import mar_disclosure
+
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -60,6 +62,11 @@ class TradingSignal(BaseModel):
     source: str = "TradingAgents"              # which repo generated this
     generated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     agents_consensus: Optional[dict[str, str]] = None
+    # Regulatory disclosure (MAR Art. 20 / Delegierte VO (EU) 2016/958 + AI-Act
+    # Art. 50): creator identity, methodology, conflict-of-interest, AI-generated
+    # flag, capital-loss warning and non-advice clause. Auto-attached to EVERY
+    # signal so the frontend can render it next to the recommendation.
+    regulatory_notice: dict = Field(default_factory=mar_disclosure)
     # IDs of the YouTube insights that were actually injected into the prompt that
     # produced this signal. Used by the self-learning feedback loop to attribute the
     # trade outcome to exactly these insights. Not part of the public API contract.
@@ -514,6 +521,9 @@ class StockReport(BaseModel):
     components: dict[str, Any]          # Sub-module results + sub-scores
     agreement: float = Field(ge=0.0, le=1.0)
     data_quality: str                   # "good" | "limited" | "insufficient"
+    # Regulatory disclosure (MAR Art. 20 + AI-Act Art. 50) — auto-attached to the
+    # full stock-analysis report so the frontend renders it with every verdict.
+    regulatory_notice: dict = Field(default_factory=mar_disclosure)
 
 
 # ---------------------------------------------------------------------------

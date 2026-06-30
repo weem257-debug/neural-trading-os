@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from app.core.disclaimer import disclaimer_payload
+from app.core.disclaimer import disclaimer_payload, imprint_payload, mar_disclosure
 
 router = APIRouter(tags=["legal"])
 
@@ -22,3 +22,23 @@ async def get_disclaimer() -> dict:
     onboarding so it can be shown up-front.
     """
     return disclaimer_payload()
+
+
+@router.get("/legal/mar-disclosure")
+async def get_mar_disclosure() -> dict:
+    """Return the structured MAR / AI-Act disclosure (Art. 20 MAR, Art. 50 AI-Act).
+
+    Same payload embedded as ``regulatory_notice`` in every signal/report, exposed
+    standalone so the frontend can render a static regulatory page.
+    """
+    return mar_disclosure()
+
+
+@router.get("/legal/imprint")
+async def get_imprint() -> dict:
+    """Return the Impressum data (§ 5 DDG, § 18 MStV).
+
+    Public, unauthenticated. Values are TODO-FIRMENDATEN placeholders until the
+    operator fills in the real registered company data.
+    """
+    return imprint_payload()
