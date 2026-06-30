@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { TickerBar } from "@/components/ui/TickerBar";
@@ -16,6 +16,14 @@ import { TokenRefresher } from "@/components/ui/TokenRefresher";
 
 const SITE_URL =
   process.env.NEXT_PUBLIC_APP_URL ?? "https://neuraltrading.io";
+
+// viewport-fit=cover enables env(safe-area-inset-*) on iOS notch/Dynamic Island devices.
+// Must be a separate export from metadata (Next.js 14+).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -60,7 +68,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="de" className="dark">
-      <body className="bg-base text-slate-200 min-h-screen overflow-hidden">
+      <body className="bg-base text-slate-200 min-h-[100dvh]">
         {/* Neural grid background */}
         <div className="fixed inset-0 bg-neural-grid opacity-60 pointer-events-none z-0" />
 
@@ -97,7 +105,15 @@ export default function RootLayout({
 
         {/* i18n provider — wraps all children for DE/EN support */}
         <I18nProvider>
-          <div className="relative z-10 flex h-screen overflow-hidden">
+          <div
+            className="relative z-10 flex h-[100dvh] overflow-hidden"
+            style={{
+              paddingTop: "env(safe-area-inset-top)",
+              paddingBottom: "env(safe-area-inset-bottom)",
+              paddingLeft: "env(safe-area-inset-left)",
+              paddingRight: "env(safe-area-inset-right)",
+            }}
+          >
             {/* Left Sidebar */}
             <ErrorBoundary>
               <Sidebar />

@@ -8,6 +8,13 @@ export function ParticleBackground() {
   const [inited, setInited] = useState(false);
 
   useEffect(() => {
+    // Skip on mobile (< 768px) and when user prefers reduced motion.
+    // Prevents unnecessary GPU/battery drain on Capacitor iOS/Android.
+    if (typeof window !== "undefined") {
+      if (window.innerWidth < 768) return;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    }
+
     initParticlesEngine(async (engine) => {
       await loadSlim(engine);
     }).then(() => setInited(true));

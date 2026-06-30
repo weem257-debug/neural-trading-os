@@ -37,7 +37,9 @@ body {
   font-family: 'Space Grotesk', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden;
+  /* overflow: hidden removed — scroll is controlled per layout container, not globally.
+     Global overflow:hidden breaks native iOS/Android scroll in Capacitor. */
+  -webkit-overflow-scrolling: touch; /* iOS momentum scroll */
 }
 
 /* ---- Neon Scrollbar ---- */

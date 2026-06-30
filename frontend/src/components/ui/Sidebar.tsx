@@ -318,7 +318,7 @@ function HamburgerButton({ open, onClick }: { open: boolean; onClick: () => void
     <button
       onClick={onClick}
       aria-label={open ? "Navigation schließen" : "Navigation öffnen"}
-      className="fixed top-3 left-3 z-50 md:hidden flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200"
+      className="fixed top-3 left-3 z-50 md:hidden flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200"
       style={{
         background: open ? "rgba(0,212,255,0.15)" : "rgba(8,11,20,0.9)",
         border: "1px solid rgba(0,212,255,0.2)",
