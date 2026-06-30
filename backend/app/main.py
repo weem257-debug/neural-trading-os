@@ -752,22 +752,14 @@ async def lifespan(app: FastAPI):
             "without billing."
         )
 
-    # Apply Alembic migrations (idempotent — safe to run on every startup)
-    try:
-        import subprocess
-        import sys
-        result = subprocess.run(
-            [sys.executable, "-m", "alembic", "upgrade", "head"],
-            capture_output=True,
-            text=True,
-            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        )
-        if result.returncode == 0:
-            logger.info("db_migrations_applied")
-        else:
-            logger.warning("db_migrations_warning", stderr=result.stderr[:500])
-    except Exception as db_err:
-        logger.warning("db_migrations_failed", reason=str(db_err))
+    # NOTE: Alembic migrations are intentionally NOT run here.
+    # Migrations are applied exclusively in a controlled step (railway.toml
+    # startCommand / a dedicated pre-deploy step), never on every app boot.
+    # Running `alembic upgrade head` inside lifespan() duplicated the migration
+    # run already triggered by startCommand and — because the NUMERIC money-math
+    # migration takes an ACCESS EXCLUSIVE lock — could block or deadlock app
+    # startup against the concurrent startCommand migration. The web process must
+    # boot fast and serve traffic; schema changes are a separate, deliberate step.
 
     # Ensure all ORM-registered tables exist (safety net for SQLite dev/test environments
     # where Alembic may target a different relative path than the async engine)
