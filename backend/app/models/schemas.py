@@ -244,7 +244,10 @@ class RiskMetrics(BaseModel):
     beta: Optional[float] = None
     correlation_sp500: Optional[float] = None
     concentration_risk: float                  # top-5 positions % of portfolio
-    leverage: float = 1.0
+    # Real gross-exposure / equity ratio (P0: was hardcoded 1.0). Computed by
+    # compute_risk_metrics() from live position market values — 0.0 when
+    # there are no positions or equity is non-positive.
+    leverage: float = 0.0
     alerts: list[str] = []
 
 
@@ -571,3 +574,68 @@ class ElliottWaveAnalysis(BaseModel):
     analyzed_at: str
     detail: Optional[str] = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+# ---------------------------------------------------------------------------
+# Live Market Analysis (GET /api/analysis/live/{symbol})
+# ---------------------------------------------------------------------------
+
+class LiveAnalysisPrice(BaseModel):
+    last: float
+    change: float
+    change_pct: float
+    day_high: float
+    day_low: float
+    volume: float
+
+
+class LiveAnalysisMACD(BaseModel):
+    macd: float
+    signal: float
+    hist: float
+
+
+class LiveAnalysisBollinger(BaseModel):
+    upper: float
+    middle: float
+    lower: float
+    pct_b: float
+
+
+class LiveAnalysisIndicators(BaseModel):
+    rsi_14: Optional[float] = None
+    macd: LiveAnalysisMACD
+    bollinger: LiveAnalysisBollinger
+    sma_20: Optional[float] = None
+    sma_50: Optional[float] = None
+    sma_200: Optional[float] = None
+    atr_14: Optional[float] = None
+    volume_avg_20: Optional[float] = None
+
+
+class LiveAnalysisSignal(BaseModel):
+    bias: str        # "bullish" | "bearish" | "neutral"
+    score: int        # -100..100
+    reasons: list[str] = []
+
+
+class LiveMarketAnalysis(BaseModel):
+    symbol: str
+    as_of: str
+    price: LiveAnalysisPrice
+    indicators: LiveAnalysisIndicators
+    regime: str       # "trending_up" | "trending_down" | "ranging" | "volatile"
+    signal: LiveAnalysisSignal
+    regulatory_notice: dict
+
+
+# ---------------------------------------------------------------------------
+# Analysis Watchlist (GET/PUT /api/analysis/watchlist)
+# ---------------------------------------------------------------------------
+
+class WatchlistResponse(BaseModel):
+    symbols: list[str]
+
+
+class WatchlistUpdateRequest(BaseModel):
+    symbols: list[str]

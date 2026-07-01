@@ -14,7 +14,7 @@ import asyncio
 from datetime import datetime, UTC
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 
 from app.api.auth import get_current_user, UserInfo
@@ -28,13 +28,25 @@ router = APIRouter(prefix="/p2p", tags=["P2P Lending"])
 
 
 # ---------------------------------------------------------------------------
+# Admin-only gate (P0-3/P0-4) — see app/api/routes/brokers.py for rationale.
+# ---------------------------------------------------------------------------
+def _require_p2p_admin(current_user: UserInfo = Depends(get_current_user)) -> UserInfo:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Zugriff verweigert — Admin-Rolle erforderlich (P2P-Kontodaten)",
+        )
+    return current_user
+
+
+# ---------------------------------------------------------------------------
 # Individual platform endpoints
 # ---------------------------------------------------------------------------
 
 @router.get("/mintos")
 async def get_mintos(
     api_key: Optional[str] = Query(None, description="Mintos API key (overrides stored credential)"),
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_p2p_admin),
 ) -> dict:
     from app.services.credentials import get_credential
     resolved = api_key or await get_credential("MINTOS_API_KEY")
@@ -45,7 +57,7 @@ async def get_mintos(
 @router.get("/bondora")
 async def get_bondora(
     api_key: Optional[str] = Query(None, description="Bondora API key (overrides stored credential)"),
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_p2p_admin),
 ) -> dict:
     from app.services.credentials import get_credential
     resolved = api_key or await get_credential("BONDORA_API_KEY")
@@ -57,7 +69,7 @@ async def get_bondora(
 async def get_peerberry(
     email: Optional[str] = Query(None),
     password: Optional[str] = Query(None),
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_p2p_admin),
 ) -> dict:
     from app.services.credentials import get_credential
     resolved_email = email or await get_credential("PEERBERRY_EMAIL")
@@ -72,7 +84,7 @@ async def get_peerberry(
 
 @router.get("/summary")
 async def get_p2p_summary(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_p2p_admin),
 ) -> dict:
     from app.services.credentials import get_credential
     mintos_key = await get_credential("MINTOS_API_KEY")
@@ -126,7 +138,7 @@ async def get_p2p_summary(
 @router.post("/snapshot", status_code=201)
 async def save_snapshot(
     portfolio_id: Optional[int] = Query(None),
-    user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(_require_p2p_admin),
 ) -> dict:
     """Fetch all platforms and persist the current values as DB snapshots."""
     mintos_data = await mintos_svc.fetch_summary()
@@ -166,7 +178,7 @@ async def save_snapshot(
 async def get_p2p_history(
     platform: Optional[str] = Query(None, description="Filter by platform name"),
     limit: int = Query(30, ge=1, le=200),
-    user: UserInfo = Depends(get_current_user),
+    user: UserInfo = Depends(_require_p2p_admin),
 ) -> list[dict]:
     async with get_session() as session:
         q = (

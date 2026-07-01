@@ -266,6 +266,7 @@ async def compute_risk_metrics(
             current_drawdown=0.0,
             sharpe_ratio=0.0,
             concentration_risk=0.0,
+            leverage=0.0,
             alerts=["Keine Positionen — Risikokennzahlen nicht verfügbar"],
         )
 
@@ -276,11 +277,22 @@ async def compute_risk_metrics(
     top5_sum = sum(values[:5])
     concentration = top5_sum / portfolio_value if portfolio_value > 0 else 0.0
 
+    # Real leverage (P0): gross exposure / equity. Paper trading is long-only
+    # (no shorting), so gross exposure == sum of |market_value| across positions.
+    gross_exposure = sum(abs(p.get("market_value", 0) or 0) for p in positions)
+    leverage = gross_exposure / portfolio_value if portfolio_value > 0 else 0.0
+
     alerts = []
     if concentration > 0.6:
         alerts.append(f"Hohe Konzentration: Top-5-Positionen = {concentration:.0%}")
     if portfolio_value < 10_000:
         alerts.append("Niedriger Portfoliowert — Mindestkapitalanforderungen beachten")
+
+    from app.core.config import settings as _settings
+    if leverage > _settings.MAX_LEVERAGE:
+        alerts.append(
+            f"Hebel-Limit überschritten: {leverage:.2f}x (Limit: {_settings.MAX_LEVERAGE:.2f}x)"
+        )
 
     # Simplified VaR (parametric, assuming 2% daily vol)
     daily_vol = 0.02
@@ -294,6 +306,7 @@ async def compute_risk_metrics(
         current_drawdown=0.0,
         sharpe_ratio=0.0,       # populated from historical PnL later
         concentration_risk=round(concentration, 4),
+        leverage=round(leverage, 4),
         alerts=alerts,
     )
 

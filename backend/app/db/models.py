@@ -309,6 +309,10 @@ class OrderRecord(Base):
         default=lambda: datetime.now(UTC),
         index=True,
     )
+    # SECURITY (P0-3/P0-4): scopes order history to the submitting user. NULL
+    # for rows persisted before this column existed (documented residual gap
+    # — see app/services/nautilus/client.py get_order_history_async).
+    owner_username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, index=True)
 
 
 class Subscription(Base):
@@ -434,6 +438,24 @@ class User(Base):
     )
     referred_by: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default=None)
     email_unsubscribed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class AnalysisWatchlist(Base):
+    """
+    Per-user watchlist for the live market-analysis feature
+    (GET/PUT /api/analysis/watchlist). One row per (owner_username, symbol).
+    """
+
+    __tablename__ = "analysis_watchlist"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_username: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    symbol: Mapped[str] = mapped_column(String(20), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
 
 
 class PasswordResetToken(Base):

@@ -42,7 +42,7 @@ def _get_client() -> NautilusExecutionClient:
 async def submit_order(
     req: OrderRequest,
     client: NautilusExecutionClient = Depends(_get_client),
-    _: UserInfo = Depends(get_current_user),
+    current_user: UserInfo = Depends(get_current_user),
 ) -> OrderResponse:
     """
     Submit a buy/sell order.
@@ -73,7 +73,7 @@ async def submit_order(
         )
 
     try:
-        result = await client.submit_order(req)
+        result = await client.submit_order(req, owner_username=current_user.username)
         # Dispatch outbound webhook for filled orders (best-effort, non-blocking)
         try:
             import asyncio as _asyncio
@@ -109,14 +109,15 @@ async def submit_order(
 async def list_orders(
     limit: int = Query(default=50, ge=1, le=500, description="Max orders to return"),
     client: NautilusExecutionClient = Depends(_get_client),
-    _: UserInfo = Depends(get_current_user),
+    current_user: UserInfo = Depends(get_current_user),
 ) -> list[OrderHistoryItem]:
     """
-    Return the last N orders from SQLite (fallback: in-memory).
+    Return the last N orders from SQLite (fallback: in-memory), scoped to the
+    authenticated user's own orders (SECURITY P0-3/P0-4).
     Sorted newest-first. Includes status: filled | rejected.
     """
     try:
-        return await client.get_order_history_async(limit=limit)
+        return await client.get_order_history_async(limit=limit, owner_username=current_user.username)
     except Exception as e:
         logger.error("Error fetching order history: %s", e)
         raise HTTPException(status_code=500, detail="Order-Historie konnte nicht abgerufen werden")

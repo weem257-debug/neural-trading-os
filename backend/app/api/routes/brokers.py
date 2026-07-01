@@ -20,7 +20,7 @@ Endpunkte:
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 
 from app.api.auth import get_current_user, UserInfo
 from app.services import credentials as creds_svc
@@ -36,12 +36,30 @@ router = APIRouter(prefix="/brokers", tags=["Brokers"])
 
 
 # ---------------------------------------------------------------------------
+# Admin-only gate (P0-3/P0-4)
+# ---------------------------------------------------------------------------
+#
+# Every broker endpoint reads or triggers actions against real external
+# brokerage/P2P accounts. Even when no real credentials are configured yet,
+# these endpoints must not be reachable by an arbitrary logged-in "trader"
+# account — only admins. This mirrors the `_require_admin` pattern used in
+# app/api/routes/admin.py (same UserInfo.role == "admin" check).
+def _require_broker_admin(current_user: UserInfo = Depends(get_current_user)) -> UserInfo:
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Zugriff verweigert — Admin-Rolle erforderlich (Broker-/Kontodaten)",
+        )
+    return current_user
+
+
+# ---------------------------------------------------------------------------
 # Status-Übersicht
 # ---------------------------------------------------------------------------
 
 @router.get("/status")
 async def get_broker_status(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """
     Zeigt für jeden Broker an, ob Credentials konfiguriert sind.
@@ -114,7 +132,7 @@ async def get_broker_status(
 
 @router.get("/summary")
 async def get_broker_summary(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """
     Ruft alle konfigurierten Broker parallel ab und aggregiert die Werte.
@@ -195,7 +213,7 @@ async def get_broker_summary(
 
 @router.get("/bitpanda")
 async def get_bitpanda(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """Bitpanda Portfolio (Crypto, ETFs, Aktien, Metalle)."""
     api_key = await creds_svc.get_credential("BITPANDA_API_KEY")
@@ -206,7 +224,7 @@ async def get_bitpanda(
 @router.get("/bitpanda/transactions")
 async def get_bitpanda_transactions(
     limit: int = Query(50, ge=1, le=200),
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> list[dict]:
     """Bitpanda Transaktionshistorie."""
     api_key = await creds_svc.get_credential("BITPANDA_API_KEY")
@@ -219,7 +237,7 @@ async def get_bitpanda_transactions(
 
 @router.get("/comdirect")
 async def get_comdirect(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """Comdirect Portfolio (alle Depots). Benötigt gültiges OAuth2-Token."""
     token = await creds_svc.get_credential("COMDIRECT_ACCESS_TOKEN")
@@ -231,7 +249,7 @@ async def get_comdirect(
 async def get_comdirect_transactions(
     depot_id: Optional[str] = Query(None, description="Depot-ID (optional, Standard: alle Depots)"),
     limit: int = Query(50, ge=1, le=200),
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> list[dict]:
     """Comdirect Transaktionshistorie."""
     token = await creds_svc.get_credential("COMDIRECT_ACCESS_TOKEN")
@@ -240,7 +258,7 @@ async def get_comdirect_transactions(
 
 @router.post("/comdirect/oauth/initiate")
 async def comdirect_oauth_initiate(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """
     Schritt 1 des Comdirect OAuth2-Flows: Holt One-Time-Token.
@@ -269,7 +287,7 @@ async def comdirect_oauth_initiate(
 
 @router.post("/comdirect/oauth/refresh")
 async def comdirect_oauth_refresh(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """
     Comdirect Token-Refresh: Verlängert das Access-Token via Refresh-Token.
@@ -330,7 +348,7 @@ async def comdirect_oauth_refresh(
 
 @router.get("/degiro")
 async def get_degiro(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """DEGIRO Portfolio. Benötigt degiro-connector (pip install degiro-connector)."""
     username = await creds_svc.get_credential("DEGIRO_USERNAME")
@@ -346,7 +364,7 @@ async def get_degiro(
 
 @router.get("/flatex/account")
 async def get_flatex_account(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """Flatex Kontostand via FinTS — PIN aus FLATEX_FINTS_PIN env-var."""
     import os
@@ -359,7 +377,7 @@ async def get_flatex_account(
 @router.post("/flatex/sync")
 async def flatex_sync(
     body: dict,
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """
     Flatex Kontostand-Sync mit session-PIN aus dem Request-Body.
@@ -380,7 +398,7 @@ async def flatex_sync(
 @router.post("/flatex/import-csv")
 async def flatex_import_csv(
     file: UploadFile = File(..., description="Flatex Depot-Export (CSV, Semikolon-getrennt)"),
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """
     Importiert einen Flatex Depot-CSV-Export.
@@ -403,7 +421,7 @@ async def flatex_import_csv(
 
 @router.get("/crowdestor")
 async def get_crowdestor(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """Crowdestor P2P Crowdinvesting-Übersicht (inoffizielle API)."""
     email = await creds_svc.get_credential("CROWDESTOR_EMAIL")
@@ -418,7 +436,7 @@ async def get_crowdestor(
 
 @router.get("/trade-republic")
 async def get_trade_republic(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """
     Trade Republic Portfolio via WebSocket-Reverse-Engineering (pytr).
@@ -437,7 +455,7 @@ async def get_trade_republic(
 
 @router.get("/wh-selfinvest")
 async def get_wh_selfinvest(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_broker_admin),
 ) -> dict:
     """WH SelfInvest CFD/Futures Konto via cTrader Open API."""
     token = await creds_svc.get_credential("WH_CTRADER_ACCESS_TOKEN")

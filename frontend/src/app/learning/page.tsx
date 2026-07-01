@@ -418,7 +418,7 @@ export default function LearningPage() {
                   </div>
                   <div className="space-y-1.5">
                     <p className="font-semibold text-white flex items-center gap-1.5"><BarChart2 className="w-3.5 h-3.5 text-green-400" /> 2. Trade-Review</p>
-                    <p>Jeden Sonntag werden alle ausgeführten Trades analysiert. Muster wie "BUY NVDA mit 80%+ Confidence hatte 73% Win-Rate" werden gelernt.</p>
+                    <p>Jeden Sonntag werden alle ausgeführten Trades analysiert. Muster wie &bdquo;BUY NVDA mit 80%+ Confidence hatte 73% Win-Rate&ldquo; werden gelernt.</p>
                   </div>
                   <div className="space-y-1.5">
                     <p className="font-semibold text-white flex items-center gap-1.5"><Target className="w-3.5 h-3.5 text-cyan-400" /> 3. Signal-Verbesserung</p>

@@ -1088,13 +1088,35 @@ async def websocket_endpoint(
     - /ws/alerts    — risk alerts
     - /ws/all       — all events combined
 
-    Auth: pass ?token=<jwt> as query param.
+    Auth (P1 audit finding — priority order):
+    1. Sec-WebSocket-Protocol handshake header. Browsers can set this via
+       `new WebSocket(url, [jwt])` — it's the only place a browser WebSocket
+       client can attach a custom value without it landing in the request
+       URL (and therefore in proxy/access logs and browser history).
+    2. httpOnly `access_token` cookie — automatic for a browser already
+       logged in via the REST API (same cookie as /api/auth/token).
+    3. `?token=<jwt>` query param — DEPRECATED. Leaks the JWT into URLs
+       (server logs, proxies, browser history). Kept only for backward
+       compatibility with existing clients; logs a deprecation warning.
     """
     from app.api.auth import _verify_token
-    if not _verify_token(token):
+
+    protocol_token = websocket.headers.get("sec-websocket-protocol", "").split(",")[0].strip()
+    cookie_token = websocket.cookies.get(settings.AUTH_COOKIE_NAME, "")
+    resolved_token = protocol_token or cookie_token
+
+    if not resolved_token and token:
+        resolved_token = token
+        logger.warning(
+            "websocket_auth_via_query_param_deprecated",
+            channel=channel,
+        )
+
+    if not _verify_token(resolved_token):
         await websocket.close(code=4001)
         return
-    await ws_manager.connect(websocket, channel)
+
+    await ws_manager.connect(websocket, channel, subprotocol=protocol_token or None)
     try:
         while True:
             data = await websocket.receive_text()

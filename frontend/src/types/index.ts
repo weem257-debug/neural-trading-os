@@ -381,6 +381,65 @@ export interface ElliottWaveAnalysis {
 }
 
 // ---------------------------------------------------------------------------
+// Live-Markt-Analyse (GET /api/analysis/live/{symbol}, /api/analysis/watchlist)
+// ---------------------------------------------------------------------------
+export interface WatchlistResponse {
+  symbols: string[];
+}
+
+export interface LiveMarketPrice {
+  last: number;
+  change: number;
+  change_pct: number;
+  day_high: number;
+  day_low: number;
+  volume: number;
+}
+
+export interface LiveMarketMacd {
+  macd: number;
+  signal: number;
+  hist: number;
+}
+
+export interface LiveMarketBollinger {
+  upper: number;
+  middle: number;
+  lower: number;
+  pct_b: number;
+}
+
+export interface LiveMarketIndicators {
+  rsi_14: number;
+  macd: LiveMarketMacd;
+  bollinger: LiveMarketBollinger;
+  sma_20: number;
+  sma_50: number;
+  sma_200: number;
+  atr_14: number;
+  volume_avg_20: number;
+}
+
+export type MarketRegime = "trending_up" | "trending_down" | "ranging" | "volatile";
+export type MarketSignalBias = "bullish" | "bearish" | "neutral";
+
+export interface LiveMarketSignal {
+  bias: MarketSignalBias;
+  score: number;
+  reasons: string[];
+}
+
+export interface LiveMarketAnalysis {
+  symbol: string;
+  as_of: string;
+  price: LiveMarketPrice;
+  indicators: LiveMarketIndicators;
+  regime: MarketRegime;
+  signal: LiveMarketSignal;
+  regulatory_notice: Record<string, unknown>;
+}
+
+// ---------------------------------------------------------------------------
 // Backtest extras
 // ---------------------------------------------------------------------------
 export interface BacktestStrategyEntry {

@@ -2,12 +2,13 @@
 /api/portfolio — Portfolio positions, P&L, performance.
 """
 from __future__ import annotations
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from app.models.schemas import (
     PortfolioSnapshot, Position, AssetClass, ErrorResponse,
     PortfolioAnalytics, TickerPerformer, TickerPriceEntry, PortfolioPerformance,
 )
 from app.services.nautilus.client import get_execution_client
+from app.api.auth import get_current_user, UserInfo
 from app.core.cache import async_cached, cached as _cached
 import logging
 from datetime import datetime, UTC
@@ -187,7 +188,10 @@ def _build_demo_portfolio() -> PortfolioSnapshot:
     response_model=dict[str, TickerPriceEntry],
     summary="Batch price + 7-day history for a list of tickers",
 )
-async def get_prices(tickers: str = "") -> dict[str, TickerPriceEntry]:
+async def get_prices(
+    tickers: str = "",
+    _: UserInfo = Depends(get_current_user),
+) -> dict[str, TickerPriceEntry]:
     """
     GET /api/portfolio/prices?tickers=AAPL,MSFT,NVDA
 
@@ -276,7 +280,9 @@ async def _cached_portfolio_snapshot() -> PortfolioSnapshot:
     response_model=PortfolioSnapshot,
     summary="Demo portfolio snapshot with live yfinance prices",
 )
-async def get_portfolio_snapshot() -> PortfolioSnapshot:
+async def get_portfolio_snapshot(
+    _: UserInfo = Depends(get_current_user),
+) -> PortfolioSnapshot:
     """
     Returns a demo portfolio snapshot for AAPL, MSFT, NVDA, TSLA, BTC-USD.
     Current prices are fetched from yfinance (no API key required).
@@ -305,7 +311,9 @@ async def get_portfolio_snapshot() -> PortfolioSnapshot:
     response_model=PortfolioSnapshot,
     summary="Get current portfolio snapshot (Nautilus engine)",
 )
-async def get_portfolio() -> PortfolioSnapshot:
+async def get_portfolio(
+    _: UserInfo = Depends(get_current_user),
+) -> PortfolioSnapshot:
     """
     Returns current portfolio state from the Nautilus execution engine.
     Delegates to Nautilus when initialised, falls back to demo portfolio.
@@ -323,7 +331,9 @@ async def get_portfolio() -> PortfolioSnapshot:
     response_model=list[Position],
     summary="List open positions",
 )
-async def get_positions() -> list[Position]:
+async def get_positions(
+    _: UserInfo = Depends(get_current_user),
+) -> list[Position]:
     """Returns only the open position list from the current portfolio."""
     try:
         client = get_execution_client()
@@ -340,7 +350,9 @@ async def get_positions() -> list[Position]:
     response_model=PortfolioAnalytics,
     summary="Advanced portfolio analytics: Sharpe, Beta, Volatility, Correlation",
 )
-async def get_portfolio_analytics() -> PortfolioAnalytics:
+async def get_portfolio_analytics(
+    _: UserInfo = Depends(get_current_user),
+) -> PortfolioAnalytics:
     """
     Compute analytics for the demo portfolio (AAPL, MSFT, NVDA, TSLA, BTC-USD)
     using 30 days of daily returns from yfinance.
@@ -550,6 +562,7 @@ async def get_candles(
     period: str = "1mo",
     interval: str = "1d",
     indicators: str = "",
+    _: UserInfo = Depends(get_current_user),
 ) -> list:
     """
     GET /api/portfolio/candles?ticker=AAPL&period=1mo&interval=1d&indicators=sma20,sma50
@@ -573,7 +586,10 @@ async def get_candles(
     "/equity-curve",
     summary="Historical portfolio value (equity curve)",
 )
-async def get_equity_curve(days: int = 30) -> list[dict]:
+async def get_equity_curve(
+    days: int = 30,
+    _: UserInfo = Depends(get_current_user),
+) -> list[dict]:
     """
     GET /api/portfolio/equity-curve?days=30
 
@@ -644,7 +660,9 @@ async def get_equity_curve(days: int = 30) -> list[dict]:
     response_model=PortfolioPerformance,
     summary="Portfolio performance metrics",
 )
-async def get_performance() -> PortfolioPerformance:
+async def get_performance(
+    _: UserInfo = Depends(get_current_user),
+) -> PortfolioPerformance:
     """
     Returns aggregated performance: total return, day return, win rate etc.
     Falls back to demo portfolio data when Nautilus is unavailable.

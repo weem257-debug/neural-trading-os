@@ -27,6 +27,7 @@ import {
   UserCircle,
   Award,
   LineChart,
+  Radio,
 } from "lucide-react";
 import { LanguageToggle, useI18n } from "@/i18n/context";
 import { api } from "@/lib/api";
@@ -45,6 +46,7 @@ const navItems = [
   { href: "/learning",   labelKey: "nav.learning",   icon: Brain,           color: "purple" },
   { href: "/analysis",        labelKey: "nav.analysis",        icon: Waves,       color: "purple" },
   { href: "/aktienanalyse",  labelKey: "nav.aktienanalyse",  icon: LineChart,   color: "green"  },
+  { href: "/live",           labelKey: "nav.live",           icon: Radio,       color: "cyan"   },
   { href: "/backtest",   labelKey: "nav.backtest",   icon: BarChart2,       color: "cyan" },
   { href: "/sentiment",  labelKey: "nav.sentiment",  icon: Newspaper,       color: "yellow" },
   { href: "/risk",       labelKey: "nav.risk",       icon: Shield,          color: "pink" },

@@ -629,12 +629,12 @@ class TestBacktest:
 class TestPortfolioSnapshot:
     def test_snapshot_returns_200(self, client):
         """GET /api/portfolio/snapshot must return 200."""
-        resp = client.get("/api/portfolio/snapshot")
+        resp = client.get("/api/portfolio/snapshot", headers=_auth_headers(client))
         data = _assert_ok(resp)
         assert isinstance(data, dict)
 
     def test_snapshot_has_required_fields(self, client):
-        resp = client.get("/api/portfolio/snapshot")
+        resp = client.get("/api/portfolio/snapshot", headers=_auth_headers(client))
         data = _assert_ok(resp)
         required = {
             "total_value", "cash", "invested",
@@ -644,13 +644,13 @@ class TestPortfolioSnapshot:
         assert not missing, f"Snapshot missing fields: {missing}"
 
     def test_snapshot_has_positions(self, client):
-        resp = client.get("/api/portfolio/snapshot")
+        resp = client.get("/api/portfolio/snapshot", headers=_auth_headers(client))
         data = _assert_ok(resp)
         assert isinstance(data["positions"], list)
         assert len(data["positions"]) > 0, "Demo snapshot must contain at least one position"
 
     def test_snapshot_positions_have_required_fields(self, client):
-        resp = client.get("/api/portfolio/snapshot")
+        resp = client.get("/api/portfolio/snapshot", headers=_auth_headers(client))
         data = _assert_ok(resp)
         position_fields = {
             "ticker", "quantity", "avg_entry_price",
@@ -661,12 +661,12 @@ class TestPortfolioSnapshot:
             assert not missing, f"Position {pos.get('ticker')} missing: {missing}"
 
     def test_snapshot_total_value_positive(self, client):
-        resp = client.get("/api/portfolio/snapshot")
+        resp = client.get("/api/portfolio/snapshot", headers=_auth_headers(client))
         data = _assert_ok(resp)
         assert data["total_value"] > 0
 
     def test_snapshot_contains_expected_tickers(self, client):
-        resp = client.get("/api/portfolio/snapshot")
+        resp = client.get("/api/portfolio/snapshot", headers=_auth_headers(client))
         data = _assert_ok(resp)
         tickers = {p["ticker"] for p in data["positions"]}
         expected = {"AAPL", "MSFT", "NVDA", "TSLA", "BTC-USD"}
@@ -1019,7 +1019,7 @@ class TestPortfolioPrices:
         )
 
         with patch("yfinance.download", return_value=mock_df):
-            resp = client.get("/api/portfolio/prices?tickers=AAPL,MSFT")
+            resp = client.get("/api/portfolio/prices?tickers=AAPL,MSFT", headers=_auth_headers(client))
 
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
         data = resp.json()
@@ -1038,7 +1038,7 @@ class TestPortfolioPrices:
         mock_df.columns = pd.MultiIndex.from_tuples([("Close", "NVDA")])
 
         with patch("yfinance.download", return_value=mock_df):
-            resp = client.get("/api/portfolio/prices?tickers=NVDA")
+            resp = client.get("/api/portfolio/prices?tickers=NVDA", headers=_auth_headers(client))
 
         assert resp.status_code == 200
         data = resp.json()
@@ -1047,7 +1047,7 @@ class TestPortfolioPrices:
 
     def test_prices_without_tickers_returns_200_empty(self, client):
         """GET /api/portfolio/prices (no tickers param) must return 200 and empty dict."""
-        resp = client.get("/api/portfolio/prices")
+        resp = client.get("/api/portfolio/prices", headers=_auth_headers(client))
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
         data = resp.json()
         assert data == {}, f"Expected empty dict, got: {data}"
@@ -1065,7 +1065,7 @@ class TestPortfolioPrices:
         mock_df.columns = pd.MultiIndex.from_tuples([("Close", "AAPL")])
 
         with patch("yfinance.download", return_value=mock_df):
-            resp = client.get("/api/portfolio/prices?tickers=AAPL")
+            resp = client.get("/api/portfolio/prices?tickers=AAPL", headers=_auth_headers(client))
 
         assert resp.status_code == 200
         data = resp.json()
@@ -1517,7 +1517,7 @@ class TestPortfolioAnalytics:
         mock_df.columns = pd.MultiIndex.from_tuples([("Close", t) for t in tickers])
 
         with patch("yfinance.download", return_value=mock_df):
-            resp = client.get("/api/portfolio/analytics")
+            resp = client.get("/api/portfolio/analytics", headers=_auth_headers(client))
 
         # Accept 200 (success) or 500 (yfinance unavailable in CI)
         assert resp.status_code in (200, 500), (
@@ -1546,7 +1546,7 @@ class TestPortfolioAnalytics:
         mock_df.columns = pd.MultiIndex.from_tuples([("Close", t) for t in tickers])
 
         with patch("yfinance.download", return_value=mock_df):
-            resp = client.get("/api/portfolio/analytics")
+            resp = client.get("/api/portfolio/analytics", headers=_auth_headers(client))
 
         if resp.status_code == 200:
             data_resp = resp.json()
@@ -1579,7 +1579,7 @@ class TestPortfolioAnalytics:
         mock_df.columns = pd.MultiIndex.from_tuples([("Close", t) for t in tickers])
 
         with patch("yfinance.download", return_value=mock_df):
-            resp = client.get("/api/portfolio/analytics")
+            resp = client.get("/api/portfolio/analytics", headers=_auth_headers(client))
 
         if resp.status_code == 200:
             data_resp = resp.json()
@@ -1704,7 +1704,7 @@ class TestPortfolioCandles:
         mock_ticker = type("T", (), {"history": lambda self, **kw: mock_history})()
 
         with patch("yfinance.Ticker", return_value=mock_ticker):
-            resp = client.get("/api/portfolio/candles?ticker=AAPL&period=1mo&interval=1d")
+            resp = client.get("/api/portfolio/candles?ticker=AAPL&period=1mo&interval=1d", headers=_auth_headers(client))
 
         assert resp.status_code == 200, (
             f"Expected 200, got {resp.status_code}: {resp.text[:300]}"
@@ -1726,7 +1726,7 @@ class TestPortfolioCandles:
         mock_ticker = type("T", (), {"history": lambda self, **kw: pd.DataFrame()})()
 
         with patch("yfinance.Ticker", return_value=mock_ticker):
-            resp = client.get("/api/portfolio/candles?ticker=FAKE&period=1d&interval=1d")
+            resp = client.get("/api/portfolio/candles?ticker=FAKE&period=1d&interval=1d", headers=_auth_headers(client))
 
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
@@ -2197,7 +2197,8 @@ class TestPortfolioCandlesWithIndicators:
 
         with patch("yfinance.Ticker", return_value=mock_ticker):
             resp = client.get(
-                "/api/portfolio/candles?ticker=AAPL&period=3mo&interval=1d&indicators=sma20,sma50"
+                "/api/portfolio/candles?ticker=AAPL&period=3mo&interval=1d&indicators=sma20,sma50",
+                headers=_auth_headers(client),
             )
 
         assert resp.status_code == 200, (
@@ -2227,7 +2228,8 @@ class TestPortfolioCandlesWithIndicators:
 
         with patch("yfinance.Ticker", return_value=mock_ticker):
             resp = client.get(
-                "/api/portfolio/candles?ticker=AAPL&period=3mo&interval=1d&indicators=sma20"
+                "/api/portfolio/candles?ticker=AAPL&period=3mo&interval=1d&indicators=sma20",
+                headers=_auth_headers(client),
             )
 
         assert resp.status_code == 200
@@ -2752,24 +2754,24 @@ class TestRiskLimits:
 
 class TestPortfolioPerformance:
     def test_performance_returns_200(self, client):
-        data = _assert_ok(client.get("/api/portfolio/performance"))
+        data = _assert_ok(client.get("/api/portfolio/performance", headers=_auth_headers(client)))
         assert isinstance(data, dict)
 
     def test_performance_has_required_fields(self, client):
-        data = _assert_ok(client.get("/api/portfolio/performance"))
+        data = _assert_ok(client.get("/api/portfolio/performance", headers=_auth_headers(client)))
         for field in ("total_value", "total_pnl", "total_pnl_pct", "day_pnl", "day_pnl_pct", "position_count", "cash_pct"):
             assert field in data, f"Missing field: {field}"
 
     def test_performance_total_value_positive(self, client):
-        data = _assert_ok(client.get("/api/portfolio/performance"))
+        data = _assert_ok(client.get("/api/portfolio/performance", headers=_auth_headers(client)))
         assert data["total_value"] > 0
 
     def test_performance_position_count_non_negative(self, client):
-        data = _assert_ok(client.get("/api/portfolio/performance"))
+        data = _assert_ok(client.get("/api/portfolio/performance", headers=_auth_headers(client)))
         assert data["position_count"] >= 0
 
     def test_performance_cash_pct_in_range(self, client):
-        data = _assert_ok(client.get("/api/portfolio/performance"))
+        data = _assert_ok(client.get("/api/portfolio/performance", headers=_auth_headers(client)))
         assert 0.0 <= data["cash_pct"] <= 1.0, f"cash_pct out of range: {data['cash_pct']}"
 
 
@@ -2832,17 +2834,17 @@ class TestRiskAlerts:
 
 class TestPortfolioRoot:
     def test_portfolio_root_returns_200(self, client):
-        resp = client.get("/api/portfolio/")
+        resp = client.get("/api/portfolio/", headers=_auth_headers(client))
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}. Body: {resp.text[:300]}"
 
     def test_portfolio_root_has_required_fields(self, client):
-        data = _assert_ok(client.get("/api/portfolio/"))
+        data = _assert_ok(client.get("/api/portfolio/", headers=_auth_headers(client)))
         required = {"timestamp", "total_value", "cash", "invested", "total_pnl", "positions"}
         missing = required - data.keys()
         assert not missing, f"Portfolio root missing fields: {missing}"
 
     def test_portfolio_root_positions_is_list(self, client):
-        data = _assert_ok(client.get("/api/portfolio/"))
+        data = _assert_ok(client.get("/api/portfolio/", headers=_auth_headers(client)))
         assert isinstance(data["positions"], list), "positions must be a list"
 
 
@@ -2852,26 +2854,26 @@ class TestPortfolioRoot:
 
 class TestPortfolioPositions:
     def test_positions_returns_200(self, client):
-        resp = client.get("/api/portfolio/positions")
+        resp = client.get("/api/portfolio/positions", headers=_auth_headers(client))
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}. Body: {resp.text[:300]}"
 
     def test_positions_returns_list(self, client):
-        data = _assert_ok(client.get("/api/portfolio/positions"))
+        data = _assert_ok(client.get("/api/portfolio/positions", headers=_auth_headers(client)))
         assert isinstance(data, list), f"Expected list, got {type(data)}"
 
     def test_positions_non_empty(self, client):
-        data = _assert_ok(client.get("/api/portfolio/positions"))
+        data = _assert_ok(client.get("/api/portfolio/positions", headers=_auth_headers(client)))
         assert len(data) > 0, "Expected at least one position from demo portfolio"
 
     def test_positions_have_required_fields(self, client):
-        data = _assert_ok(client.get("/api/portfolio/positions"))
+        data = _assert_ok(client.get("/api/portfolio/positions", headers=_auth_headers(client)))
         required = {"ticker", "quantity", "avg_entry_price", "current_price", "market_value", "unrealized_pnl"}
         for pos in data:
             missing = required - pos.keys()
             assert not missing, f"Position missing fields: {missing}"
 
     def test_positions_quantity_positive(self, client):
-        data = _assert_ok(client.get("/api/portfolio/positions"))
+        data = _assert_ok(client.get("/api/portfolio/positions", headers=_auth_headers(client)))
         for pos in data:
             assert pos["quantity"] > 0, f"Position quantity must be positive, got {pos['quantity']} for {pos.get('ticker')}"
 
@@ -2882,46 +2884,46 @@ class TestPortfolioPositions:
 
 class TestPortfolioEquityCurve:
     def test_equity_curve_returns_200(self, client):
-        resp = client.get("/api/portfolio/equity-curve")
+        resp = client.get("/api/portfolio/equity-curve", headers=_auth_headers(client))
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}. Body: {resp.text[:300]}"
 
     def test_equity_curve_returns_list(self, client):
-        data = _assert_ok(client.get("/api/portfolio/equity-curve"))
+        data = _assert_ok(client.get("/api/portfolio/equity-curve", headers=_auth_headers(client)))
         assert isinstance(data, list), f"Expected list, got {type(data)}"
 
     def test_equity_curve_non_empty(self, client):
-        data = _assert_ok(client.get("/api/portfolio/equity-curve"))
+        data = _assert_ok(client.get("/api/portfolio/equity-curve", headers=_auth_headers(client)))
         assert len(data) > 0, "Equity curve must have at least one data point"
 
     def test_equity_curve_items_have_date_and_value(self, client):
-        data = _assert_ok(client.get("/api/portfolio/equity-curve"))
+        data = _assert_ok(client.get("/api/portfolio/equity-curve", headers=_auth_headers(client)))
         for item in data:
             assert "date" in item, f"Missing 'date' in equity curve item: {item}"
             assert "value" in item, f"Missing 'value' in equity curve item: {item}"
 
     def test_equity_curve_value_is_positive_number(self, client):
-        data = _assert_ok(client.get("/api/portfolio/equity-curve"))
+        data = _assert_ok(client.get("/api/portfolio/equity-curve", headers=_auth_headers(client)))
         for item in data:
             assert isinstance(item["value"], (int, float)), f"value must be numeric: {item}"
             assert item["value"] > 0, f"Portfolio value must be positive: {item}"
 
     def test_equity_curve_custom_days(self, client):
-        data = _assert_ok(client.get("/api/portfolio/equity-curve?days=7"))
+        data = _assert_ok(client.get("/api/portfolio/equity-curve?days=7", headers=_auth_headers(client)))
         assert isinstance(data, list) and len(data) > 0
 
     def test_equity_curve_60_days(self, client):
         """days=60 matches the Portfolio page default (label: 'Equity Curve — 60 Days')."""
-        data = _assert_ok(client.get("/api/portfolio/equity-curve?days=60"))
+        data = _assert_ok(client.get("/api/portfolio/equity-curve?days=60", headers=_auth_headers(client)))
         assert isinstance(data, list)
         assert len(data) > 0, "60-day equity curve must return at least one data point"
         assert len(data) <= 60, f"60-day curve should not exceed 60 points, got {len(data)}"
 
     def test_equity_curve_days_clamped_to_max(self, client):
-        resp = client.get("/api/portfolio/equity-curve?days=9999")
+        resp = client.get("/api/portfolio/equity-curve?days=9999", headers=_auth_headers(client))
         assert resp.status_code == 200
 
     def test_equity_curve_days_clamped_to_min(self, client):
-        resp = client.get("/api/portfolio/equity-curve?days=1")
+        resp = client.get("/api/portfolio/equity-curve?days=1", headers=_auth_headers(client))
         assert resp.status_code == 200
 
 

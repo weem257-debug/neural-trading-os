@@ -33,9 +33,17 @@ class WebSocketManager:
         }
         self._price_feed_task: Optional[asyncio.Task] = None
 
-    async def connect(self, websocket: WebSocket, channel: str = "all") -> None:
-        """Accept a new WebSocket connection and register it to a channel."""
-        await websocket.accept()
+    async def connect(
+        self, websocket: WebSocket, channel: str = "all", subprotocol: Optional[str] = None
+    ) -> None:
+        """Accept a new WebSocket connection and register it to a channel.
+
+        `subprotocol` — when auth was carried via the Sec-WebSocket-Protocol
+        handshake header, echo the same value back so the client's WebSocket
+        handshake completes correctly (a subprotocol offered by the client
+        must be acknowledged by the server, or negotiation fails per RFC 6455).
+        """
+        await websocket.accept(subprotocol=subprotocol)
         channel = channel if channel in self._connections else "all"
         self._connections[channel].append(websocket)
         self._connections["all"].append(websocket) if channel != "all" else None

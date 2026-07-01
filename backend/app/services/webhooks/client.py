@@ -328,13 +328,40 @@ def _sign(body: bytes, secret: str) -> str:
     return hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 
 
+_EPHEMERAL_WEBHOOK_SECRET = uuid.uuid4().hex + uuid.uuid4().hex  # 64 hex chars, process-local
+
+
 def _default_secret() -> str:
-    """Fall back to Settings.JWT_SECRET_KEY if no per-webhook secret given."""
+    """
+    Resolve the HMAC signing secret used when a webhook registration doesn't
+    supply its own `secret`.
+
+    Priority:
+      1. settings.WEBHOOK_SIGNING_SECRET — dedicated secret, set explicitly
+         in production so signatures stay stable across restarts/replicas.
+      2. A random secret generated once per process at import time.
+
+    P1 audit finding: this NEVER falls back to JWT_SECRET_KEY. That key also
+    signs session tokens — reusing it for webhook HMAC would let anyone who
+    recovers a webhook payload+signature pair start probing the auth signing
+    key (and vice versa). Without WEBHOOK_SIGNING_SECRET configured, delivery
+    integrity still holds (every payload is still HMAC'd), but the secret is
+    NOT stable across process restarts or multiple replicas — receivers that
+    need to verify signatures must be given the real value via
+    WEBHOOK_SIGNING_SECRET.
+    """
     try:
         from app.core.config import settings
-        return settings.JWT_SECRET_KEY
+        secret = (settings.WEBHOOK_SIGNING_SECRET or "").strip()
+        if secret:
+            return secret
     except Exception:
-        return "neural-trading-os-default-webhook-secret"
+        pass
+    logger.warning(
+        "webhook_signing_secret_not_configured — using an ephemeral process-local "
+        "secret; set WEBHOOK_SIGNING_SECRET for stable signatures across restarts."
+    )
+    return _EPHEMERAL_WEBHOOK_SECRET
 
 
 # ---------------------------------------------------------------------------

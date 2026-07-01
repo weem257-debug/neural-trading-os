@@ -27,6 +27,8 @@ import type {
   BacktestCompareResponse,
   RiskMetrics,
   RiskLimits,
+  WatchlistResponse,
+  LiveMarketAnalysis,
   HealthResponse,
   ApiMetricsResponse,
   RepoPathEntry,
@@ -448,6 +450,16 @@ export const api = {
       apiFetch<ElliottWaveAnalysis>(`/api/analysis/elliott/${ticker}?period=${period}`),
     elliottDemo: () =>
       apiFetch<ElliottWaveAnalysis>("/api/analysis/elliott/demo"),
+    /** Live-Markt-Analyse: Watchlist laden/speichern + Live-Indikatoren pro Symbol. */
+    watchlistGet: () =>
+      apiFetch<WatchlistResponse>("/api/analysis/watchlist"),
+    watchlistSet: (symbols: string[]) =>
+      apiFetch<WatchlistResponse>("/api/analysis/watchlist", {
+        method: "PUT",
+        body: JSON.stringify({ symbols }),
+      }),
+    live: (symbol: string) =>
+      apiFetch<LiveMarketAnalysis>(`/api/analysis/live/${encodeURIComponent(symbol)}`),
   },
 
   // -------------------------------------------------------------------------

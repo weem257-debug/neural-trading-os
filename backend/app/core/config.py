@@ -124,7 +124,7 @@ class Settings(BaseSettings):
     # Public URL of the backend API — used in one-click unsubscribe links (RFC 8058).
     # Must point to the FastAPI service, not the Next.js frontend.
     # Override via BACKEND_URL env var.
-    BACKEND_URL: str = "https://backend-production-52af.up.railway.app"
+    BACKEND_URL: str = "https://neural-trading-os-production.up.railway.app"
 
     # Feature flags
     ENABLE_LIVE_TRADING: bool = False
@@ -178,6 +178,14 @@ class Settings(BaseSettings):
     MAX_POSITION_SIZE_PCT: float = 0.05   # 5% of portfolio per position
     MAX_DAILY_LOSS_PCT: float = 0.02      # 2% daily stop-loss
     MAX_LEVERAGE: float = 1.0             # No leverage by default
+
+    # Outbound webhook HMAC signing secret (P1 audit finding). Dedicated key —
+    # NEVER reuse JWT_SECRET_KEY here (that key also signs session tokens; a
+    # leaked webhook payload/signature must not help an attacker probe it).
+    # Empty in dev → app/services/webhooks/client.py falls back to a random
+    # process-local secret (signatures still HMAC'd, just not stable across
+    # restarts). Set explicitly in production for stable, verifiable signatures.
+    WEBHOOK_SIGNING_SECRET: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env",

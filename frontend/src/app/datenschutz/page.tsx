@@ -85,7 +85,7 @@ export default function DatenschutzPage() {
         <ul className="list-disc pl-5 space-y-1 text-slate-400">
           <li>Auskunft über gespeicherte Daten (Art. 15 DSGVO)</li>
           <li>Berichtigung unrichtiger Daten (Art. 16 DSGVO)</li>
-          <li>Löschung ("Recht auf Vergessenwerden", Art. 17 DSGVO)</li>
+          <li>Löschung (&bdquo;Recht auf Vergessenwerden&ldquo;, Art. 17 DSGVO)</li>
           <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
           <li>Datenübertragbarkeit (Art. 20 DSGVO)</li>
           <li>Widerspruch gegen die Verarbeitung (Art. 21 DSGVO)</li>
