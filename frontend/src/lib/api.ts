@@ -29,6 +29,7 @@ import type {
   RiskLimits,
   WatchlistResponse,
   LiveMarketAnalysis,
+  MarketsResponse,
   HealthResponse,
   ApiMetricsResponse,
   RepoPathEntry,
@@ -460,6 +461,9 @@ export const api = {
       }),
     live: (symbol: string) =>
       apiFetch<LiveMarketAnalysis>(`/api/analysis/live/${encodeURIComponent(symbol)}`),
+    /** Kuratierte Markt-Kategorien (US-Aktien, DAX, Indizes, Krypto, Forex, Rohstoffe). */
+    markets: () =>
+      apiFetch<MarketsResponse>("/api/analysis/markets"),
   },
 
   // -------------------------------------------------------------------------

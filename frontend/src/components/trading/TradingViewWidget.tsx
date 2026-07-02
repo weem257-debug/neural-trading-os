@@ -22,11 +22,42 @@ interface TradingViewWidgetProps {
 /**
  * Maps our internal ticker format to a TradingView-resolvable symbol.
  * Crypto pairs use the "-USD" suffix internally (e.g. BTC-USD); TradingView's
- * default crypto exchange feed expects "BTCUSD" (no dash). Equities are passed
+ * default crypto exchange feed expects "BTCUSD" (no dash). yfinance-style
+ * index (^GDAXI), forex (EURUSD=X), futures (GC=F) and XETRA (.DE) symbols
+ * are mapped to their TradingView exchange feeds. Equities are passed
  * through as-is — TradingView auto-resolves the primary listing exchange.
  */
+const INDEX_SYMBOL_MAP: Record<string, string> = {
+  "^GSPC": "SP:SPX",
+  "^NDX": "NASDAQ:NDX",
+  "^DJI": "DJ:DJI",
+  "^GDAXI": "XETR:DAX",
+  "^STOXX50E": "TVC:SX5E",
+  "^N225": "TVC:NI225",
+};
+
+const FUTURES_SYMBOL_MAP: Record<string, string> = {
+  "GC=F": "COMEX:GC1!",
+  "SI=F": "COMEX:SI1!",
+  "HG=F": "COMEX:HG1!",
+  "CL=F": "NYMEX:CL1!",
+  "NG=F": "NYMEX:NG1!",
+};
+
 function toTradingViewSymbol(ticker: string): string {
   const upper = ticker.trim().toUpperCase();
+  if (INDEX_SYMBOL_MAP[upper]) {
+    return INDEX_SYMBOL_MAP[upper];
+  }
+  if (FUTURES_SYMBOL_MAP[upper]) {
+    return FUTURES_SYMBOL_MAP[upper];
+  }
+  if (upper.endsWith("=X")) {
+    return `FX:${upper.slice(0, -2)}`;
+  }
+  if (upper.endsWith(".DE")) {
+    return `XETR:${upper.slice(0, -3)}`;
+  }
   if (upper.endsWith("-USD")) {
     return `BINANCE:${upper.replace("-USD", "USDT")}`;
   }

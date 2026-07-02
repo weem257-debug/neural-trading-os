@@ -439,6 +439,21 @@ export interface LiveMarketAnalysis {
   regulatory_notice: Record<string, unknown>;
 }
 
+export interface MarketSymbol {
+  symbol: string;
+  name: string;
+}
+
+export interface MarketCategory {
+  id: string;
+  label: string;
+  symbols: MarketSymbol[];
+}
+
+export interface MarketsResponse {
+  markets: MarketCategory[];
+}
+
 // ---------------------------------------------------------------------------
 // Backtest extras
 // ---------------------------------------------------------------------------

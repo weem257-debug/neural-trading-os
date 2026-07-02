@@ -19,6 +19,7 @@ from app.models.schemas import (
     LiveMarketAnalysis, LiveAnalysisPrice, LiveAnalysisIndicators,
     LiveAnalysisMACD, LiveAnalysisBollinger, LiveAnalysisSignal,
     WatchlistResponse, WatchlistUpdateRequest,
+    MarketSymbol, MarketCategory, MarketsResponse,
 )
 from app.services.elliott.client import analyze_elliott_waves
 from app.core.cache import cache_get, cache_set, cached as _cached
@@ -114,8 +115,8 @@ async def get_elliott_analysis(
 
 # Loose symbol format guard — rejects obviously malformed input before ever
 # calling yfinance (equities, indices, FX pairs and crypto pairs like
-# "BTC-USD" all fit this shape).
-_SYMBOL_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-=^]{0,14}$")
+# "BTC-USD" all fit this shape). Leading "^" covers index symbols (^GDAXI).
+_SYMBOL_RE = re.compile(r"^[\^A-Z0-9][A-Z0-9.\-=^]{0,14}$")
 
 
 class _MarketDataError(Exception):
@@ -421,6 +422,89 @@ async def get_live_analysis(
 def _fetch_cached_live_history(symbol: str):
     """TTL-cached wrapper around _fetch_live_history (bounds yfinance load)."""
     return _fetch_live_history(symbol)
+
+
+# ---------------------------------------------------------------------------
+# Market presets — GET /api/analysis/markets
+# ---------------------------------------------------------------------------
+
+# Curated market categories for the analysis UI. Every symbol must be valid
+# for yfinance AND pass _SYMBOL_RE (leading "^" = index, "=X" = FX, "=F" =
+# futures, ".DE" = XETRA listing).
+_MARKET_PRESETS: list[MarketCategory] = [
+    MarketCategory(id="us_stocks", label="US-Aktien", symbols=[
+        MarketSymbol(symbol="AAPL", name="Apple"),
+        MarketSymbol(symbol="MSFT", name="Microsoft"),
+        MarketSymbol(symbol="NVDA", name="NVIDIA"),
+        MarketSymbol(symbol="AMZN", name="Amazon"),
+        MarketSymbol(symbol="GOOGL", name="Alphabet"),
+        MarketSymbol(symbol="META", name="Meta Platforms"),
+        MarketSymbol(symbol="TSLA", name="Tesla"),
+        MarketSymbol(symbol="BRK-B", name="Berkshire Hathaway"),
+        MarketSymbol(symbol="JPM", name="JPMorgan Chase"),
+        MarketSymbol(symbol="V", name="Visa"),
+    ]),
+    MarketCategory(id="dax", label="DAX (Deutschland)", symbols=[
+        MarketSymbol(symbol="SAP.DE", name="SAP"),
+        MarketSymbol(symbol="SIE.DE", name="Siemens"),
+        MarketSymbol(symbol="ALV.DE", name="Allianz"),
+        MarketSymbol(symbol="DTE.DE", name="Deutsche Telekom"),
+        MarketSymbol(symbol="AIR.DE", name="Airbus"),
+        MarketSymbol(symbol="BAS.DE", name="BASF"),
+        MarketSymbol(symbol="BMW.DE", name="BMW"),
+        MarketSymbol(symbol="MBG.DE", name="Mercedes-Benz Group"),
+        MarketSymbol(symbol="VOW3.DE", name="Volkswagen Vz."),
+        MarketSymbol(symbol="ADS.DE", name="Adidas"),
+    ]),
+    MarketCategory(id="indices", label="Indizes", symbols=[
+        MarketSymbol(symbol="^GSPC", name="S&P 500"),
+        MarketSymbol(symbol="^NDX", name="Nasdaq 100"),
+        MarketSymbol(symbol="^DJI", name="Dow Jones"),
+        MarketSymbol(symbol="^GDAXI", name="DAX 40"),
+        MarketSymbol(symbol="^STOXX50E", name="EURO STOXX 50"),
+        MarketSymbol(symbol="^N225", name="Nikkei 225"),
+    ]),
+    MarketCategory(id="crypto", label="Krypto", symbols=[
+        MarketSymbol(symbol="BTC-USD", name="Bitcoin"),
+        MarketSymbol(symbol="ETH-USD", name="Ethereum"),
+        MarketSymbol(symbol="SOL-USD", name="Solana"),
+        MarketSymbol(symbol="XRP-USD", name="XRP"),
+        MarketSymbol(symbol="BNB-USD", name="BNB"),
+        MarketSymbol(symbol="ADA-USD", name="Cardano"),
+        MarketSymbol(symbol="DOGE-USD", name="Dogecoin"),
+    ]),
+    MarketCategory(id="forex", label="Forex", symbols=[
+        MarketSymbol(symbol="EURUSD=X", name="EUR/USD"),
+        MarketSymbol(symbol="GBPUSD=X", name="GBP/USD"),
+        MarketSymbol(symbol="USDJPY=X", name="USD/JPY"),
+        MarketSymbol(symbol="USDCHF=X", name="USD/CHF"),
+        MarketSymbol(symbol="AUDUSD=X", name="AUD/USD"),
+    ]),
+    MarketCategory(id="commodities", label="Rohstoffe", symbols=[
+        MarketSymbol(symbol="GC=F", name="Gold"),
+        MarketSymbol(symbol="SI=F", name="Silber"),
+        MarketSymbol(symbol="CL=F", name="WTI Rohöl"),
+        MarketSymbol(symbol="NG=F", name="Erdgas"),
+        MarketSymbol(symbol="HG=F", name="Kupfer"),
+    ]),
+]
+
+
+@router.get(
+    "/markets",
+    response_model=MarketsResponse,
+    summary="Curated market categories with selectable symbols for analysis",
+)
+async def get_markets(
+    _: UserInfo = Depends(get_current_user),
+) -> MarketsResponse:
+    """
+    Returns the curated market categories (US stocks, DAX, indices, crypto,
+    forex, commodities) with their preset symbols. Static server-side list —
+    every symbol is analyzable via GET /api/analysis/live/{symbol} and
+    addable to the user's watchlist.
+    """
+    return MarketsResponse(markets=_MARKET_PRESETS)
 
 
 # ---------------------------------------------------------------------------

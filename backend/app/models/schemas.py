@@ -639,3 +639,22 @@ class WatchlistResponse(BaseModel):
 
 class WatchlistUpdateRequest(BaseModel):
     symbols: list[str]
+
+
+# ---------------------------------------------------------------------------
+# Market presets (GET /api/analysis/markets)
+# ---------------------------------------------------------------------------
+
+class MarketSymbol(BaseModel):
+    symbol: str
+    name: str
+
+
+class MarketCategory(BaseModel):
+    id: str           # "us_stocks" | "dax" | "indices" | "crypto" | "forex" | "commodities"
+    label: str        # German display label
+    symbols: list[MarketSymbol]
+
+
+class MarketsResponse(BaseModel):
+    markets: list[MarketCategory]

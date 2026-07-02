@@ -245,3 +245,56 @@ class TestWatchlist:
 
         assert data_a["symbols"] == ["AAPL"]
         assert data_b["symbols"] == ["TSLA", "NVDA"]
+
+    def test_watchlist_accepts_index_forex_futures_symbols(self, client):
+        """Preset symbols from /markets (indices ^GDAXI, forex EURUSD=X,
+        futures GC=F, XETRA SAP.DE) must be storable in the watchlist."""
+        headers = _trader_auth(client)
+        resp = client.put(
+            "/api/analysis/watchlist",
+            json={"symbols": ["^GDAXI", "EURUSD=X", "GC=F", "SAP.DE"]},
+            headers=headers,
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["symbols"] == ["^GDAXI", "EURUSD=X", "GC=F", "SAP.DE"]
+
+
+# ---------------------------------------------------------------------------
+# GET /api/analysis/markets
+# ---------------------------------------------------------------------------
+
+class TestMarkets:
+    def test_requires_auth(self, client):
+        resp = client.get("/api/analysis/markets")
+        assert resp.status_code == 401
+
+    def test_returns_expected_categories(self, client):
+        headers = _trader_auth(client)
+        resp = client.get("/api/analysis/markets", headers=headers)
+        assert resp.status_code == 200, resp.text
+        markets = resp.json()["markets"]
+        ids = [m["id"] for m in markets]
+        assert ids == ["us_stocks", "dax", "indices", "crypto", "forex", "commodities"]
+        assert len(ids) == len(set(ids))
+        for m in markets:
+            assert m["label"]
+            assert len(m["symbols"]) >= 5
+            for s in m["symbols"]:
+                assert s["symbol"] and s["name"]
+
+    def test_all_preset_symbols_pass_symbol_guard(self, client):
+        """Every preset symbol must be analyzable — i.e. pass _SYMBOL_RE so
+        /live/{symbol} never rejects a symbol we ourselves suggested."""
+        from app.api.routes.analysis import _MARKET_PRESETS, _SYMBOL_RE
+        for cat in _MARKET_PRESETS:
+            for s in cat.symbols:
+                assert _SYMBOL_RE.match(s.symbol), f"{cat.id}: {s.symbol} fails guard"
+
+    def test_live_analysis_accepts_index_symbol(self, client):
+        """Regression: leading '^' (index symbols) used to be rejected."""
+        headers = _auth(client)
+        hist = _make_history()
+        with patch("app.api.routes.analysis._fetch_live_history", return_value=hist):
+            resp = client.get("/api/analysis/live/%5EGDAXI", headers=headers)
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["symbol"] == "^GDAXI"
