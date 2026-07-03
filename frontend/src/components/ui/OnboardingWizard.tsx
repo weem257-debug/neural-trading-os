@@ -34,7 +34,7 @@ const STEPS: Step[] = [
     description:
       "Verbinde dein Comdirect-, Flatex- oder BitPanda-Depot, damit dein Portfolio automatisch synchronisiert wird.",
     cta: "Broker einrichten",
-    href: "/brokers",
+    href: "/depot",
   },
   {
     icon: Zap,

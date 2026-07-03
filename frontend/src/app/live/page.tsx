@@ -5,13 +5,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Radio, Plus, X, RefreshCw, AlertTriangle, WifiOff, SearchX,
   TrendingUp, TrendingDown, Minus, Activity, Gauge, Waves as WavesIcon,
-  ShieldAlert, BarChart3, Info, Globe,
+  ShieldAlert, BarChart3, Info, Globe, LineChart as LineChartIcon,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { LiveMarketAnalysis, MarketRegime, MarketSignalBias, MarketCategory } from "@/types";
 import { GlassCard, SectionLabel, NeonBadge } from "@/components/ui/GlassCard";
-import { SkeletonBlock, SkeletonCard, SkeletonChart } from "@/components/ui/Skeleton";
+import { SkeletonBlock, SkeletonCard } from "@/components/ui/Skeleton";
 import { TradingViewWidget } from "@/components/trading/TradingViewWidget";
+import { Collapsible } from "@/components/ui/Collapsible";
+import { ElliottWave } from "@/components/analysis/ElliottWave";
+import { StockReport } from "@/components/analysis/StockReport";
 import { notify } from "@/store/notificationStore";
 
 // ---------------------------------------------------------------------------
@@ -564,7 +567,11 @@ function AnalysisErrorCard({ error, onRetry }: { error: AnalysisError; onRetry: 
 }
 
 // ---------------------------------------------------------------------------
-// Main page
+// Main page — composed of collapsible sections:
+//   1. TradingView-Chart (50vh)
+//   2. Live-Regime / Signale (watchlist, market browser, indicators)
+//   3. Elliott-Wellen-Analyse (extracted from the former /analysis page)
+//   4. Aktien-Report (extracted from the public /aktienanalyse page)
 // ---------------------------------------------------------------------------
 export default function LiveAnalysisPage() {
   const [symbols, setSymbols] = useState<string[]>([]);
@@ -683,83 +690,114 @@ export default function LiveAnalysisPage() {
           )}
         </div>
         <p className="text-sm text-slate-500">
-          Watchlist, Live-Indikatoren, Marktregime und KI-Signal — Chart via TradingView.
+          Watchlist, Live-Indikatoren, Marktregime, KI-Signal, Elliott-Wellen und Aktien-Report — alles an einem Ort, aufklappbar.
         </p>
       </motion.div>
 
-      {/* Watchlist */}
-      <WatchlistBar
-        symbols={symbols}
-        activeSymbol={activeSymbol}
-        loading={watchlistLoading}
-        onSelect={setActiveSymbol}
-        onAdd={handleAddSymbol}
-        onRemove={handleRemoveSymbol}
-      />
+      {/* 1. TradingView chart — independent of backend analysis data */}
+      <Collapsible
+        title="Chart (TradingView)"
+        subtitle={activeSymbol ? `Kursoptik für ${activeSymbol}` : "Symbol in der Watchlist wählen"}
+        icon={<LineChartIcon className="w-3.5 h-3.5" style={{ color: "#00D4FF" }} />}
+        defaultOpen
+      >
+        {activeSymbol ? (
+          <TradingViewWidget symbol={activeSymbol} height="50vh" minHeight={400} />
+        ) : (
+          <p className="text-xs text-slate-600 py-6 text-center">Kein Symbol ausgewählt.</p>
+        )}
+      </Collapsible>
 
-      {/* Market browser — curated categories with selectable symbols */}
-      <MarketBrowser
-        activeSymbol={activeSymbol}
-        watchlist={symbols}
-        onSelect={setActiveSymbol}
-        onAddToWatchlist={handleAddSymbol}
-      />
-
-      {!activeSymbol && !watchlistLoading && (
-        <GlassCard className="flex flex-col items-center justify-center py-12 text-center">
-          <ShieldAlert className="w-8 h-8 mb-2" style={{ color: "#64748B" }} />
-          <p className="text-sm text-slate-400">Watchlist ist leer. Füge ein Symbol hinzu, um die Live-Analyse zu starten.</p>
-        </GlassCard>
-      )}
-
-      {/* Analysis loading */}
-      {analysisLoading && !analysis && (
+      {/* 2. Live-Regime & Signale */}
+      <Collapsible
+        title="Live-Regime & Signale"
+        subtitle="Watchlist, Marktbrowser, Indikatoren und KI-Signal in Echtzeit"
+        icon={<Radio className="w-3.5 h-3.5" style={{ color: "#00D4FF" }} />}
+        defaultOpen
+      >
         <div className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
-          </div>
-        </div>
-      )}
+          {/* Watchlist */}
+          <WatchlistBar
+            symbols={symbols}
+            activeSymbol={activeSymbol}
+            loading={watchlistLoading}
+            onSelect={setActiveSymbol}
+            onAdd={handleAddSymbol}
+            onRemove={handleRemoveSymbol}
+          />
 
-      {/* Analysis error */}
-      {analysisError && !analysisLoading && (
-        <AnalysisErrorCard error={analysisError} onRetry={() => loadAnalysis(activeSymbol)} />
-      )}
+          {/* Market browser — curated categories with selectable symbols */}
+          <MarketBrowser
+            activeSymbol={activeSymbol}
+            watchlist={symbols}
+            onSelect={setActiveSymbol}
+            onAddToWatchlist={handleAddSymbol}
+          />
 
-      {/* Analysis content */}
-      {analysis && !analysisError && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <PriceHeaderCard analysis={analysis} />
-            <SignalCard analysis={analysis} />
-          </div>
+          {!activeSymbol && !watchlistLoading && (
+            <GlassCard className="flex flex-col items-center justify-center py-12 text-center">
+              <ShieldAlert className="w-8 h-8 mb-2" style={{ color: "#64748B" }} />
+              <p className="text-sm text-slate-400">Watchlist ist leer. Füge ein Symbol hinzu, um die Live-Analyse zu starten.</p>
+            </GlassCard>
+          )}
 
-          <GlassCard delay={0.02} padding="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <SectionLabel>Indikatoren</SectionLabel>
-              {analysisLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-600" />}
+          {/* Analysis loading */}
+          {analysisLoading && !analysis && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SkeletonCard />
+                <SkeletonCard />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+              </div>
             </div>
-            <IndicatorGrid analysis={analysis} />
-          </GlassCard>
+          )}
 
-          <RegulatoryNotice notice={analysis.regulatory_notice} />
-        </>
-      )}
+          {/* Analysis error */}
+          {analysisError && !analysisLoading && (
+            <AnalysisErrorCard error={analysisError} onRetry={() => loadAnalysis(activeSymbol)} />
+          )}
 
-      {/* TradingView chart — independent of backend analysis data */}
-      {activeSymbol && (
-        <GlassCard delay={0.05} padding="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <SectionLabel>Chart (TradingView)</SectionLabel>
-            <span className="text-xs text-slate-600">Kursoptik via offizielles TradingView-Widget</span>
-          </div>
-          <TradingViewWidget symbol={activeSymbol} height={440} />
-        </GlassCard>
-      )}
+          {/* Analysis content */}
+          {analysis && !analysisError && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <PriceHeaderCard analysis={analysis} />
+                <SignalCard analysis={analysis} />
+              </div>
+
+              <GlassCard delay={0.02} padding="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <SectionLabel>Indikatoren</SectionLabel>
+                  {analysisLoading && <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-600" />}
+                </div>
+                <IndicatorGrid analysis={analysis} />
+              </GlassCard>
+
+              <RegulatoryNotice notice={analysis.regulatory_notice} />
+            </>
+          )}
+        </div>
+      </Collapsible>
+
+      {/* 3. Elliott-Wellen-Analyse */}
+      <Collapsible
+        title="Elliott-Wellen-Analyse"
+        subtitle="Automatische Wellenanalyse mit Fibonacci-Validierung"
+        icon={<WavesIcon className="w-3.5 h-3.5" style={{ color: "#7B2FFF" }} />}
+      >
+        <ElliottWave />
+      </Collapsible>
+
+      {/* 4. Aktien-Report */}
+      <Collapsible
+        title="Aktien-Report"
+        subtitle="Mehrere Ticker gleichzeitig auswerten — KI-Verdict, Konfidenz, Signal-Komponenten"
+        icon={<LineChartIcon className="w-3.5 h-3.5" style={{ color: "#00FF88" }} />}
+      >
+        <StockReport />
+      </Collapsible>
     </div>
   );
 }

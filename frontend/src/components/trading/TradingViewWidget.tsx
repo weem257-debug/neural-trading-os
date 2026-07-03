@@ -15,7 +15,16 @@ import { useEffect, useRef } from "react";
 interface TradingViewWidgetProps {
   /** Our internal ticker, e.g. "AAPL", "MSFT", "BTC-USD" */
   symbol: string;
-  height?: number;
+  /**
+   * Container height. Accepts a pixel number (legacy default) or any CSS
+   * length string (e.g. "50vh") for responsive sizing. When a CSS string is
+   * used, `minHeight` is enforced so the widget can never collapse to near-0
+   * height while the layout is still settling (e.g. before the viewport has
+   * a final height on first paint).
+   */
+  height?: number | string;
+  /** Minimum height in px, only applied when `height` is a CSS string. Defaults to 400. */
+  minHeight?: number;
   className?: string;
 }
 
@@ -67,7 +76,7 @@ function toTradingViewSymbol(ticker: string): string {
   return upper;
 }
 
-export function TradingViewWidget({ symbol, height = 420, className }: TradingViewWidgetProps) {
+export function TradingViewWidget({ symbol, height = 420, minHeight = 400, className }: TradingViewWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -161,7 +170,12 @@ export function TradingViewWidget({ symbol, height = 420, className }: TradingVi
     <div
       ref={containerRef}
       className={`tradingview-widget-container ${className ?? ""}`}
-      style={{ height, width: "100%", minWidth: 0 }}
+      style={{
+        height,
+        minHeight: typeof height === "string" ? minHeight : undefined,
+        width: "100%",
+        minWidth: 0,
+      }}
     />
   );
 }

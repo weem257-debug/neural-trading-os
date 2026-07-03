@@ -2003,7 +2003,7 @@ export default function SettingsPage() {
           </div>
           <p className="text-xs text-slate-600">
             Verbindungen verwaltest du unter{" "}
-            <a href="/networth" className="text-cyan-400 underline">Nettovermögen</a>.
+            <a href="/depot" className="text-cyan-400 underline">Nettovermögen</a>.
             Die PIN wird niemals gespeichert — sie wird nur für den Sync-Vorgang übermittelt.
           </p>
         </div>

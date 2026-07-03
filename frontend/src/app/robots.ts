@@ -37,6 +37,7 @@ export default function robots(): MetadataRoute.Robots {
           "/learning",
           "/networth",
           "/portfolios",
+          "/depot",
           "/forgot-password",
           "/reset-password",
           "/unsubscribe",
