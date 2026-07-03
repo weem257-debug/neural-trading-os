@@ -2,6 +2,14 @@
 /api/execution — Order execution via Nautilus Trader.
 Supports paper trading (default) and live trading (ENABLE_LIVE_TRADING=true).
 
+Geschäftsmodell "Weg A" (Stand 2026-07-02): reines Signal-/Analyse-Tool.
+Der Nutzer hat einen eigenen Broker-Account und führt Orders SELBST aus; wir
+routen keine Orders und halten keine Kundengelder. Diese Execution-Schicht
+bleibt daher dauerhaft auf PAPER TRADING (Alpaca-Sandbox, paper-api.alpaca.markets)
+beschränkt — sie dient internen Tests der Signal-/Risk-Logik, nicht dem
+Live-Handel für Nutzer. ENABLE_LIVE_TRADING bleibt bewusst False; der
+Live-Zweig unten ist ein Safety-Gate, kein Produktivpfad.
+
 Endpoints:
   POST /order         — submit a buy/sell order
   GET  /orders        — order history (last N orders)

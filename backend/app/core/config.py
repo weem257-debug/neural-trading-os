@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     COINBASE_SECRET_KEY: Optional[str] = None
 
     # Stock Brokers
+    # Geschäftsmodell "Weg A" (reines Signal-/Analyse-Tool, kein Order-Routing,
+    # keine Kundengelder): Alpaca dient AUSSCHLIESSLICH als Paper-Trading-Sandbox
+    # zum internen Testen der Signal-Logik. ALPACA_BASE_URL zeigt bewusst auf
+    # paper-api.alpaca.markets — niemals auf die Live-URL umstellen.
     ALPACA_API_KEY: Optional[str] = None
     ALPACA_SECRET_KEY: Optional[str] = None
     ALPACA_BASE_URL: str = "https://paper-api.alpaca.markets"
@@ -55,6 +59,12 @@ class Settings(BaseSettings):
     INTERACTIVE_BROKERS_PORT: int = 7497
 
     # ---- Phase 1: Offizielle APIs ----
+    # HINWEIS (Weg A): Die folgenden Broker-Credential-Felder (Comdirect, DEGIRO,
+    # Flatex, Crowdestor, Trade Republic, WH SelfInvest) sind für ECHTES
+    # Order-Routing vorgesehen und werden unter Weg A NICHT für Order-Ausführung
+    # genutzt. Der Nutzer handelt selbst bei seinem eigenen Broker. Falls diese
+    # Felder künftig verwendet werden, dann nur für READ-ONLY Portfolio-Sync
+    # (Depotbestand abrufen, keine Order-Endpunkte ansprechen).
     # Bitpanda
     BITPANDA_API_KEY: Optional[str] = None
 
