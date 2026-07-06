@@ -240,16 +240,20 @@ async def _check_signal_quota(user: Optional[UserInfo]) -> None:
 
     plan = "free"
     if user:
+        from app.core.plans import resolve_plan
+
+        sub = None
         try:
             async with get_session() as session:
                 sub_result = await session.execute(
                     select(Subscription).where(Subscription.user_id == user.username)
                 )
                 sub = sub_result.scalar_one_or_none()
-                if sub:
-                    plan = sub.plan
         except Exception:
-            pass  # Fall back to free-plan limits on DB error
+            sub = None  # Fall back to tier/free-plan limits on DB error
+        # Single source of truth (shared with /api/billing/usage display):
+        # active paid subscription > User.tier > free.
+        plan = resolve_plan(sub, user.tier)
 
     limit = _PLAN_LIMITS.get(plan, 3)
     if limit < 0:  # unlimited plan

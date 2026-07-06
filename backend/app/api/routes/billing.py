@@ -26,6 +26,7 @@ from sqlalchemy import select
 
 from app.api.auth import UserInfo, get_current_user
 from app.core.config import settings
+from app.core.plans import resolve_plan
 from app.db.database import get_session
 from app.db.models import BillingEvent, Subscription, User
 
@@ -706,7 +707,9 @@ async def get_usage(
             select(Subscription).where(Subscription.user_id == current_user.username)
         )
         sub = sub_result.scalar_one_or_none()
-        plan = sub.plan if sub else "free"
+        # Single source of truth: active paid subscription > User.tier > free.
+        # A PRO user without a Subscription row must see PRO limits, not free.
+        plan = resolve_plan(sub, current_user.tier)
 
         today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=UTC)
         count_result = await session.execute(

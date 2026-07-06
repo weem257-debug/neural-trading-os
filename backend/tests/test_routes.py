@@ -4044,13 +4044,18 @@ class TestBilling:
         assert "signals_remaining" in data
         assert "reset_at" in data
 
-    def test_usage_default_plan_is_free(self, client):
+    def test_usage_plan_reflects_user_tier(self, client):
+        # The built-in admin has tier="pro" but no Stripe Subscription row.
+        # /usage must reflect the tier grant (single source of truth), not the
+        # old Subscription-only default of "free". Regression guard for the
+        # 0/3-quota bug (PRO user shown free).
         resp = client.get("/api/billing/usage", headers=self._auth(client))
-        assert resp.json()["plan"] == "free"
+        assert resp.json()["plan"] == "pro"
 
-    def test_usage_free_limit_is_3(self, client):
+    def test_usage_pro_tier_limit_is_50(self, client):
+        # tier="pro" → 50 signals/day, even without a Subscription row.
         resp = client.get("/api/billing/usage", headers=self._auth(client))
-        assert resp.json()["signals_limit"] == 3
+        assert resp.json()["signals_limit"] == 50
 
     def test_usage_remaining_not_negative(self, client):
         resp = client.get("/api/billing/usage", headers=self._auth(client))
