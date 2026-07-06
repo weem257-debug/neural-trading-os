@@ -197,10 +197,21 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
 }
 
 function generateSparkline(seed: number): number[] {
+  // Deterministic seeded pseudo-random walk (mulberry32). Using Math.random here
+  // regenerated a different sparkline on every render — so the micro-charts
+  // flickered on each 5s portfolio tick and every manual refresh. Seeding by the
+  // position index keeps each holding's sparkline stable across re-renders.
+  let state = (seed + 1) * 0x9e3779b1;
+  const rand = () => {
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
   const arr: number[] = [];
   let v = 100 + seed;
   for (let i = 0; i < SPARKLINE_POINTS; i++) {
-    v += (Math.random() - SPARKLINE_DRIFT) * SPARKLINE_VOLATILITY;
+    v += (rand() - SPARKLINE_DRIFT) * SPARKLINE_VOLATILITY;
     arr.push(v);
   }
   return arr;
@@ -586,7 +597,7 @@ export default function DashboardPage() {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Gesamtportfoliowert — live aktualisiert
+            Gesamtportfoliowert — Demo-Portfolio, live simuliert
           </p>
         </div>
 
@@ -992,7 +1003,7 @@ export default function DashboardPage() {
               {risk.alerts.length > 0 ? (
                 <>
                   <AlertTriangle className="w-3.5 h-3.5" style={{ color: "#FF0080" }} />
-                  <span className="text-xs" style={{ color: "#FF0080" }}>{risk.alerts.length} aktive{risk.alerts.length !== 1 ? " Alarme" : " Alarm"}</span>
+                  <span className="text-xs" style={{ color: "#FF0080" }}>{risk.alerts.length} Risiko-Warnung{risk.alerts.length !== 1 ? "en" : ""}</span>
                 </>
               ) : (
                 <>
