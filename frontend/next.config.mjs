@@ -64,10 +64,22 @@ const nextConfig = {
       return [{ source: "/(.*)", headers: securityHeaders }];
     },
     async rewrites() {
+      const backend = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       return [
+        // Preserve a trailing slash when proxying so collection endpoints the
+        // client calls WITH a slash (/api/alerts/, /api/webhooks/,
+        // /api/portfolios/) reach the matching FastAPI route directly. The bare
+        // `/api/:path*` rule drops the trailing slash, so the backend answers
+        // with an ABSOLUTE-host 307 slash-redirect that bounces the browser
+        // cross-origin off the same-origin proxy (auth/CSRF cookies then don't
+        // apply → 401). Ordering matters: the slash rule must come first.
+        {
+          source: "/api/:path*/",
+          destination: `${backend}/api/:path*/`,
+        },
         {
           source: "/api/:path*",
-          destination: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/:path*`,
+          destination: `${backend}/api/:path*`,
         },
       ];
     },
