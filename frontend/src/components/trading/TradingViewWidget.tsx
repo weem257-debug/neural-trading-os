@@ -100,6 +100,7 @@ export function TradingViewWidget({ symbol, height = 420, minHeight = 400, class
     let disposed = false;
     let rafId = 0;
     let currentWidth = 0;
+    let currentHeight = 0;
 
     const buildWidget = () => {
       if (disposed || !container.isConnected) return;
@@ -137,6 +138,7 @@ export function TradingViewWidget({ symbol, height = 420, minHeight = 400, class
 
       container.appendChild(script);
       currentWidth = container.clientWidth;
+      currentHeight = container.clientHeight;
     };
 
     // Defer to the next frame so StrictMode's throwaway pass is cancelled
@@ -144,13 +146,21 @@ export function TradingViewWidget({ symbol, height = 420, minHeight = 400, class
     // width when TradingView's autosize measures it.
     rafId = requestAnimationFrame(buildWidget);
 
-    // If the container width later changes by a meaningful amount (sidebar
-    // toggle, viewport resize, late layout settle), rebuild once so the chart
-    // fills the full width instead of staying stuck at its initial measurement.
+    // If the container width OR height later changes by a meaningful amount
+    // (sidebar toggle, viewport resize, late layout settle, or — crucially on
+    // /live — the Collapsible finishing its open animation from height:0 to the
+    // full 50vh), rebuild once so the chart fills the whole container instead of
+    // staying stuck at the smaller size TradingView measured during the transient
+    // layout. Without the height check the widget kept its first (short) height
+    // and left a large empty gap below the chart. Rebuilds are rAF-deferred and
+    // cancel each other, so the animation only triggers ONE final rebuild, and
+    // the container height is CSS-fixed (never changed by the rebuild) so this
+    // cannot loop.
     const ro = new ResizeObserver(() => {
       if (disposed) return;
       const w = container.clientWidth;
-      if (w > 0 && Math.abs(w - currentWidth) > 24) {
+      const h = container.clientHeight;
+      if (w > 0 && (Math.abs(w - currentWidth) > 24 || Math.abs(h - currentHeight) > 24)) {
         cancelAnimationFrame(rafId);
         rafId = requestAnimationFrame(buildWidget);
       }
