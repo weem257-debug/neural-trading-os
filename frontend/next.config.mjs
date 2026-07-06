@@ -35,6 +35,17 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
 
+  // Keep the exact request path (incl. trailing slash) when proxying /api/* to
+  // the backend. Without this, Next.js emits a 308 that strips the trailing
+  // slash from collection endpoints the client calls WITH a slash (e.g.
+  // /api/alerts/, /api/webhooks/, /api/portfolios/). The stripped path then
+  // hits FastAPI's slash-redirect, which responds with an ABSOLUTE backend-host
+  // 307 Location — bouncing the browser cross-origin off the same-origin proxy,
+  // where the frontend-domain auth/CSRF cookies no longer apply → 401. Skipping
+  // the redirect lets /api/alerts/ pass straight through to the matching backend
+  // route (200, no redirect), preserving the same-origin cookie/CSRF flow.
+  skipTrailingSlashRedirect: true,
+
   // Bake live backend URLs into the mobile bundle (overrides .env.local).
   ...(isMobileBuild ? { env: mobileEnv } : {}),
 
