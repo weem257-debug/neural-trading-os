@@ -426,7 +426,17 @@ export function Sidebar() {
     return () => { listenerPromise.then((h) => h.remove()); };
   }, []);
   const pathname = usePathname();
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
+  const isAuthenticatedRaw = useAuthStore((s) => s.isAuthenticated());
+
+  // Defer the auth-dependent rendering decision until after mount so the first
+  // client render matches the server. The server always renders unauthenticated
+  // (no localStorage), while zustand/persist rehydrates `username` synchronously
+  // on the client — so a logged-in visitor on /aktienanalyse would otherwise get
+  // server=null vs client=<nav>, a structural hydration mismatch (React #418/#423).
+  // Mirrors the mounted-guard pattern already used in AuthGuard.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const isAuthenticated = mounted && isAuthenticatedRaw;
 
   const NO_SIDEBAR = new Set(["/", "/landing", "/login", "/register", "/forgot-password", "/reset-password", "/impressum", "/datenschutz", "/agb"]);
   if (NO_SIDEBAR.has(pathname)) return null;
