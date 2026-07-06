@@ -11,6 +11,7 @@ import {
 import { GlassCard, SectionLabel, NeonBadge } from "@/components/ui/GlassCard";
 import { ExplanationModal, InfoButton } from "@/components/ui/ExplanationModal";
 import type { ExplanationContent } from "@/components/ui/ExplanationModal";
+import { notify } from "@/store/notificationStore";
 import {
   AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip,
 } from "recharts";
@@ -153,8 +154,9 @@ function JobCard({ job, index, onDelete }: { job: BacktestJob; index: number; on
     try {
       await api.backtest.deleteJob(job.id);
       onDelete(job.id);
-    } catch {
+    } catch (err) {
       setDeleting(false);
+      notify.error("Job konnte nicht gelöscht werden", err instanceof Error ? err.message : undefined);
     }
   }
 
@@ -488,6 +490,7 @@ export default function BacktestPage() {
                   URL.revokeObjectURL(objectUrl);
                 } catch (e) {
                   console.error("[Backtest] CSV export failed:", e);
+                  notify.error("CSV-Export fehlgeschlagen", e instanceof Error ? e.message : undefined);
                 }
               }}
               aria-label="Letzten abgeschlossenen Backtest als CSV exportieren"
@@ -715,15 +718,15 @@ export default function BacktestPage() {
             </button>
           </div>
 
-          {runError && (
-            <p className="text-xs text-red-400 flex items-center gap-1.5">
-              <XCircle className="w-3.5 h-3.5 flex-shrink-0" />{runError}
-            </p>
-          )}
-          {compareError && (
-            <p className="text-xs text-red-400 flex items-center gap-1.5">
-              <XCircle className="w-3.5 h-3.5 flex-shrink-0" />{compareError}
-            </p>
+          {(runError || compareError) && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 px-4 py-3 rounded-lg"
+              style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.35)" }}
+            >
+              <XCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+              <span className="text-sm text-red-400">{runError ?? compareError}</span>
+            </div>
           )}
         </div>
 
