@@ -234,7 +234,8 @@ function TelegramSection() {
       setStatus(s => s ? { ...s, configured: true } : s);
       setTimeout(() => setTokenSaved(false), 3000);
       // Auto-setup webhook if not on localhost
-      const isLocal = API_BASE.includes("localhost") || API_BASE.includes("127.0.0.1");
+      // API_BASE is "" in the browser (same-origin proxy) — check the page host.
+      const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
       if (!isLocal) {
         setWebhookSetting("loading");
         try {

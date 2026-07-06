@@ -15,6 +15,9 @@ const mobileEnv = isMobileBuild
         process.env.MOBILE_WS_URL ||
         RAILWAY_DEFAULT.replace(/^https:/, "wss:"),
       NEXT_PUBLIC_APP_URL: process.env.MOBILE_APP_URL || RAILWAY_DEFAULT,
+      // Static export has no Next server: the API client must keep using the
+      // absolute URL instead of the same-origin rewrite proxy.
+      NEXT_PUBLIC_MOBILE_BUILD: "1",
     }
   : {};
 

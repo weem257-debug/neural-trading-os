@@ -142,15 +142,24 @@ function getCsrfToken(): string {
   return match ? decodeURIComponent(match[1]) : "";
 }
 
+// Browser (web build): same-origin "" — the Next rewrite proxies /api/* to the
+// backend, so auth/CSRF cookies live on the frontend domain. Cross-domain
+// cookies are impossible between *.up.railway.app subdomains (Public Suffix
+// List), which broke the CSRF double-submit when calling the backend directly.
+// The Capacitor static export has no Next server to proxy, so it keeps the
+// absolute URL baked in at build time.
+const IS_STATIC_MOBILE = process.env.NEXT_PUBLIC_MOBILE_BUILD === "1";
 export const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  typeof window !== "undefined" && !IS_STATIC_MOBILE
+    ? ""
+    : process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const BASE_URL = API_BASE;
 
 // ---------------------------------------------------------------------------
 // Core fetch helper
 // ---------------------------------------------------------------------------
-async function apiFetch<T>(
+export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {

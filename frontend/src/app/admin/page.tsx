@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { GlassCard, SectionLabel } from "@/components/ui/GlassCard";
-import { API_BASE, getAuthToken } from "@/lib/api";
+import { API_BASE, apiFetch } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 
 type Tier = "free" | "basic" | "pro" | "institutional";
@@ -39,16 +39,11 @@ const TIER_COLORS: Record<Tier, { bg: string; border: string; text: string }> = 
   institutional: { bg: "rgba(255,170,0,0.1)",      border: "rgba(255,170,0,0.35)",     text: "#FFAA00" },
 };
 
-async function apiAdmin<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}/api/admin${path}`, {
-    ...options,
-    headers: { Authorization: `Bearer ${getAuthToken() ?? ""}`, "Content-Type": "application/json", ...options?.headers },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({})) as { detail?: string };
-    throw new Error(err.detail ?? `HTTP ${res.status}`);
-  }
-  return res.json();
+// apiFetch sends the session cookie (credentials: "include") and the CSRF
+// header; a bare Bearer header from localStorage is empty in cookie mode and
+// produced 401s on every admin call.
+function apiAdmin<T>(path: string, options?: RequestInit): Promise<T> {
+  return apiFetch<T>(`/api/admin${path}`, options);
 }
 
 export default function AdminPage() {
