@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { RefreshCw, Wifi, WifiOff } from "lucide-react";
-import { getAuthToken } from "@/lib/api";
+import { getWsToken } from "@/lib/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -28,11 +28,7 @@ const WS_BASE =
 const PING_INTERVAL = 5_000;
 const RECONNECT_DELAY = 3_000;
 
-function getWsUrl(): string | null {
-  const token = getAuthToken();
-  if (!token) return null;
-  return `${WS_BASE}/ws/prices?token=${encodeURIComponent(token)}`;
-}
+const WS_PRICES_URL = `${WS_BASE}/ws/prices`;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -68,25 +64,29 @@ export function WSStatus() {
       wsRef.current = null;
     }
 
-    const wsUrl = getWsUrl();
-    if (!wsUrl) {
-      // Not logged in — stay disconnected, no auto-reconnect
-      setState((s) => ({ ...s, status: "disconnected" }));
-      return;
-    }
-
     setState((s) => ({ ...s, status: "connecting" }));
 
-    let ws: WebSocket;
-    try {
-      ws = new WebSocket(wsUrl);
-    } catch {
-      // WebSocket constructor can throw in some environments
-      setState((s) => ({ ...s, status: "disconnected" }));
-      return;
-    }
+    void (async () => {
+      // Cookie sessions can't read the httpOnly JWT — fetch a short-lived
+      // handshake ticket same-origin; token travels via Sec-WebSocket-Protocol.
+      const token = await getWsToken();
+      if (!mountedRef.current) return;
+      if (!token) {
+        // Not logged in — stay disconnected, no auto-reconnect
+        setState((s) => ({ ...s, status: "disconnected" }));
+        return;
+      }
 
-    wsRef.current = ws;
+      let ws: WebSocket;
+      try {
+        ws = new WebSocket(WS_PRICES_URL, [token]);
+      } catch {
+        // WebSocket constructor can throw in some environments
+        setState((s) => ({ ...s, status: "disconnected" }));
+        return;
+      }
+
+      wsRef.current = ws;
 
     ws.onopen = () => {
       if (!mountedRef.current) return;
@@ -114,9 +114,10 @@ export function WSStatus() {
       }, RECONNECT_DELAY);
     };
 
-    ws.onerror = () => {
-      // onclose fires after onerror — no separate action needed
-    };
+      ws.onerror = () => {
+        // onclose fires after onerror — no separate action needed
+      };
+    })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -----------------------------------------------------------------------

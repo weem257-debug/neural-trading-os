@@ -948,6 +948,30 @@ async def get_me(
     return current_user
 
 
+# Short-lived: only needs to survive the WebSocket handshake.
+WS_TOKEN_TTL_SECONDS = 120
+
+
+@router.get(
+    "/ws-token",
+    summary="Kurzlebiger WebSocket-Handshake-Token",
+    description=(
+        "Stellt ein kurzlebiges JWT für den WebSocket-Handshake aus. Browser können "
+        "den httpOnly-Cookie nicht an einen cross-origin WebSocket anhängen, daher "
+        "holt der Client dieses Ticket same-origin und übergibt es via "
+        "Sec-WebSocket-Protocol-Header."
+    ),
+)
+async def get_ws_token(
+    current_user: UserInfo = Depends(get_current_user),
+) -> dict:
+    token = _create_access_token(
+        {"sub": current_user.username, "scope": "ws"},
+        expires_delta=timedelta(seconds=WS_TOKEN_TTL_SECONDS),
+    )
+    return {"token": token, "expires_in": WS_TOKEN_TTL_SECONDS}
+
+
 @router.post(
     "/logout",
     status_code=status.HTTP_200_OK,

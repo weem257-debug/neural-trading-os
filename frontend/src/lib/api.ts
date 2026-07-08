@@ -133,6 +133,23 @@ export function getAuthToken(): string | null {
 }
 
 /**
+ * Returns a token usable for the WebSocket handshake.
+ * Legacy sessions still carry a JWT in localStorage; cookie sessions cannot
+ * read the httpOnly cookie, so a short-lived ticket is fetched same-origin
+ * from /api/auth/ws-token and passed via the Sec-WebSocket-Protocol header.
+ */
+export async function getWsToken(): Promise<string | null> {
+  const legacy = getAuthToken();
+  if (legacy) return legacy;
+  try {
+    const { token } = await apiFetch<{ token: string }>("/api/auth/ws-token");
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Reads the CSRF token from the non-httpOnly csrf_token cookie set by the server.
  * Must only be called in the browser context.
  */

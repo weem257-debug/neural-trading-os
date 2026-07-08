@@ -4,7 +4,7 @@
  */
 
 import type { WSEvent } from "@/types";
-import { getAuthToken } from "@/lib/api";
+import { getWsToken } from "@/lib/api";
 
 type EventHandler = (event: WSEvent) => void;
 
@@ -36,16 +36,22 @@ export class TradingWebSocket {
 
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN) return;
+    void this.connectAsync();
+  }
 
-    const token = getAuthToken() ?? "";
-    // Don't attempt connection without a token — backend returns 403 immediately
+  private async connectAsync(): Promise<void> {
+    // Cookie sessions can't read the httpOnly JWT — fetch a short-lived
+    // handshake ticket same-origin instead (legacy localStorage JWT wins).
+    const token = await getWsToken();
     if (!token) {
       this.shouldReconnect = false;
       return;
     }
+    if (this.ws?.readyState === WebSocket.OPEN) return;
 
-    const url = `${WS_URL}/ws/${this.channel}?token=${encodeURIComponent(token)}`;
-    this.ws = new WebSocket(url);
+    // Token travels in the Sec-WebSocket-Protocol header, not the URL,
+    // so it never lands in proxy/access logs; the backend echoes it back.
+    this.ws = new WebSocket(`${WS_URL}/ws/${this.channel}`, [token]);
 
     this.ws.onopen = () => {
       if (DEBUG) console.log(`[WS] Connected to channel: ${this.channel}`);
