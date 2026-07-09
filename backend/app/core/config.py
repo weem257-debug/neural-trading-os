@@ -156,6 +156,11 @@ class Settings(BaseSettings):
     AUTH_COOKIE_NAME: str = "access_token"
     CSRF_COOKIE_NAME: str = "csrf_token"
     COOKIE_SECURE: bool = False
+    # SameSite for auth/CSRF cookies. Default "lax" — the browser only talks
+    # to the API same-origin (Next rewrite proxy). Set COOKIE_SAMESITE=none
+    # only for cross-site clients (e.g. Capacitor WebView); "none" forces
+    # Secure, browsers reject it otherwise.
+    COOKIE_SAMESITE: str = "lax"
 
     # At-rest credential encryption (Fernet). See app/core/crypto.py.
     # Empty in dev → credentials stored as clear text (with a warning).

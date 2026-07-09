@@ -689,15 +689,28 @@ def _check_csrf(request: Request) -> None:
         )
 
 
+def _cookie_policy() -> tuple[bool, str]:
+    """
+    (secure, samesite) for the auth/CSRF cookies.
+
+    Default SameSite=Lax: the browser reaches the API same-origin through the
+    Next rewrite proxy, so cross-site cookie delivery is no longer needed.
+    COOKIE_SAMESITE=none remains available for cross-site clients (Capacitor
+    WebView); browsers reject None without Secure, so Secure is forced then.
+    """
+    secure = is_hardened_environment() or settings.COOKIE_SECURE
+    samesite_val = (settings.COOKIE_SAMESITE or "lax").lower()
+    if samesite_val == "none":
+        secure = True
+    return secure, samesite_val
+
+
 def _set_auth_cookies(response: Response, token: str, expires_delta: timedelta) -> None:
     """
     Set the httpOnly JWT auth cookie and the JS-readable CSRF cookie.
     secure=True is enforced in hardened/production environments.
     """
-    secure = is_hardened_environment() or settings.COOKIE_SECURE
-    # Cross-site (frontend on a different *.railway.app subdomain than the API)
-    # requires SameSite=None; browsers only accept None together with Secure.
-    samesite_val = "none" if secure else "lax"
+    secure, samesite_val = _cookie_policy()
     max_age = int(expires_delta.total_seconds())
     response.set_cookie(
         key=settings.AUTH_COOKIE_NAME,
@@ -723,8 +736,7 @@ def _set_auth_cookies(response: Response, token: str, expires_delta: timedelta) 
 
 def _clear_auth_cookies(response: Response) -> None:
     """Expire auth and CSRF cookies (used by the logout endpoint)."""
-    secure = is_hardened_environment() or settings.COOKIE_SECURE
-    samesite_val = "none" if secure else "lax"
+    secure, samesite_val = _cookie_policy()
     response.set_cookie(
         key=settings.AUTH_COOKIE_NAME,
         value="",

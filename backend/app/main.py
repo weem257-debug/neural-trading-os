@@ -1101,6 +1101,16 @@ async def websocket_endpoint(
     """
     from app.api.auth import _verify_token
 
+    # Origin allow-list: browsers always send Origin on WebSocket handshakes;
+    # a foreign origin means a cross-site page is opening the socket (CSWSH).
+    # Non-browser clients (tests, monitoring) send no Origin and pass through —
+    # they still have to present a valid token below.
+    ws_origin = websocket.headers.get("origin", "").rstrip("/")
+    if ws_origin and ws_origin not in _cors_origins:
+        logger.warning("websocket_origin_rejected", origin=ws_origin, channel=channel)
+        await websocket.close(code=1008)
+        return
+
     protocol_token = websocket.headers.get("sec-websocket-protocol", "").split(",")[0].strip()
     cookie_token = websocket.cookies.get(settings.AUTH_COOKIE_NAME, "")
     resolved_token = protocol_token or cookie_token

@@ -78,3 +78,42 @@ class TestWsToken:
             greeting = ws.receive_json()
             assert greeting.get("type") == "connected"
             assert greeting.get("channel") == "prices"
+
+
+class TestWsOriginAndCookieHardening:
+    def test_ws_rejects_foreign_origin(self, client):
+        from starlette.websockets import WebSocketDisconnect
+
+        _login(client)
+        token = client.get("/api/auth/ws-token").json()["token"]
+        with pytest.raises(WebSocketDisconnect):
+            with client.websocket_connect(
+                "/ws/prices",
+                subprotocols=[token],
+                headers={"Origin": "https://evil.example"},
+            ) as ws:
+                ws.receive_json()
+
+    def test_ws_allows_allowlisted_origin(self, client):
+        _login(client)
+        token = client.get("/api/auth/ws-token").json()["token"]
+        with client.websocket_connect(
+            "/ws/prices",
+            subprotocols=[token],
+            headers={"Origin": "http://localhost:3000"},
+        ) as ws:
+            assert ws.receive_json().get("type") == "connected"
+
+    def test_login_sets_samesite_lax_cookies(self, client):
+        client.cookies.clear()
+        resp = client.post(
+            "/api/auth/token",
+            data={"username": "admin", "password": "neural123"},
+        )
+        assert resp.status_code == 200
+        set_cookies = [
+            v for k, v in resp.headers.multi_items() if k.lower() == "set-cookie"
+        ]
+        assert set_cookies, "no Set-Cookie headers on login"
+        for cookie in set_cookies:
+            assert "samesite=lax" in cookie.lower(), cookie
