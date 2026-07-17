@@ -59,7 +59,7 @@ bcrypt==4.2.1               # passlib 1.7.4 is incompatible with bcrypt>=5.0
 # At-rest credential encryption (Fernet) — see app/core/crypto.py.
 # Also pulled transitively by python-jose[cryptography]; pinned explicitly
 # so the security control has a first-class, auditable dependency.
-cryptography>=42.0.0
+cryptography>=49.0.0
 
 # Environment
 python-dotenv>=1.2.2      # >=1.2.2 fixes PYSEC-2026-2270 (was pinned ==1.0.1)
