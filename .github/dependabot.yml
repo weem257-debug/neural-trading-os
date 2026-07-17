@@ -1,0 +1,54 @@
+## Dependabot — automated dependency update PRs.
+## Docs: https://docs.github.com/code-security/dependabot/dependabot-version-updates
+##
+## NOTE on paths: this repo's root IS the former `dashboard/` directory
+## (remote origin neural-trading-os), so ecosystem directories are
+## `/backend`, `/frontend` and `/` — NOT `/dashboard/...`.
+version: 2
+updates:
+  # --- Python backend (pip / requirements.txt) ---
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "backend"]
+    commit-message:
+      prefix: "chore(deps)"
+    # Security updates are always raised regardless of these groups; grouping
+    # keeps routine version bumps to a single reviewable PR per week.
+    groups:
+      backend-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # --- Next.js frontend (npm) ---
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "frontend"]
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      frontend-minor-patch:
+        update-types: ["minor", "patch"]
+
+  # --- GitHub Actions themselves (keep action pins fresh + patched) ---
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "ci"]
+    commit-message:
+      prefix: "chore(ci)"

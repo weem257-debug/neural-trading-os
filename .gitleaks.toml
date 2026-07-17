@@ -1,0 +1,39 @@
+# gitleaks config — secret scanning for Neural Trading OS.
+# Extends the built-in ruleset and allowlists KNOWN placeholders / sample files
+# so the CI gate fails only on REAL leaked secrets, not on intentional demo
+# defaults. Keep the allowlist tight: never allowlist a whole source directory
+# that holds live code, only sample/vendored/test paths and specific known
+# placeholder strings.
+
+title = "Neural Trading OS gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders, sample env files, vendored engines and test fixtures"
+
+# Path-based allowlist (regex against the file path).
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)\.env\.enterprise\.example$''',
+  '''.*\.example$''',
+  # Vendored third-party sample repos carry their own example keys.
+  '''(^|/)backend/engines/.*''',
+  # Test fixtures use deliberately fake tokens/passwords.
+  '''(^|/)backend/tests/.*''',
+]
+
+# Content-based allowlist (regex against the candidate secret). These are the
+# project's intentional public defaults — see backend/app/core/config.py
+# (_KEY_PLACEHOLDERS, _JWT_WEAK_KEYS, _DEFAULT_DEMO_PASSWORDS). The app itself
+# refuses to boot in production with any of these, so they are safe to ignore.
+regexes = [
+  '''your-anthropic-api-key-here''',
+  '''sk-ant-placeholder''',
+  '''your[-_]api[-_]key''',
+  '''(^|["'= ])(placeholder|changeme|demo)(["'\s]|$)''',
+  '''neural-trading-os-secret-key-change-in-production-2024''',
+  '''test-secret-32-chars-minimum-len''',
+  '''neural123''',
+]

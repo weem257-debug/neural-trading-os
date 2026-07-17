@@ -58,6 +58,38 @@ jobs:
       # Bandit finding now fails the build instead of being silently ignored.
       - run: bandit -r backend/app/ -ll -q
 
+  # Dependency CVE scan (2026-07 audit follow-up). Installs the resolved tree
+  # and audits it against the PyPI advisory DB. Blocking (fail-closed), matching
+  # the bandit policy. If an UNFIXABLE transitive advisory ever red-walls PRs,
+  # add `--ignore-vuln GHSA-xxxx` here rather than disabling the gate.
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install -r backend/requirements.txt
+      - run: pip install pip-audit
+      # --ignore-vuln PYSEC-2026-1325: `ecdsa` Minerva timing side-channel. It
+      # is a transitive dep of python-jose and has NO fix release; this app uses
+      # HS256 (HMAC) only — never ECDSA — so it is not exploitable here. Revisit
+      # if we ever move JWTs to ES256/EdDSA.
+      - run: pip-audit --strict --progress-spinner off --ignore-vuln PYSEC-2026-1325
+
+  # Secret scanning — fails the build if a real credential is committed.
+  # Placeholders / sample env files / test fixtures are allowlisted in
+  # .gitleaks.toml. Free for personal repos; no license needed.
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so gitleaks can scan past commits
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
   # TODO(P1-4 follow-up): enable mypy as a BLOCKING step once a baseline is
   # established. mypy==1.11.0 is already in backend/requirements.txt, but the
   # codebase has no [tool.mypy] config yet and a cold run reports a large
