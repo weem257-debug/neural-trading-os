@@ -26,7 +26,7 @@ pandas>=2.3.0
 numpy>=1.26.0,<2.0
 
 # Market data (choose based on available API keys)
-yfinance>=0.2.63          # Yahoo Finance — no API key needed
+yfinance>=1.5.1          # Yahoo Finance — no API key needed
 # finnhub-python==2.4.20  # Finnhub — requires API key
 # alpaca-py==0.30.0       # Alpaca Trading — requires API key
 
