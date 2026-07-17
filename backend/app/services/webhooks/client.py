@@ -270,6 +270,22 @@ class WebhookManager:
         POST envelope to webhook URL with HMAC signing and retries.
         Returns the final HTTP status code (or 0 on connection error).
         """
+        # Re-validate the target at delivery time (TOCTOU / DNS-rebinding guard,
+        # P1 audit finding). register() validated the URL when it was added, but
+        # DNS can be flipped to an internal address afterwards. Re-resolving here
+        # blocks a host that now points at a private/loopback/metadata address.
+        try:
+            from app.core.config import is_hardened_environment
+            allow_local = not is_hardened_environment()
+        except Exception:
+            allow_local = False
+        try:
+            validate_webhook_url(wh.url, allow_local=allow_local)
+        except WebhookURLError as exc:
+            wh.delivery_failures += 1
+            logger.error("webhook_delivery_blocked_ssrf id=%s reason=%s", wh.id, str(exc))
+            return 0
+
         body = json.dumps(envelope, default=str).encode()
         signature = _sign(body, wh.secret)
         headers = {

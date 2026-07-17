@@ -32,11 +32,14 @@ Env-Variablen:
 """
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime, UTC
 from typing import Optional
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 COMDIRECT_BASE = "https://api.comdirect.de/api"
 COMDIRECT_OAUTH = "https://api.comdirect.de/oauth/token"
@@ -293,7 +296,11 @@ async def fetch_portfolio(access_token: Optional[str] = None) -> ComdirectSummar
     """
     token = access_token or os.getenv("COMDIRECT_ACCESS_TOKEN", "")
     if not token:
-        demo = _DEMO
+        # Return a COPY, never the shared module singleton (P2 audit finding):
+        # mutating _DEMO.auth_required here would persist for every later caller
+        # and alias the object returned elsewhere.
+        import copy
+        demo = copy.deepcopy(_DEMO)
         demo.auth_required = True
         return demo
 
@@ -397,8 +404,13 @@ async def fetch_portfolio(access_token: Optional[str] = None) -> ComdirectSummar
             auth_required=False,
         )
 
-    except Exception:
-        return _DEMO
+    except Exception as exc:
+        # Log the real failure instead of silently masking it as demo data
+        # (P2 audit finding), and return a copy of the singleton, not the
+        # shared object itself.
+        import copy
+        logger.warning("comdirect_fetch_portfolio_failed reason=%s", exc)
+        return copy.deepcopy(_DEMO)
 
 
 async def fetch_transactions(

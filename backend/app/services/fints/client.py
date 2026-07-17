@@ -18,9 +18,12 @@ Usage:
     )
 """
 import asyncio
+import logging
 import os
 from datetime import date, datetime, UTC, timedelta
 from typing import Optional
+
+_logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -195,12 +198,37 @@ def _sync_fetch(blz: str, username: str, pin: str, fints_url: str, iban: Optiona
             error="python-fints not installed — install it with: pip install python-fints",
         )
     except Exception as e:
+        # Log the detail server-side but return a generic message (P2 audit
+        # finding): raw FinTS/library exception text can leak internal state.
+        _logger.warning("fints_sync_failed blz=%s reason=%s", blz, e)
         return FinTSResult(
             bank_name=f"Bank {blz}", blz=blz, account_iban=None,
             balance=0.0, currency="EUR", holdings=[],
             fetched_at=datetime.now(UTC), is_demo=False,
-            error=str(e)[:200],
+            error="FinTS-Synchronisation fehlgeschlagen. Bitte Zugangsdaten und Bank-URL prüfen.",
         )
+
+
+def _validate_fints_url(url: str) -> None:
+    """
+    SSRF guard for the FinTS endpoint (P0 audit finding).
+
+    ``fints_url`` is caller-supplied free-form input and is used as the target
+    the FinTS client sends the online-banking ``username``+``PIN`` to. Without
+    validation an authenticated user could point it at an internal address
+    (cloud metadata, loopback, private RFC1918 ranges) and exfiltrate the
+    credentialed handshake. We reuse the outbound-webhook SSRF validator, which
+    requires HTTPS and blocks private/loopback/link-local/reserved/metadata
+    hosts. ``allow_local`` is enabled only off-production so local FinTS test
+    servers keep working. Raises WebhookURLError on any violation.
+    """
+    from app.services.webhooks.client import validate_webhook_url
+    try:
+        from app.core.config import is_hardened_environment
+        allow_local = not is_hardened_environment()
+    except Exception:
+        allow_local = False
+    validate_webhook_url(url, allow_local=allow_local)
 
 
 async def fetch_bank_data(
@@ -214,6 +242,9 @@ async def fetch_bank_data(
     Async wrapper for FinTS data fetch.
     If blz or pin is empty → returns demo data.
     Runs blocking FinTS I/O in a thread pool.
+
+    Raises WebhookURLError (from validate_webhook_url) when the resolved FinTS
+    endpoint fails the SSRF guard — the caller (route) maps this to HTTP 400.
     """
     if not blz or not pin or not username:
         return _DEMO_RESULT
@@ -226,5 +257,8 @@ async def fetch_bank_data(
             fetched_at=datetime.now(UTC), is_demo=False,
             error=f"No FinTS URL known for BLZ {blz}. Please supply fints_url.",
         )
+
+    # SSRF guard — validate the resolved endpoint before sending credentials.
+    _validate_fints_url(url)
 
     return await asyncio.to_thread(_sync_fetch, blz, username, pin, url, iban)

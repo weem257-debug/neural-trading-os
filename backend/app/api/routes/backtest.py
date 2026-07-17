@@ -26,6 +26,20 @@ router = APIRouter(prefix="/backtest", tags=["Backtesting"])
 _jobs: dict[str, dict] = {}
 
 
+def _owned_job(job_id: str, username: str) -> dict:
+    """
+    Return the job iff it exists AND belongs to ``username`` (BOLA/IDOR guard,
+    P0 audit finding). A job owned by another user is treated as non-existent
+    (404) so job-id enumeration cannot reveal foreign jobs. Legacy jobs without
+    an owner (created before this guard) are only visible to their creator via
+    the owner field, so an absent owner never matches a real username.
+    """
+    job = _jobs.get(job_id)
+    if job is None or job.get("owner_username") != username:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} nicht gefunden")
+    return job
+
+
 @router.post(
     "/run",
     response_model=BacktestJobStartResponse,
@@ -55,6 +69,7 @@ async def start_backtest(
     _jobs[job_id] = {
         "id": job_id,
         "status": "queued",
+        "owner_username": _.username,  # BOLA/IDOR guard — job is owner-scoped
         "request": req.model_dump(),
         "created_at": datetime.now(UTC).isoformat(),
         "result": None,
@@ -522,18 +537,23 @@ async def list_strategies() -> list[BacktestStrategyEntry]:
     summary="Export backtest result as CSV",
     responses={200: {"content": {"text/csv": {}}}},
 )
-async def export_backtest(job_id: str) -> StreamingResponse:
+async def export_backtest(
+    job_id: str,
+    current_user: UserInfo = Depends(get_current_user),
+) -> StreamingResponse:
     """
     Download equity-curve and trade-list for a completed backtest job as CSV.
-    Returns 404 if job not found, 409 if job not yet completed.
+    Returns 404 if job not found (or not owned), 409 if job not yet completed.
     """
-    if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} nicht gefunden")
-    job = _jobs[job_id]
+    job = _owned_job(job_id, current_user.username)
     if job["status"] == "failed":
         raise HTTPException(status_code=409, detail=f"Job {job_id} fehlgeschlagen: {job.get('error', 'unbekannt')}")
     if job["status"] != "completed":
         raise HTTPException(status_code=409, detail=f"Job {job_id} noch nicht abgeschlossen (Status: {job['status']})")
+
+    # CSV formula-injection guard (P2 audit finding): neutralise free-form text
+    # fields (ticker, strategy_name, trade side labels) that could start = + - @.
+    from app.core.csv_safety import csv_safe
 
     result = job.get("result") or {}
     output = io.StringIO()
@@ -551,7 +571,7 @@ async def export_backtest(job_id: str) -> StreamingResponse:
     summary_writer.writerow(["field", "value"])
     for f in summary_fields:
         val = result.get(f) or req.get(f) or ""
-        summary_writer.writerow([f, val])
+        summary_writer.writerow([f, csv_safe(val)])
 
     # ---- Section 2: equity curve ----
     output.write("\r\n# EQUITY_CURVE\r\n")
@@ -586,15 +606,16 @@ async def export_backtest(job_id: str) -> StreamingResponse:
     response_model=BacktestResult,
     summary="Get the full BacktestResult for a completed job",
 )
-async def get_result(job_id: str) -> BacktestResult:
+async def get_result(
+    job_id: str,
+    current_user: UserInfo = Depends(get_current_user),
+) -> BacktestResult:
     """
     Returns the complete BacktestResult (including equity_curve and trades)
-    for a completed job.  Returns 404 if job does not exist, 409 if not yet
-    completed or failed.
+    for a completed job.  Returns 404 if job does not exist (or not owned),
+    409 if not yet completed or failed.
     """
-    if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} nicht gefunden")
-    job = _jobs[job_id]
+    job = _owned_job(job_id, current_user.username)
     if job["status"] == "failed":
         raise HTTPException(
             status_code=409,
@@ -615,8 +636,13 @@ async def get_result(job_id: str) -> BacktestResult:
     response_model=list[BacktestJobStatus],
     summary="List all backtest jobs",
 )
-async def list_jobs(_: UserInfo = Depends(get_current_user)) -> list[BacktestJobStatus]:
-    return [BacktestJobStatus(**j) for j in _jobs.values()]
+async def list_jobs(current_user: UserInfo = Depends(get_current_user)) -> list[BacktestJobStatus]:
+    # BOLA/IDOR guard — only the caller's own jobs, never the whole store.
+    return [
+        BacktestJobStatus(**j)
+        for j in _jobs.values()
+        if j.get("owner_username") == current_user.username
+    ]
 
 
 @router.get(
@@ -624,10 +650,12 @@ async def list_jobs(_: UserInfo = Depends(get_current_user)) -> list[BacktestJob
     response_model=BacktestJobStatus,
     summary="Get backtest job status and result",
 )
-async def get_job(job_id: str) -> BacktestJobStatus:
-    if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} nicht gefunden")
-    return BacktestJobStatus(**_jobs[job_id])
+async def get_job(
+    job_id: str,
+    current_user: UserInfo = Depends(get_current_user),
+) -> BacktestJobStatus:
+    job = _owned_job(job_id, current_user.username)
+    return BacktestJobStatus(**job)
 
 
 @router.delete(
@@ -635,8 +663,7 @@ async def get_job(job_id: str) -> BacktestJobStatus:
     response_model=BacktestJobDeleteResponse,
     summary="Delete a backtest job",
 )
-async def delete_job(job_id: str, _: UserInfo = Depends(get_current_user)) -> BacktestJobDeleteResponse:
-    if job_id not in _jobs:
-        raise HTTPException(status_code=404, detail=f"Job {job_id} nicht gefunden")
+async def delete_job(job_id: str, current_user: UserInfo = Depends(get_current_user)) -> BacktestJobDeleteResponse:
+    _owned_job(job_id, current_user.username)  # 404 if missing or not owned
     del _jobs[job_id]
     return BacktestJobDeleteResponse(deleted=job_id)

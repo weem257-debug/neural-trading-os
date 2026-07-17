@@ -39,7 +39,7 @@ alembic>=1.13.0           # Database migrations
 fints>=4.0.0              # FinTS — German bank protocol (comdirect, DKB, ING, Sparkasse)
 
 # Self-learning trading AI
-youtube-transcript-api>=0.6.2   # YouTube transcripts — no API key needed
+youtube-transcript-api>=1.0.0   # YouTube transcripts — no API key needed (v1.0+ API: instance .fetch())
 apscheduler>=3.10.4             # Background job scheduler (AsyncIOScheduler)
 rank-bm25>=0.2.2                # BM25 keyword retrieval for insight search (lightweight)
 # sentence-transformers>=3.0.0  # Optional: dense semantic embeddings (needs torch ~200MB)

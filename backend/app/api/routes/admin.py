@@ -167,7 +167,7 @@ async def update_user(
     """Update tier and/or active status for a user."""
     if body.tier is not None and body.tier not in VALID_TIERS:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Ungültiger Plan. Erlaubt: {', '.join(VALID_TIERS)}",
         )
     async with get_session() as session:
@@ -258,9 +258,9 @@ async def send_upgrade_email(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Benutzer '{username}' nicht gefunden")
     if not user.email:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Keine E-Mail-Adresse hinterlegt")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Keine E-Mail-Adresse hinterlegt")
     if user.tier not in UPGRADE_TARGETS:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Nutzer ist bereits auf Pro oder höher")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Nutzer ist bereits auf Pro oder höher")
     if _is_unsubscribed(username):
         return SendUpgradeEmailResponse(sent=False, message="Nutzer hat E-Mail-Benachrichtigungen abbestellt")
 
@@ -352,7 +352,7 @@ async def send_reengagement_email(
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Benutzer '{username}' nicht gefunden")
     if not user.email:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Keine E-Mail-Adresse hinterlegt")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Keine E-Mail-Adresse hinterlegt")
     if _is_unsubscribed(username):
         return SendUpgradeEmailResponse(sent=False, message="Nutzer hat E-Mail-Benachrichtigungen abbestellt")
 

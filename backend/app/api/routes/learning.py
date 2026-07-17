@@ -69,7 +69,7 @@ def _extract_video_id(url_or_id: str) -> str:
     if m:
         return m.group(1)
     raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="Konnte keine gültige YouTube-Video-ID aus der URL extrahieren.",
     )
 
@@ -232,7 +232,9 @@ async def list_trade_learnings(
 
 
 @router.post("/trade-review", status_code=202)
+@limiter.limit("5/minute")
 async def trigger_trade_review(
+    request: Request,
     _user: UserInfo = Depends(get_current_user),
 ) -> dict:
     """Trigger immediate trade review (runs in background)."""
@@ -287,14 +289,26 @@ async def trigger_confidence_decay(
 # Jobs
 # ---------------------------------------------------------------------------
 
+_MAX_BATCH_VIDEO_IDS = 20
+
+
 @router.post("/jobs/trigger", status_code=202)
+@limiter.limit("5/minute")
 async def trigger_job_endpoint(
+    request: Request,
     body: TriggerJobRequest,
     _user: UserInfo = Depends(get_current_user),
 ) -> dict:
     from app.services.learning.scheduler import trigger_job
 
     if body.job_type == "youtube_batch" and body.video_ids:
+        # Bound the batch (P2 audit finding): an unbounded list would fan out
+        # into that many LLM extractions per request — a cost/DoS vector.
+        if len(body.video_ids) > _MAX_BATCH_VIDEO_IDS:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Maximal {_MAX_BATCH_VIDEO_IDS} Video-IDs pro Batch erlaubt.",
+            )
         import asyncio
         from app.services.learning import youtube_learner
         asyncio.create_task(youtube_learner.run_batch(body.video_ids))

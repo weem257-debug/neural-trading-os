@@ -5017,6 +5017,53 @@ class TestTelegramWebhookLogic:
         assert resp.status_code == 200
         return cid
 
+    def _set_plan_state(self, client, *, tier: str, sub_plan: str | None, sub_status: str = "active") -> str:
+        """Force the test user's ``User.tier`` and (optionally) a Subscription row.
+
+        Lets us assert the same plan-precedence the central resolver enforces
+        (active paid subscription > tier > free) through the Telegram path.
+        """
+        import asyncio
+        from sqlalchemy import select, delete as sa_delete
+        from app.db.database import get_session
+        from app.db.models import User, Subscription
+
+        uid = self._ensure_user(client)
+
+        async def _apply():
+            async with get_session() as session:
+                ures = await session.execute(select(User).where(User.username == uid))
+                user = ures.scalar_one_or_none()
+                if user:
+                    user.tier = tier
+                await session.execute(sa_delete(Subscription).where(Subscription.user_id == uid))
+                if sub_plan is not None:
+                    session.add(Subscription(user_id=uid, plan=sub_plan, status=sub_status))
+                await session.commit()
+
+        asyncio.run(_apply())
+        return uid
+
+    def _reset_plan_state(self, client) -> None:
+        """Undo _set_plan_state: drop the Subscription row and restore free tier."""
+        import asyncio
+        from sqlalchemy import select, delete as sa_delete
+        from app.db.database import get_session
+        from app.db.models import User, Subscription
+
+        uid = self.TG_USER
+
+        async def _apply():
+            async with get_session() as session:
+                await session.execute(sa_delete(Subscription).where(Subscription.user_id == uid))
+                ures = await session.execute(select(User).where(User.username == uid))
+                user = ures.scalar_one_or_none()
+                if user:
+                    user.tier = "free"
+                await session.commit()
+
+        asyncio.run(_apply())
+
     # ── /start connection flow ──────────────────────────────────────────
 
     def test_start_without_code_sends_welcome(self, client):
@@ -5143,6 +5190,48 @@ class TestTelegramWebhookLogic:
         mock_send = self._run_command_connected(client, "/briefing")
         mock_send.assert_awaited()
         assert "Tagesbriefing" in mock_send.await_args.args[1]
+
+    def test_status_subscription_overrides_tier(self, client):
+        """An active paid subscription must override a lower User.tier in /status
+        — identical precedence to /api/billing/usage and signal-quota checks."""
+        from app.api.routes import telegram as tg_mod
+        self._set_plan_state(client, tier="basic", sub_plan="pro", sub_status="active")
+        cid = self._connect_chat(client)
+        mock_send = AsyncMock(return_value=True)
+        try:
+            with patch.object(tg_mod, "send_message", new=mock_send):
+                resp = client.post(
+                    "/api/telegram/webhook",
+                    json=self._make_update("/status", chat_id=cid),
+                )
+            assert resp.status_code == 200
+            text = mock_send.await_args.args[1]
+            assert "Pro" in text          # resolved plan, not the stored "basic" tier
+            assert "Basic" not in text
+            assert "/ 50" in text         # pro quota (50), not basic's 10
+        finally:
+            self._reset_plan_state(client)
+            client.delete("/api/telegram/disconnect", headers=self._user_headers(client))
+
+    def test_status_free_fallback_without_subscription(self, client):
+        """No subscription + free tier resolves to the free plan and 3-signal quota."""
+        from app.api.routes import telegram as tg_mod
+        self._set_plan_state(client, tier="free", sub_plan=None)
+        cid = self._connect_chat(client)
+        mock_send = AsyncMock(return_value=True)
+        try:
+            with patch.object(tg_mod, "send_message", new=mock_send):
+                resp = client.post(
+                    "/api/telegram/webhook",
+                    json=self._make_update("/status", chat_id=cid),
+                )
+            assert resp.status_code == 200
+            text = mock_send.await_args.args[1]
+            assert "Free" in text
+            assert "/ 3" in text
+        finally:
+            self._reset_plan_state(client)
+            client.delete("/api/telegram/disconnect", headers=self._user_headers(client))
 
     def test_upgrade_command_responds(self, client):
         mock_send = self._run_command_connected(client, "/upgrade")

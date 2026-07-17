@@ -73,13 +73,22 @@ async def sync_bank(
     Perform a live FinTS sync.
     PIN is used in-memory for this request only — never persisted.
     """
-    result = await fetch_bank_data(
-        blz=body.blz,
-        username=body.username,
-        pin=body.pin,
-        fints_url=body.fints_url,
-        iban=body.iban,
-    )
+    from app.services.webhooks.client import WebhookURLError
+
+    try:
+        result = await fetch_bank_data(
+            blz=body.blz,
+            username=body.username,
+            pin=body.pin,
+            fints_url=body.fints_url,
+            iban=body.iban,
+        )
+    except WebhookURLError as exc:
+        # SSRF guard rejected the FinTS endpoint (internal/non-HTTPS target).
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"FinTS-URL nicht erlaubt: {exc}",
+        )
 
     if result.error and not result.is_demo:
         raise HTTPException(

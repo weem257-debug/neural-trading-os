@@ -131,6 +131,39 @@ DISCLAIMER_FULL_EN: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Commodities & prediction-market (Polymarket) notices — see ADR 0002.
+# Additive; rendered next to the new analytics surfaces. Aggregated display
+# only: no order routing, no wallet, no brokerage (ADR 0002 red lines).
+# ---------------------------------------------------------------------------
+COMMODITIES_DATA_NOTICE_DE: str = (
+    "Marktdaten können bis zu 15 Minuten verzögert sein. Quelle: Twelve Data / "
+    "EIA / FRED. Keine Gewähr für Vollständigkeit oder Richtigkeit."
+)
+
+COMMODITIES_DATA_NOTICE_EN: str = (
+    "Market data may be delayed by up to 15 minutes. Source: Twelve Data / EIA / "
+    "FRED. No warranty of completeness or accuracy."
+)
+
+PREDICTION_MARKET_NOTICE_DE: str = (
+    "Prognosemarkt-Daten (Polymarket) werden ausschließlich aggregiert und zu "
+    "Informationszwecken angezeigt. Wir vermitteln keine Wetten, kein Trading und "
+    "kein Wallet-Onboarding. Die Teilnahme an Prognose-/Wettmärkten ist in "
+    "Deutschland und Teilen der EU rechtlich eingeschränkt oder unzulässig; prüfe "
+    "die für dich geltenden Vorschriften. Über diese Plattform ist keine "
+    "Order-Ausführung möglich."
+)
+
+PREDICTION_MARKET_NOTICE_EN: str = (
+    "Prediction-market data (Polymarket) is shown in aggregated form for "
+    "information purposes only. We do not facilitate betting, trading or wallet "
+    "onboarding. Participation in prediction/betting markets is legally "
+    "restricted or prohibited in Germany and parts of the EU; check the rules "
+    "that apply to you. No order execution is possible through this platform."
+)
+
+
 def disclaimer_payload() -> dict[str, str]:
     """Structured disclaimer for API/JSON consumers."""
     return {
@@ -138,6 +171,10 @@ def disclaimer_payload() -> dict[str, str]:
         "short_en": DISCLAIMER_SHORT_EN,
         "full_de": DISCLAIMER_FULL_DE,
         "full_en": DISCLAIMER_FULL_EN,
+        "commodities_notice_de": COMMODITIES_DATA_NOTICE_DE,
+        "commodities_notice_en": COMMODITIES_DATA_NOTICE_EN,
+        "prediction_market_notice_de": PREDICTION_MARKET_NOTICE_DE,
+        "prediction_market_notice_en": PREDICTION_MARKET_NOTICE_EN,
         "not_investment_advice": True,
     }
 

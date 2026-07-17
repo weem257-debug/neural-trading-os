@@ -39,7 +39,10 @@ async def _cached_elliott(ticker: str, period: str) -> dict:
     cached = cache_get(key)
     if cached is not None:
         return cached
-    result = analyze_elliott_waves(ticker=ticker, period=period)
+    # analyze_elliott_waves downloads OHLCV via yfinance (blocking network I/O).
+    # Run it off the event loop so it can't stall all concurrent requests
+    # (P1 audit finding).
+    result = await asyncio.to_thread(analyze_elliott_waves, ticker=ticker, period=period)
     # Only cache non-empty analyses. An empty result (no market data — e.g.
     # offline/CI, or yfinance throttling) is still a valid-shaped payload, so
     # return it as a 200 rather than a 500; just don't cache it, so the next

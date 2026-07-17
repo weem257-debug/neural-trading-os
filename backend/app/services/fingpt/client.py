@@ -12,6 +12,7 @@ No crash on missing API key — the service always returns a result.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -371,7 +372,9 @@ async def analyze_sentiment(
     """
     # Step 1: Acquire news
     if news_items is None:
-        news_items = _fetch_yfinance_news(ticker)
+        # yfinance news fetch is blocking network I/O — run it off the event
+        # loop so it can't stall concurrent requests (P1 audit finding).
+        news_items = await asyncio.to_thread(_fetch_yfinance_news, ticker)
         if not news_items:
             logger.info("No yfinance news for %s — using stub data", ticker)
             news_items = _stub_news(ticker)

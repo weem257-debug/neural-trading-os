@@ -185,6 +185,11 @@ class Settings(BaseSettings):
     # E-Mail-Adresse für Admin-Benachrichtigungen (neue Registrierungen etc.)
     ADMIN_NOTIFICATION_EMAIL: str = ""
 
+    # Telegram webhook secret (optional). When empty, a stable secret is derived
+    # from the bot token (HMAC) so webhook-sender verification is secure by
+    # default. Set explicitly to rotate independently of the bot token.
+    TELEGRAM_WEBHOOK_SECRET: str = ""
+
     # Report Share Token (optional) — if set, GET /api/report/* requires ?key=<token>
     # or header X-Report-Key:<token>. Leave empty to keep the endpoint open.
     REPORT_SHARE_TOKEN: str = ""

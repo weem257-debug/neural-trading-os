@@ -236,6 +236,32 @@ async def _handle_signal(chat_id: str, ticker: str) -> None:
         await send_message(chat_id, f"Signal für {ticker} konnte nicht abgerufen werden.")
 
 
+async def _resolve_user_plan(user_id: str, tier: Optional[str]) -> str:
+    """Resolve a user's effective plan key via the central resolver.
+
+    Precedence (shared with ``/api/billing/usage`` display and
+    ``signals._check_signal_quota`` enforcement): active paid Stripe
+    subscription > ``User.tier`` > ``"free"``. Routing the Telegram bot through
+    the same resolver keeps its plan display and quota math from drifting when a
+    paid subscription exists but ``User.tier`` is stale.
+    """
+    from app.core.plans import resolve_plan
+    from app.db.database import get_session
+    from app.db.models import Subscription
+    from sqlalchemy import select
+
+    sub = None
+    try:
+        async with get_session() as session:
+            sub_result = await session.execute(
+                select(Subscription).where(Subscription.user_id == user_id)
+            )
+            sub = sub_result.scalar_one_or_none()
+    except Exception:
+        sub = None  # Fall back to tier/free-plan on DB error
+    return resolve_plan(sub, tier)
+
+
 async def _handle_status(chat_id: str, user_id: str) -> None:
     try:
         from app.db.database import get_session
@@ -258,22 +284,23 @@ async def _handle_status(chat_id: str, user_id: str) -> None:
             await send_message(chat_id, "Benutzerkonto nicht gefunden.")
             return
 
+        plan = await _resolve_user_plan(user_id, user.tier)
         limits = {"free": 3, "basic": 10, "pro": 50, "institutional": -1}
-        limit = limits.get(user.tier, 3)
+        limit = limits.get(plan, 3)
         limit_str = "∞" if limit == -1 else str(limit)
-        tier_emoji = {"free": "🆓", "basic": "⚡", "pro": "💎", "institutional": "🏛️"}.get(user.tier, "🆓")
+        tier_emoji = {"free": "🆓", "basic": "⚡", "pro": "💎", "institutional": "🏛️"}.get(plan, "🆓")
 
         status_rows: list[list[dict]] = [
             [{"text": "📊 Signale generieren", "url": f"{settings.FRONTEND_URL}/signals"}],
         ]
-        if user.tier not in ("institutional", "pro"):
+        if plan not in ("institutional", "pro"):
             status_rows.append([{"text": "⬆️ Plan upgraden", "url": f"{settings.FRONTEND_URL}/billing"}])
 
         await send_message(
             chat_id,
             (
                 f"👤 <b>{user.username}</b>\n\n"
-                f"{tier_emoji} Plan: <b>{user.tier.capitalize()}</b>\n"
+                f"{tier_emoji} Plan: <b>{plan.capitalize()}</b>\n"
                 f"📊 Signale heute: <b>{signals_today} / {limit_str}</b>"
             ),
             reply_markup={"inline_keyboard": status_rows},
@@ -321,15 +348,16 @@ async def _handle_upgrade(chat_id: str, user_id: str) -> None:
             await send_message(chat_id, "Benutzerkonto nicht gefunden.")
             return
 
-        if user.tier == "institutional":
+        plan = await _resolve_user_plan(user_id, user.tier)
+        if plan == "institutional":
             await send_message(chat_id, (
                 "🏛️ Du bist bereits auf dem höchsten Plan (<b>Institutional</b>).\n\n"
                 "Unbegrenzte Signale, voller API-Zugang und Priority-Support."
             ))
             return
 
-        tier_emoji = {"free": "🆓", "basic": "⚡", "pro": "💎"}.get(user.tier, "🆓")
-        next_plan = {"free": ("Basic", "⚡", "€29/Monat", "10 Signale/Tag"), "basic": ("Pro", "💎", "€99/Monat", "50 Signale/Tag"), "pro": ("Institutional", "🏛️", "€299/Monat", "Unbegrenzte Signale")}.get(user.tier)
+        tier_emoji = {"free": "🆓", "basic": "⚡", "pro": "💎"}.get(plan, "🆓")
+        next_plan = {"free": ("Basic", "⚡", "€29/Monat", "10 Signale/Tag"), "basic": ("Pro", "💎", "€99/Monat", "50 Signale/Tag"), "pro": ("Institutional", "🏛️", "€299/Monat", "Unbegrenzte Signale")}.get(plan)
 
         billing_url = f"{settings.FRONTEND_URL}/billing"
         if next_plan:
@@ -337,7 +365,7 @@ async def _handle_upgrade(chat_id: str, user_id: str) -> None:
             await send_message(
                 chat_id,
                 (
-                    f"{tier_emoji} Aktueller Plan: <b>{user.tier.capitalize()}</b>\n\n"
+                    f"{tier_emoji} Aktueller Plan: <b>{plan.capitalize()}</b>\n\n"
                     f"⬆️ Nächstes Upgrade: {emoji} <b>{name}</b> — {price}\n"
                     f"   {signals}"
                 ),
@@ -376,8 +404,9 @@ async def _handle_briefing(chat_id: str, user_id: str) -> None:
             await send_message(chat_id, "Benutzerkonto nicht gefunden.")
             return
 
+        plan = await _resolve_user_plan(user_id, user.tier)
         limits = {"free": 3, "basic": 10, "pro": 50, "institutional": -1}
-        limit = limits.get(user.tier, 3)
+        limit = limits.get(plan, 3)
         used = len(signals_today)
 
         if not signals_today:
@@ -688,7 +717,25 @@ async def webhook(request: Request) -> dict:
     """
     Receive Telegram webhook updates.
     Handles /start <CODE> for connection and bot commands for connected users.
+
+    Security (P1 audit finding): when a webhook secret is configured/derivable,
+    the request must carry the matching ``X-Telegram-Bot-Api-Secret-Token``
+    header (set by Telegram from setWebhook's ``secret_token``). Requests with a
+    missing/wrong token are silently dropped so spoofed updates cannot connect
+    accounts or trigger commands. Requires re-running POST /telegram/setup-webhook
+    once after deploy so Telegram learns the secret.
     """
+    import hmac as _hmac
+    from app.services.telegram.client import resolve_webhook_secret
+
+    expected_secret = await resolve_webhook_secret()
+    if expected_secret:
+        provided = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if not provided or not _hmac.compare_digest(provided, expected_secret):
+            logger.warning("telegram_webhook_secret_mismatch")
+            # Return 200 so we don't reveal the check to a prober; drop silently.
+            return {"ok": True}
+
     try:
         body = await request.json()
     except Exception:

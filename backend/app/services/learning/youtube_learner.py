@@ -93,13 +93,17 @@ def _fetch_transcript_sync(video_id: str) -> tuple[str, str]:
         from youtube_transcript_api import YouTubeTranscriptApi
         from youtube_transcript_api.formatters import TextFormatter
 
-        # Try English first, then auto-generated
-        transcript_list = YouTubeTranscriptApi.get_transcript(
+        # youtube-transcript-api v1.0 removed the static ``get_transcript()``.
+        # The supported surface is the instance method ``fetch()`` which returns
+        # a ``FetchedTranscript``; ``TextFormatter`` accepts that object directly.
+        # Try English first, then the auto-generated English variants.
+        ytt_api = YouTubeTranscriptApi()
+        fetched = ytt_api.fetch(
             video_id,
             languages=["en", "en-US", "en-GB"],
         )
         formatter = TextFormatter()
-        text = formatter.format_transcript(transcript_list)
+        text = formatter.format_transcript(fetched)
         return text[:8000], ""  # Cap at 8000 chars to fit Claude context
     except Exception as e:
         return "", str(e)[:200]

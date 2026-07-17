@@ -37,3 +37,9 @@ out/
 # OS
 .DS_Store
 Thumbs.db
+
+# Coverage-Artefakte (pytest --cov)
+.coverage
+coverage.json
+coverage.xml
+htmlcov/

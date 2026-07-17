@@ -35,6 +35,41 @@ def _api_url(method: str, token: str) -> str:
     return f"https://api.telegram.org/bot{token}/{method}"
 
 
+async def resolve_webhook_secret() -> str:
+    """
+    Resolve the Telegram webhook ``secret_token`` (P1 audit finding).
+
+    Telegram echoes this value back in the ``X-Telegram-Bot-Api-Secret-Token``
+    header on every webhook delivery, letting the receiver prove the request
+    genuinely came from Telegram and reject spoofed updates.
+
+    Precedence:
+      1. Explicit ``TELEGRAM_WEBHOOK_SECRET`` setting, when configured.
+      2. A stable secret DERIVED from the bot token via HMAC-SHA256 — this makes
+         verification secure-by-default with no extra configuration (the bot
+         token is already a shared secret between us and Telegram).
+
+    Returns "" only when no bot token is configured at all (bot disabled).
+    The value is [0-9a-f]{64}, well within Telegram's allowed 1-256 chars of
+    ``[A-Za-z0-9_-]``.
+    """
+    import hashlib
+    import hmac as _hmac
+
+    try:
+        from app.core.config import settings
+        explicit = (getattr(settings, "TELEGRAM_WEBHOOK_SECRET", "") or "").strip()
+        if explicit:
+            return explicit
+    except Exception:
+        pass
+
+    token = await _get_token()
+    if not token:
+        return ""
+    return _hmac.new(token.encode(), b"telegram-webhook-secret-v1", hashlib.sha256).hexdigest()
+
+
 async def send_message(
     chat_id: str,
     text: str,
@@ -69,8 +104,14 @@ async def set_webhook(url: str) -> dict:
     if not token:
         return {"ok": False, "description": "TELEGRAM_BOT_TOKEN not configured"}
     try:
+        payload: dict = {"url": url}
+        # Register the secret token so Telegram echoes it back on every delivery
+        # and the webhook handler can reject spoofed updates (P1 audit finding).
+        secret = await resolve_webhook_secret()
+        if secret:
+            payload["secret_token"] = secret
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(_api_url("setWebhook", token), json={"url": url})
+            resp = await client.post(_api_url("setWebhook", token), json=payload)
             data = resp.json()
             if not data.get("ok"):
                 logger.warning("telegram_webhook_set_failed", extra={"response": data})

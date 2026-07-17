@@ -103,6 +103,21 @@ class RequestCounterMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        # HSTS + baseline CSP (P2 audit finding). Applied only in hardened envs:
+        # local http dev is unaffected AND the interactive /docs (Swagger UI,
+        # served only off-prod) keeps its CDN assets. This JSON API serves no
+        # first-party HTML/JS in production, so a strict CSP that forbids all
+        # embedding and active content is safe there (the Next.js frontend ships
+        # its own CSP).
+        if is_hardened_environment():
+            response.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
+            response.headers.setdefault(
+                "Content-Security-Policy",
+                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+            )
         return response
 
 

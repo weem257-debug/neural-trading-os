@@ -274,8 +274,19 @@ async def _check_signal_quota(user: Optional[UserInfo]) -> None:
                 )
             )
             used_today = count_result.scalar_one()
-    except Exception:
-        return  # Skip quota check on DB error — fail open
+    except Exception as exc:
+        # Fail CLOSED (P1 audit finding): if we cannot verify the quota we must
+        # not grant the expensive LLM signal for free — that turned a DB blip
+        # into an unlimited-signal bypass. Surface a 503 instead so the caller
+        # retries rather than silently exceeding their plan.
+        logger.warning("signal_quota_check_failed_fail_closed user=%s reason=%s", caller_id, exc)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "quota_check_unavailable",
+                "message": "Signal-Kontingent kann derzeit nicht geprüft werden. Bitte in Kürze erneut versuchen.",
+            },
+        )
 
     # 80% approaching warning (fire-and-forget, non-blocking)
     if user and user.email and limit > 0 and used_today >= max(1, int(limit * 0.8)) and used_today < limit:
@@ -728,34 +739,38 @@ async def export_signals(current_user: UserInfo = Depends(get_current_user)) -> 
     except Exception:
         pass
 
+    # CSV formula-injection guard (P2 audit finding): neutralise free-form
+    # text fields (ticker, reasoning, source) that could start with = + - @.
+    from app.core.csv_safety import csv_safe
+
     if db_signals:
         for row in db_signals:
             writer.writerow({
                 "id": row.id,
-                "ticker": row.ticker,
-                "direction": row.direction,
+                "ticker": csv_safe(row.ticker),
+                "direction": csv_safe(row.direction),
                 "confidence": row.confidence,
                 "price_target": row.price_target or "",
                 "stop_loss": row.stop_loss or "",
-                "time_horizon": row.time_horizon or "",
-                "source": row.source,
+                "time_horizon": csv_safe(row.time_horizon or ""),
+                "source": csv_safe(row.source),
                 "generated_at": row.generated_at.isoformat(),
-                "reasoning": (row.reasoning or "").replace("\n", " "),
+                "reasoning": csv_safe((row.reasoning or "").replace("\n", " ")),
             })
     else:
         user_signals = [s for s in _signal_store if True]  # in-memory store has no user filter
         for signal in sorted(user_signals, key=lambda s: s.generated_at, reverse=True):
             writer.writerow({
                 "id": signal.id,
-                "ticker": signal.ticker,
-                "direction": signal.direction.value if hasattr(signal.direction, "value") else str(signal.direction),
+                "ticker": csv_safe(signal.ticker),
+                "direction": csv_safe(signal.direction.value if hasattr(signal.direction, "value") else str(signal.direction)),
                 "confidence": signal.confidence,
                 "price_target": signal.price_target or "",
                 "stop_loss": signal.stop_loss or "",
-                "time_horizon": signal.time_horizon or "",
-                "source": signal.source,
+                "time_horizon": csv_safe(signal.time_horizon or ""),
+                "source": csv_safe(signal.source),
                 "generated_at": signal.generated_at.isoformat(),
-                "reasoning": (signal.reasoning or "").replace("\n", " "),
+                "reasoning": csv_safe((signal.reasoning or "").replace("\n", " ")),
             })
 
     output.seek(0)

@@ -10,7 +10,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.api.auth import get_current_user, UserInfo
+from app.api.auth import UserInfo
 from app.api.routes.admin import _require_admin
 from app.services.credentials import (
     get_all_statuses,
@@ -30,9 +30,14 @@ class CredentialBody(BaseModel):
 
 @router.get("/credentials")
 async def list_credentials(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(_require_admin),
 ) -> dict[str, str]:
-    """Return configured/not_set status for each managed credential key."""
+    """Return configured/not_set status for each managed credential key.
+
+    Admin-only (P1 audit finding): the configured/not-set status of the
+    system-wide secret store (Stripe, Anthropic, bot token, brokers) must not be
+    enumerable by every logged-in user — this mirrors the POST/DELETE guards.
+    """
     return await get_all_statuses()
 
 
