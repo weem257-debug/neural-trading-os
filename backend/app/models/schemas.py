@@ -602,6 +602,19 @@ class LiveAnalysisBollinger(BaseModel):
     pct_b: float
 
 
+class LiveAnalysisStochastic(BaseModel):
+    """Slow Stochastic Oscillator (14, 3, 3): %K and %D in 0..100."""
+    k: float
+    d: float
+
+
+class LiveAnalysisADX(BaseModel):
+    """Average Directional Index (14) with directional indicators."""
+    adx: float
+    di_plus: float
+    di_minus: float
+
+
 class LiveAnalysisIndicators(BaseModel):
     rsi_14: Optional[float] = None
     macd: LiveAnalysisMACD
@@ -611,6 +624,11 @@ class LiveAnalysisIndicators(BaseModel):
     sma_200: Optional[float] = None
     atr_14: Optional[float] = None
     volume_avg_20: Optional[float] = None
+    # Additive indicators (2026-07). Optional/defaulted so existing clients that
+    # don't expect them keep validating unchanged.
+    adx: Optional[LiveAnalysisADX] = None
+    stochastic: Optional[LiveAnalysisStochastic] = None
+    obv: Optional[float] = None
 
 
 class LiveAnalysisSignal(BaseModel):

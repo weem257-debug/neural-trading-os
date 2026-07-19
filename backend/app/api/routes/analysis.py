@@ -18,6 +18,7 @@ from app.models.schemas import (
     ElliottWaveAnalysis, ErrorResponse,
     LiveMarketAnalysis, LiveAnalysisPrice, LiveAnalysisIndicators,
     LiveAnalysisMACD, LiveAnalysisBollinger, LiveAnalysisSignal,
+    LiveAnalysisADX, LiveAnalysisStochastic,
     WatchlistResponse, WatchlistUpdateRequest,
     MarketSymbol, MarketCategory, MarketsResponse,
 )
@@ -234,6 +235,50 @@ def _compute_indicators(hist) -> dict:
 
     volume_avg_20 = _last_valid(volume.rolling(20).mean())
 
+    # ---- Additive indicators (2026-07) — do NOT alter the values above ----
+
+    # Slow Stochastic Oscillator (14, 3, 3): %K then %D.
+    lowest_low = low.rolling(14).min()
+    highest_high = high.rolling(14).max()
+    hh_ll = (highest_high - lowest_low).replace(0, np.nan)
+    raw_k = 100 * (close - lowest_low) / hh_ll
+    k_series = raw_k.rolling(3).mean()          # slowing
+    d_series = k_series.rolling(3).mean()
+    k_v = _last_valid(k_series)
+    d_v = _last_valid(d_series)
+    stochastic = LiveAnalysisStochastic(
+        k=k_v if k_v is not None else 50.0,
+        d=d_v if d_v is not None else 50.0,
+    )
+
+    # ADX(14) with Wilder smoothing (RMA via ewm alpha=1/period).
+    up_move = high.diff()
+    down_move = -low.diff()
+    plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0.0)
+    minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0.0)
+    # `tr` is the True Range series computed above for ATR.
+    _period = 14
+    atr_rma = tr.ewm(alpha=1 / _period, adjust=False).mean()
+    atr_rma_safe = atr_rma.replace(0, np.nan)
+    plus_di = 100 * plus_dm.ewm(alpha=1 / _period, adjust=False).mean() / atr_rma_safe
+    minus_di = 100 * minus_dm.ewm(alpha=1 / _period, adjust=False).mean() / atr_rma_safe
+    di_sum = (plus_di + minus_di).replace(0, np.nan)
+    dx = 100 * (plus_di - minus_di).abs() / di_sum
+    adx_series = dx.ewm(alpha=1 / _period, adjust=False).mean()
+    adx_v = _last_valid(adx_series)
+    plus_di_v = _last_valid(plus_di)
+    minus_di_v = _last_valid(minus_di)
+    adx = LiveAnalysisADX(
+        adx=adx_v if adx_v is not None else 0.0,
+        di_plus=plus_di_v if plus_di_v is not None else 0.0,
+        di_minus=minus_di_v if minus_di_v is not None else 0.0,
+    )
+
+    # On-Balance Volume (OBV): cumulative signed volume.
+    direction = np.sign(close.diff().fillna(0.0))
+    obv_series = (direction * volume).cumsum()
+    obv = _last_valid(obv_series)
+
     return {
         "rsi_14": rsi_14,
         "macd": macd,
@@ -243,6 +288,9 @@ def _compute_indicators(hist) -> dict:
         "sma_200": sma_200,
         "atr_14": atr_14,
         "volume_avg_20": volume_avg_20,
+        "adx": adx,
+        "stochastic": stochastic,
+        "obv": obv,
         "_last_close": last_close,
     }
 
@@ -391,6 +439,9 @@ async def get_live_analysis(
             sma_200=ind["sma_200"],
             atr_14=ind["atr_14"],
             volume_avg_20=ind["volume_avg_20"],
+            adx=ind["adx"],
+            stochastic=ind["stochastic"],
+            obv=ind["obv"],
         )
 
         regime = _classify_regime(last_close, ind["sma_50"], ind["sma_200"], ind["atr_14"])
