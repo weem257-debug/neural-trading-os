@@ -121,6 +121,38 @@ class RequestCounterMiddleware(BaseHTTPMiddleware):
         return response
 
 
+# ---------------------------------------------------------------------------
+# BodySizeLimitMiddleware — reject oversized request bodies early (F-23 / DoS)
+# ---------------------------------------------------------------------------
+import os as _os
+
+# Max accepted request body in bytes (default 1 MiB). JSON APIs never need more;
+# oversized payloads are a cheap DoS vector. Override via MAX_REQUEST_BODY_BYTES.
+try:
+    _MAX_BODY_BYTES = int(_os.getenv("MAX_REQUEST_BODY_BYTES", str(1024 * 1024)))
+except ValueError:
+    _MAX_BODY_BYTES = 1024 * 1024
+
+
+class BodySizeLimitMiddleware(BaseHTTPMiddleware):
+    """Reject requests whose declared Content-Length exceeds the limit with 413,
+    before the body is read into memory (F-23 resource-limit hardening)."""
+
+    async def dispatch(self, request: Request, call_next):
+        cl = request.headers.get("content-length")
+        if cl:
+            try:
+                if int(cl) > _MAX_BODY_BYTES:
+                    from starlette.responses import JSONResponse
+                    return JSONResponse(
+                        status_code=413,
+                        content={"detail": "Request-Body zu groß"},
+                    )
+            except ValueError:
+                pass
+        return await call_next(request)
+
+
 # Default watchlist for live price streaming — covers common user additions beyond the demo portfolio
 _PRICE_WATCHLIST = [
     "AAPL", "MSFT", "NVDA", "TSLA", "BTC-USD",
@@ -1009,6 +1041,9 @@ app.add_middleware(SlowAPIMiddleware)
 # Request Counter + Timing Middleware
 # ---------------------------------------------------------------------------
 app.add_middleware(RequestCounterMiddleware)
+
+# F-23: reject oversized request bodies early (DoS hardening).
+app.add_middleware(BodySizeLimitMiddleware)
 
 # ---------------------------------------------------------------------------
 # CORS

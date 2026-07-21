@@ -162,7 +162,7 @@ async def list_users(_: UserInfo = Depends(_require_admin)) -> list[UserRecord]:
 async def update_user(
     username: str,
     body: UserUpdateRequest,
-    _: UserInfo = Depends(_require_admin),
+    admin: UserInfo = Depends(_require_admin),
 ) -> UserUpdateResponse:
     """Update tier and/or active status for a user."""
     if body.tier is not None and body.tier not in VALID_TIERS:
@@ -180,12 +180,26 @@ async def update_user(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Benutzer '{username}' nicht gefunden",
             )
+        before = {"tier": user.tier, "is_active": user.is_active}
         if body.tier is not None:
             user.tier = body.tier
         if body.is_active is not None:
             user.is_active = body.is_active
+        after = {"tier": user.tier, "is_active": user.is_active}
         await session.commit()
         await session.refresh(user)
+
+    # F-19: immutable-ish audit trail for privileged user mutations (actor,
+    # target, before/after). Structured log so it lands in the central log sink.
+    logging.getLogger("audit").info(
+        "admin_user_update",
+        extra={
+            "actor": admin.username,
+            "target": username,
+            "before": before,
+            "after": after,
+        },
+    )
 
     return UserUpdateResponse(
         username=user.username,
