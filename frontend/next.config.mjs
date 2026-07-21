@@ -35,6 +35,9 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
 
+  // F-07: don't advertise the framework/version via the x-powered-by header.
+  poweredByHeader: false,
+
   // Keep the exact request path (incl. trailing slash) when proxying /api/* to
   // the backend. Without this, Next.js emits a 308 that strips the trailing
   // slash from collection endpoints the client calls WITH a slash (e.g.
@@ -61,7 +64,19 @@ const nextConfig = {
 
   ...(!isMobileBuild ? {
     async headers() {
-      return [{ source: "/(.*)", headers: securityHeaders }];
+      return [
+        { source: "/(.*)", headers: securityHeaders },
+        // F-06: auth pages must never be cached by a shared/CDN cache, so a
+        // year-old HTML doc can't be served after a deploy. Middleware also
+        // sets this, but a config-level header is a robust backstop for any
+        // response path that bypasses middleware.
+        {
+          source: "/:path(login|register|forgot-password|reset-password)",
+          headers: [
+            { key: "Cache-Control", value: "private, no-store, max-age=0, must-revalidate" },
+          ],
+        },
+      ];
     },
     async rewrites() {
       const backend = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
