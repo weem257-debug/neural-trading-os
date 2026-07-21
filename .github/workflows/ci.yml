@@ -108,3 +108,32 @@ jobs:
       - run: pip install -r backend/requirements.txt
       - name: "mypy (non-blocking — see TODO above)"
         run: mypy backend/app || true
+
+  # F-20: Software Bill of Materials (CycloneDX) for backend + frontend deps,
+  # uploaded as build artifacts for supply-chain transparency / vuln triage.
+  # Non-blocking (transparency, not a gate).
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Backend SBOM (CycloneDX)
+        run: |
+          pip install cyclonedx-bom
+          cyclonedx-py requirements backend/requirements.txt -o sbom-backend.cdx.json || \
+            cyclonedx-py -r -i backend/requirements.txt -o sbom-backend.cdx.json || true
+      - name: Frontend SBOM (npm/CycloneDX)
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          npm sbom --sbom-format cyclonedx > ../sbom-frontend.cdx.json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            sbom-backend.cdx.json
+            sbom-frontend.cdx.json
+          if-no-files-found: warn
