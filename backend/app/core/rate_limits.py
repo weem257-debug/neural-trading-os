@@ -20,13 +20,6 @@ from slowapi.util import get_remote_address
 from starlette.requests import Request
 
 _TRUST_PROXY = os.getenv("TRUST_PROXY", "false").strip().lower() in ("1", "true", "yes")
-# Number of trusted proxies in front of the app that append to X-Forwarded-For.
-# Railway's edge = 1. The real client IP is the entry this many hops from the
-# RIGHT; everything further left is client-controlled and must not be trusted.
-try:
-    _TRUSTED_PROXY_HOPS = max(1, int(os.getenv("TRUSTED_PROXY_HOPS", "1")))
-except ValueError:
-    _TRUSTED_PROXY_HOPS = 1
 
 
 def client_ip_key(request: Request) -> str:
@@ -43,19 +36,23 @@ def client_ip_key(request: Request) -> str:
     appended, which the client cannot forge.
     """
     if _TRUST_PROXY:
+        # Prefer X-Real-IP: Railway's edge proxy OVERWRITES it with the actual
+        # connecting client, so (unlike X-Forwarded-For) it is a single value the
+        # client cannot append to or forge. This is both stable (one bucket per
+        # real client) and spoof-resistant.
+        real = request.headers.get("x-real-ip", "").strip()
+        if real:
+            return real
+        # Fallback when X-Real-IP is absent: X-Forwarded-For. The left-most entry
+        # is the value the edge proxy recorded for the client when the client did
+        # not itself inject XFF; we keep it as a best-effort key. (Right-most is
+        # NOT used — behind Railway it is a per-request-varying internal hop,
+        # which would defeat bucketing entirely.)
         fwd = request.headers.get("x-forwarded-for", "")
         if fwd:
             parts = [p.strip() for p in fwd.split(",") if p.strip()]
             if parts:
-                idx = len(parts) - _TRUSTED_PROXY_HOPS
-                # Clamp: if the header is shorter than expected, fall back to the
-                # left-most present entry rather than indexing out of range.
-                idx = max(0, min(idx, len(parts) - 1))
-                return parts[idx]
-        # X-Real-IP is set by the proxy to the immediate peer; use as fallback.
-        real = request.headers.get("x-real-ip", "").strip()
-        if real:
-            return real
+                return parts[0]
     return get_remote_address(request)
 
 

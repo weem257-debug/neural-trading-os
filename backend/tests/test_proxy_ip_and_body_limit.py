@@ -26,35 +26,37 @@ def _req(headers: dict) -> Request:
 
 
 class TestClientIpKey:
-    def test_rightmost_xff_is_used_not_spoofable_leftmost(self, monkeypatch):
+    def test_real_ip_preferred_over_xff(self, monkeypatch):
         import app.core.rate_limits as rl
         monkeypatch.setattr(rl, "_TRUST_PROXY", True)
-        monkeypatch.setattr(rl, "_TRUSTED_PROXY_HOPS", 1)
-        # Attacker forges "1.2.3.4" as the left-most entry; the trusted edge
-        # proxy appended the REAL client "203.0.113.9" as the right-most hop.
-        key = rl.client_ip_key(_req({"x-forwarded-for": "1.2.3.4, 203.0.113.9"}))
+        # X-Real-IP (proxy-set, unforgeable) wins over any X-Forwarded-For.
+        key = rl.client_ip_key(_req({
+            "x-real-ip": "203.0.113.9",
+            "x-forwarded-for": "1.2.3.4, 5.6.7.8",
+        }))
         assert key == "203.0.113.9"
 
-    def test_spoofed_prefix_cannot_change_bucket(self, monkeypatch):
+    def test_forged_xff_cannot_change_bucket_when_real_ip_present(self, monkeypatch):
         import app.core.rate_limits as rl
         monkeypatch.setattr(rl, "_TRUST_PROXY", True)
-        monkeypatch.setattr(rl, "_TRUSTED_PROXY_HOPS", 1)
-        # Same real client, different forged prefixes → SAME rate-limit key.
-        k1 = rl.client_ip_key(_req({"x-forwarded-for": "9.9.9.9, 203.0.113.9"}))
-        k2 = rl.client_ip_key(_req({"x-forwarded-for": "8.8.8.8, 203.0.113.9"}))
+        # Attacker varies XFF freely; with X-Real-IP fixed the key is stable →
+        # the rate-limit bucket cannot be escaped by forging XFF.
+        k1 = rl.client_ip_key(_req({"x-real-ip": "203.0.113.9", "x-forwarded-for": "9.9.9.9"}))
+        k2 = rl.client_ip_key(_req({"x-real-ip": "203.0.113.9", "x-forwarded-for": "8.8.8.8"}))
         assert k1 == k2 == "203.0.113.9"
 
-    def test_single_value_still_works(self, monkeypatch):
+    def test_xff_leftmost_fallback_when_no_real_ip(self, monkeypatch):
         import app.core.rate_limits as rl
         monkeypatch.setattr(rl, "_TRUST_PROXY", True)
-        monkeypatch.setattr(rl, "_TRUSTED_PROXY_HOPS", 1)
-        assert rl.client_ip_key(_req({"x-forwarded-for": "203.0.113.9"})) == "203.0.113.9"
+        assert rl.client_ip_key(_req({"x-forwarded-for": "203.0.113.9, 10.1.2.3"})) == "203.0.113.9"
 
-    def test_no_trust_ignores_xff(self, monkeypatch):
+    def test_no_trust_ignores_forwarding_headers(self, monkeypatch):
         import app.core.rate_limits as rl
         monkeypatch.setattr(rl, "_TRUST_PROXY", False)
-        # With proxy trust off, forged XFF is ignored; falls back to peer.
-        assert rl.client_ip_key(_req({"x-forwarded-for": "1.2.3.4"})) == "10.0.0.1"
+        # With proxy trust off, forged headers are ignored; falls back to peer.
+        assert rl.client_ip_key(_req({
+            "x-real-ip": "1.2.3.4", "x-forwarded-for": "5.6.7.8",
+        })) == "10.0.0.1"
 
 
 @pytest.fixture(scope="module")
