@@ -31,10 +31,19 @@ class WebSocketManager:
             "alerts": [],
             "all": [],           # receives all events
         }
+        # Per-connection owner binding (F-12 / F-17). Maps each live socket to
+        # the username that authenticated it, so owner-scoped broadcasts (e.g.
+        # price alerts) never leak one user's data to another authenticated
+        # user subscribed to the same shared channel.
+        self._user_by_ws: "dict[WebSocket, Optional[str]]" = {}
         self._price_feed_task: Optional[asyncio.Task] = None
 
     async def connect(
-        self, websocket: WebSocket, channel: str = "all", subprotocol: Optional[str] = None
+        self,
+        websocket: WebSocket,
+        channel: str = "all",
+        subprotocol: Optional[str] = None,
+        username: Optional[str] = None,
     ) -> None:
         """Accept a new WebSocket connection and register it to a channel.
 
@@ -47,6 +56,7 @@ class WebSocketManager:
         channel = channel if channel in self._connections else "all"
         self._connections[channel].append(websocket)
         self._connections["all"].append(websocket) if channel != "all" else None
+        self._user_by_ws[websocket] = username
         logger.info(
             "WebSocket connected: channel=%s, total=%d",
             channel,
@@ -64,16 +74,35 @@ class WebSocketManager:
         for ch_connections in self._connections.values():
             if websocket in ch_connections:
                 ch_connections.remove(websocket)
+        self._user_by_ws.pop(websocket, None)
 
-    async def broadcast(self, channel: str, data: dict) -> None:
-        """Broadcast a message to all connections on a channel."""
+    async def broadcast(
+        self, channel: str, data: dict, owner_username: Optional[str] = None
+    ) -> None:
+        """Broadcast a message to all connections on a channel.
+
+        When ``owner_username`` is given, the message is delivered ONLY to
+        connections that authenticated as that user (F-12 / F-17). This is used
+        for user-private events such as fired price alerts, which carry the
+        owner's username/ticker/threshold and must never be broadcast to other
+        authenticated subscribers of the shared channel. Connections whose owner
+        could not be determined (None) are treated as non-matching → fail closed.
+        """
         targets = list(self._connections.get(channel, []))
         # Also broadcast to "all" subscribers
         if channel != "all":
             targets += list(self._connections.get("all", []))
 
+        # De-dup (a socket may be in both `channel` and `all`) while filtering
+        # by owner for user-private broadcasts.
+        seen: set = set()
         disconnected = []
         for ws in targets:
+            if ws in seen:
+                continue
+            seen.add(ws)
+            if owner_username is not None and self._user_by_ws.get(ws) != owner_username:
+                continue
             try:
                 await self._send_to(ws, data)
             except Exception:

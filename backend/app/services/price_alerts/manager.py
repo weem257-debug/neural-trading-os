@@ -291,11 +291,20 @@ class PriceAlertManager:
             try:
                 from app.websocket.manager import ws_manager
                 for alert_dict in fired_alerts:
-                    await ws_manager.broadcast("alerts", {
-                        "type": "price_alert_fired",
-                        "alert": alert_dict,
-                        "timestamp": datetime.now(UTC).isoformat(),
-                    })
+                    # F-12 / F-17: a fired alert carries the owner's
+                    # username/ticker/threshold/fired_price. Deliver ONLY to the
+                    # owner's own WebSocket connections — never broadcast to
+                    # every authenticated subscriber of the shared "alerts"
+                    # channel (that was a cross-tenant PII leak).
+                    await ws_manager.broadcast(
+                        "alerts",
+                        {
+                            "type": "price_alert_fired",
+                            "alert": alert_dict,
+                            "timestamp": datetime.now(UTC).isoformat(),
+                        },
+                        owner_username=alert_dict.get("username"),
+                    )
             except Exception as ws_err:
                 logger.debug("alert_ws_broadcast_failed", extra={"reason": str(ws_err)})
 

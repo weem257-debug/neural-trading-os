@@ -641,6 +641,22 @@ def _verify_token(token: str) -> bool:
         return False
 
 
+def _username_from_token(token: str) -> Optional[str]:
+    """Return the `sub` (username) claim from a valid JWT, else None.
+
+    Used to bind a WebSocket connection to its owning user so per-user channels
+    (e.g. price alerts) can be filtered server-side and never leak one user's
+    data to another authenticated user (F-12 / F-17 IDOR hardening)."""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+        sub = payload.get("sub")
+        return sub if isinstance(sub, str) and sub else None
+    except JWTError:
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Cookie & CSRF helpers (P1-3: httpOnly-Cookie migration)
 # ---------------------------------------------------------------------------
