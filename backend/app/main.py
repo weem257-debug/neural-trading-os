@@ -43,12 +43,16 @@ from app.websocket.manager import ws_manager
 # ---------------------------------------------------------------------------
 _is_development = os.getenv("ENVIRONMENT", "development").lower() == "development"
 
+from app.core.log_redaction import redact_processor as _redact_processor
+
 _shared_processors = [
     structlog.contextvars.merge_contextvars,
     structlog.stdlib.add_logger_name,
     structlog.stdlib.add_log_level,
     structlog.processors.TimeStamper(fmt="iso"),
     structlog.processors.StackInfoRenderer(),
+    # F-24: scrub tokens/cookies/passwords/keys from every event before render.
+    _redact_processor,
 ]
 
 if _is_development:
@@ -132,6 +136,17 @@ try:
     _MAX_BODY_BYTES = int(_os.getenv("MAX_REQUEST_BODY_BYTES", str(1024 * 1024)))
 except ValueError:
     _MAX_BODY_BYTES = 1024 * 1024
+
+
+# F-17: WebSocket inbound-message limits (per connection).
+try:
+    _WS_MAX_MESSAGE_BYTES = int(_os.getenv("WS_MAX_MESSAGE_BYTES", "4096"))
+except ValueError:
+    _WS_MAX_MESSAGE_BYTES = 4096
+try:
+    _WS_MAX_MESSAGES_PER_MIN = int(_os.getenv("WS_MAX_MESSAGES_PER_MIN", "120"))
+except ValueError:
+    _WS_MAX_MESSAGES_PER_MIN = 120
 
 
 class BodySizeLimitMiddleware(BaseHTTPMiddleware):
@@ -1181,8 +1196,29 @@ async def websocket_endpoint(
         websocket, channel, subprotocol=protocol_token or None, username=ws_username
     )
     try:
+        # F-17: per-connection inbound message size + frequency limits. The
+        # client only ever sends tiny "ping" keep-alives, so anything large or
+        # high-rate is abuse; close with a policy/oversize code.
+        import time as _time
+        _win_start = _time.monotonic()
+        _msg_count = 0
         while True:
             data = await websocket.receive_text()
+            if len(data) > _WS_MAX_MESSAGE_BYTES:
+                await websocket.close(code=1009)  # message too big
+                await ws_manager.disconnect(websocket, channel)
+                logger.warning("websocket_message_too_large", channel=channel, size=len(data))
+                return
+            now = _time.monotonic()
+            if now - _win_start >= 60:
+                _win_start = now
+                _msg_count = 0
+            _msg_count += 1
+            if _msg_count > _WS_MAX_MESSAGES_PER_MIN:
+                await websocket.close(code=1008)  # policy violation (flood)
+                await ws_manager.disconnect(websocket, channel)
+                logger.warning("websocket_message_flood", channel=channel)
+                return
             if data == "ping":
                 await websocket.send_text("pong")
     except WebSocketDisconnect:

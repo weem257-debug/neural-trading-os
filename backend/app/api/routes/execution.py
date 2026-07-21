@@ -16,7 +16,10 @@ Endpoints:
   GET  /mode          — current execution mode
   POST /mode          — switch mode (live→paper always; paper→live requires API key)
 """
-from fastapi import APIRouter, HTTPException, Depends, Query
+from collections import OrderedDict
+from typing import Optional
+
+from fastapi import APIRouter, HTTPException, Depends, Query, Header
 from app.models.schemas import (
     OrderRequest, OrderResponse, OrderHistoryItem, ErrorResponse,
     ExecutionModeResponse, ExecutionModeSetResponse,
@@ -28,6 +31,22 @@ import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/execution", tags=["Execution"])
+
+
+class _BoundedOrderCache(OrderedDict):
+    """Tiny FIFO-bounded {idempotency_key: OrderResponse} cache (F-13)."""
+
+    _MAX = 10_000
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        while len(self) > self._MAX:
+            self.popitem(last=False)
+
+
+# Per-instance idempotency store. See note in submit_order: move to a shared
+# atomic store (DB/Redis) before multi-replica live trading.
+_ORDER_IDEMPOTENCY: "_BoundedOrderCache" = _BoundedOrderCache()
 
 
 def _get_client() -> NautilusExecutionClient:
@@ -51,6 +70,7 @@ async def submit_order(
     req: OrderRequest,
     client: NautilusExecutionClient = Depends(_get_client),
     current_user: UserInfo = Depends(get_current_user),
+    idempotency_key: Optional[str] = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderResponse:
     """
     Submit a buy/sell order.
@@ -63,6 +83,19 @@ async def submit_order(
     - SELL requires an existing position of sufficient size
     - Live trading gate: config must explicitly enable it
     """
+    # F-13: idempotency. A repeated request carrying the same Idempotency-Key for
+    # the same user returns the first order instead of creating a duplicate
+    # (guards double-submits / client retries). In-memory + per-instance — this
+    # is sufficient for the current single-instance paper-trading path; before
+    # multi-replica LIVE trading this MUST be moved to a shared store (DB/Redis)
+    # with an atomic insert on (user, key).
+    _idem_cache_key = None
+    if idempotency_key:
+        _idem_cache_key = f"{current_user.username}:{idempotency_key}"
+        cached = _ORDER_IDEMPOTENCY.get(_idem_cache_key)
+        if cached is not None:
+            return cached
+
     if client.mode == "live" and not settings.ENABLE_LIVE_TRADING:
         raise HTTPException(
             status_code=403,
@@ -82,6 +115,8 @@ async def submit_order(
 
     try:
         result = await client.submit_order(req, owner_username=current_user.username)
+        if _idem_cache_key is not None:
+            _ORDER_IDEMPOTENCY[_idem_cache_key] = result
         # Dispatch outbound webhook for filled orders (best-effort, non-blocking)
         try:
             import asyncio as _asyncio
