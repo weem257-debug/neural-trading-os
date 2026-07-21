@@ -41,12 +41,23 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "NeuralOS",
   },
+  // F-08: valid 1200x630 OG image (served by the app/opengraph-image route),
+  // applied site-wide. Canonical URLs are set PER public route (not globally —
+  // a global canonical would wrongly mark every page a duplicate of the homepage).
   openGraph: {
     title: "Neural Trading OS — KI-Trading Dashboard",
     description: "9 KI-Trading-Engines vereint: TradingAgents, Jesse, FinGPT, Qlib, Nautilus Trader und mehr. Live Claude Signale, Echtzeit WebSocket Dashboard.",
     type: "website",
     siteName: "Neural Trading OS",
     url: SITE_URL,
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Neural Trading OS — KI-Trading Dashboard",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",

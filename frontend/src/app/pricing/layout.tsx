@@ -4,6 +4,7 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_APP_URL ?? "https://neuraltrading.io";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/pricing" }, // F-08: self-referential canonical
   title: "Preise — Neural Trading OS",
   description:
     "Transparente Preise für KI-gestütztes Trading. Basic €29/mo · Pro €99/mo · Institutional €299/mo. 9 KI-Engines, Live Claude-Signale, Echtzeit-WebSocket-Dashboard. Kostenlos starten.",
