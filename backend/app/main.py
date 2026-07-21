@@ -881,6 +881,12 @@ async def lifespan(app: FastAPI):
     learning_scheduler = start_scheduler()
     logger.info("learning_scheduler_started")
 
+    # Start 24/7 market scanner (ADR 0003). Idles unless SCANNER_ENABLED and an
+    # Anthropic key are set — so this is a no-op cost-wise on a default deploy.
+    from app.services.scanner.scan_loop import scanner_loop
+    scanner_task = asyncio.create_task(scanner_loop())
+    logger.info("market_scanner_started", enabled=settings.SCANNER_ENABLED)
+
     logger.info("api_ready", live_trading=settings.ENABLE_LIVE_TRADING)
     yield
 
@@ -948,6 +954,12 @@ async def lifespan(app: FastAPI):
     auto_activation_task.cancel()
     try:
         await auto_activation_task
+    except asyncio.CancelledError:
+        pass
+
+    scanner_task.cancel()
+    try:
+        await scanner_task
     except asyncio.CancelledError:
         pass
 
@@ -1114,7 +1126,7 @@ async def websocket_endpoint(
        (server logs, proxies, browser history). Kept only for backward
        compatibility with existing clients; logs a deprecation warning.
     """
-    from app.api.auth import _verify_token
+    from app.api.auth import _verify_token, _username_from_token
 
     # Origin allow-list: browsers always send Origin on WebSocket handshakes;
     # a foreign origin means a cross-site page is opening the socket (CSWSH).
@@ -1141,7 +1153,12 @@ async def websocket_endpoint(
         await websocket.close(code=4001)
         return
 
-    await ws_manager.connect(websocket, channel, subprotocol=protocol_token or None)
+    # Bind the connection to its owning user so owner-scoped channels (e.g.
+    # price alerts) can be filtered server-side (F-12 / F-17).
+    ws_username = _username_from_token(resolved_token)
+    await ws_manager.connect(
+        websocket, channel, subprotocol=protocol_token or None, username=ws_username
+    )
     try:
         while True:
             data = await websocket.receive_text()

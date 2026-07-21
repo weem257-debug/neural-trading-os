@@ -481,3 +481,52 @@ class PasswordResetToken(Base):
         nullable=False,
         default=lambda: datetime.now(UTC),
     )
+
+
+class ScanCostEntry(Base):
+    """
+    Immutable ledger row — one per completed LLM analysis call in the 24/7
+    market scanner (ADR 0003). Records the exact token usage and USD cost so
+    the daily spend can always be reconstructed and audited.
+    """
+
+    __tablename__ = "scan_cost_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    symbol: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    model: Mapped[str] = mapped_column(String(60), nullable=False)
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cache_write_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cost_usd: Mapped[float] = mapped_column(_MONEY, nullable=False, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+
+class ScanCostDaily(Base):
+    """
+    Per-UTC-day spend aggregate for the 24/7 market scanner (ADR 0003) —
+    money-critical. ``spent_usd`` is the running total the hard daily cap is
+    checked against; ``analyses_count`` counts the LLM calls made that day.
+
+    One row per calendar day (``date_utc`` = 'YYYY-MM-DD'). Updated with an
+    atomic ``spent_usd = spent_usd + delta`` UPDATE so concurrent record_spend
+    calls can never lose an increment.
+    """
+
+    __tablename__ = "scan_cost_daily"
+
+    date_utc: Mapped[str] = mapped_column(String(10), primary_key=True)
+    spent_usd: Mapped[float] = mapped_column(_MONEY, nullable=False, default=0.0)
+    analyses_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )

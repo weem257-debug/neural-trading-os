@@ -207,6 +207,28 @@ class Settings(BaseSettings):
     # restarts). Set explicitly in production for stable, verifiable signatures.
     WEBHOOK_SIGNING_SECRET: str = ""
 
+    # ── 24/7 Market Scanner (ADR 0003) ──────────────────────────────────────
+    # Opt-in: the continuous scanner background loop only starts when this is
+    # True (or SCANNER_ENABLED=true in the environment). Kept off by default so
+    # a fresh deploy never begins spending against the LLM cap unattended.
+    SCANNER_ENABLED: bool = False
+    # Hard daily spend cap in USD for Sonnet deep-analysis calls. The cost-guard
+    # fail-closes at this boundary. Deliberately generous (see ADR 0003); do NOT
+    # reduce without an explicit product decision.
+    SCAN_DAILY_CAP_USD: float = 1000.0
+    # How many top prefilter candidates get the (paid) Sonnet deep analysis per
+    # scan cycle. The cap is still the ultimate ceiling; this just bounds one cycle.
+    SCAN_TOP_N: int = 15
+    # Seconds between scan cycles (900 = every 15 min).
+    SCAN_INTERVAL_SECONDS: int = 900
+    # Suppress a duplicate signal for the same symbol within this rolling window.
+    SCAN_DEDUP_WINDOW_HOURS: int = 6
+    # Global quiet-hours window (UTC, [start, end)) during which no Telegram push
+    # is sent. Signals are still generated + persisted; only the push is held.
+    # start == end disables quiet hours entirely.
+    SCAN_QUIET_HOURS_START_UTC: int = 22
+    SCAN_QUIET_HOURS_END_UTC: int = 6
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
