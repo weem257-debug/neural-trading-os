@@ -275,6 +275,31 @@ def is_hardened_environment() -> bool:
     return env in _HARDENED_ENVIRONMENTS
 
 
+def cors_allowed_origins() -> list[str]:
+    """Single source of truth for the exact CORS/CSRF origin allow-list (F-16).
+
+    Exact strings only — matched with ``==`` by both the CORS middleware and the
+    CSRF Origin/Referer check. No regex/suffix matching, so look-alikes such as
+    ``https://neuraltrading.io.evil.com`` or ``https://evil-neuraltrading.io``
+    can never match. In hardened environments loopback dev origins are dropped.
+    """
+    origins: list[str] = [o.rstrip("/") for o in settings.ALLOWED_ORIGINS]
+    if settings.PRODUCTION_URL:
+        po = settings.PRODUCTION_URL.rstrip("/")
+        if po not in origins:
+            origins.append(po)
+    if settings.FRONTEND_URL:
+        fo = settings.FRONTEND_URL.rstrip("/")
+        if fo not in origins:
+            origins.append(fo)
+    if is_hardened_environment():
+        origins = [
+            o for o in origins
+            if not (o.startswith("http://localhost") or o.startswith("http://127.0.0.1"))
+        ]
+    return origins
+
+
 def demo_password_is_default() -> bool:
     """True when DEMO_PASSWORD is empty or a well-known default."""
     pw = (settings.DEMO_PASSWORD or "").strip()

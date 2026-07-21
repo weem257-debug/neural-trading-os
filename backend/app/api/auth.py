@@ -630,6 +630,96 @@ def _create_access_token(data: dict, expires_delta: timedelta) -> str:
     return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
+# ---------------------------------------------------------------------------
+# F-14: server-side session revocation via a per-user token_version ("ver").
+# ---------------------------------------------------------------------------
+
+async def _load_token_version(username: str) -> int:
+    """Current session-generation for a registered user; 0 for the demo/admin
+    fallback account (not stored in the users table). Fail-safe → 0."""
+    try:
+        async with get_session() as session:
+            result = await session.execute(
+                select(User.token_version).where(User.username == username)
+            )
+            v = result.scalar_one_or_none()
+            return int(v) if v is not None else 0
+    except Exception:
+        return 0
+
+
+async def _issue_user_token(
+    username: str,
+    *,
+    role: str = "trader",
+    tier: str = "free",
+    expires_delta: timedelta,
+    scope: Optional[str] = None,
+) -> str:
+    """Create an access token carrying the user's current token_version as the
+    ``ver`` claim so it can be revoked server-side by bumping that version."""
+    ver = await _load_token_version(username)
+    data: dict = {"sub": username, "role": role, "tier": tier, "ver": ver}
+    if scope:
+        data["scope"] = scope
+    return _create_access_token(data, expires_delta=expires_delta)
+
+
+async def _bump_token_version(username: str) -> None:
+    """Invalidate ALL of a user's existing tokens (HTTP + WebSocket) by
+    incrementing their session generation. Best-effort; never raises."""
+    from sqlalchemy import update as _sa_update
+    try:
+        async with get_session() as session:
+            await session.execute(
+                _sa_update(User)
+                .where(User.username == username)
+                .values(token_version=User.token_version + 1)
+            )
+            await session.commit()
+    except Exception:
+        _logger.warning("token_version_bump_failed username=%s", username, exc_info=True)
+
+
+async def _verify_ws_token(token: str) -> Optional[str]:
+    """
+    WebSocket token validation WITH server-side revocation enforcement (F-14).
+
+    Returns the username only if: the JWT is valid, the user is active, and the
+    token's ``ver`` claim matches the user's current token_version. The demo/
+    admin fallback account (no DB row) is allowed only when demo login is enabled.
+    Fail-closed (returns None) on any error.
+    """
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    except JWTError:
+        return None
+    username = payload.get("sub")
+    if not isinstance(username, str) or not username:
+        return None
+    token_ver = int(payload.get("ver", 0))
+    try:
+        async with get_session() as session:
+            result = await session.execute(
+                select(User.token_version, User.is_active).where(User.username == username)
+            )
+            row = result.first()
+    except Exception:
+        return None  # fail-closed on DB error
+    if row is not None:
+        db_ver, is_active = int(row[0]), bool(row[1])
+        if not is_active or db_ver != token_ver:
+            return None
+        return username
+    # No DB row → demo/admin fallback account.
+    from app.core.config import demo_login_enabled
+    if username == settings.DEMO_USERNAME and demo_login_enabled():
+        return username
+    return None
+
+
 def _verify_token(token: str) -> bool:
     """Validate a JWT token string. Returns True if valid, False otherwise."""
     if not token:
@@ -684,12 +774,54 @@ def _extract_token_from_request(
     return None, False
 
 
+def _check_origin_allowlist(request: Request) -> None:
+    """
+    F-16: Origin/Referer allow-list check — defense-in-depth against CSRF on
+    every cookie-authenticated state-changing request, layered on top of the
+    Double-Submit token.
+
+    Cross-site requests always carry an Origin header (and forged sandboxed
+    contexts send ``Origin: null``). We reject any Origin that is not an EXACT
+    match of the configured allow-list — so ``null``, ``https://evil.example``
+    and look-alikes like ``https://neuraltrading.io.evil.com`` are all refused.
+    If no Origin is present we fall back to the Referer's origin; if neither is
+    present the request is same-origin/non-browser and the Double-Submit token
+    remains the gate.
+    """
+    from urllib.parse import urlsplit
+    from app.core.config import cors_allowed_origins
+
+    allowed = set(cors_allowed_origins())
+
+    origin = request.headers.get("origin")
+    if origin is not None:
+        candidate = origin.rstrip("/")
+    else:
+        referer = request.headers.get("referer")
+        if not referer:
+            return  # no browser-set origin context → rely on Double-Submit token
+        parts = urlsplit(referer)
+        if not parts.scheme or not parts.netloc:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Ungültiger Referer",
+            )
+        candidate = f"{parts.scheme}://{parts.netloc}"
+
+    if candidate == "null" or candidate not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Origin nicht erlaubt",
+        )
+
+
 def _check_csrf(request: Request) -> None:
     """
-    CSRF Double-Submit Cookie validation.
-    Only called when authentication was via cookie on a state-changing method.
-    Raises HTTP 403 if the X-CSRF-Token header is absent or doesn't match
-    the csrf_token cookie value.
+    CSRF protection for cookie-authenticated state-changing requests:
+      1. Double-Submit Cookie: X-CSRF-Token header must equal the csrf_token cookie.
+      2. Origin/Referer allow-list (F-16): the request's browser-set origin, when
+         present, must exactly match an allow-listed origin.
+    Raises HTTP 403 on any violation.
     """
     csrf_header = request.headers.get("X-CSRF-Token", "")
     csrf_cookie = request.cookies.get(settings.CSRF_COOKIE_NAME, "")
@@ -703,6 +835,7 @@ def _check_csrf(request: Request) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Ungültiger CSRF-Token",
         )
+    _check_origin_allowlist(request)
 
 
 def _cookie_policy() -> tuple[bool, str]:
@@ -824,6 +957,9 @@ async def get_current_user(
             )
             db_user = result.scalar_one_or_none()
             if db_user:
+                # F-14: reject tokens from a revoked session generation.
+                if int(payload.get("ver", 0)) != int(db_user.token_version):
+                    raise credentials_exception
                 user = {
                     "username": db_user.username,
                     "role": db_user.role,
@@ -832,6 +968,8 @@ async def get_current_user(
                     "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
                     "email_unsubscribed": bool(db_user.email_unsubscribed),
                 }
+    except HTTPException:
+        raise
     except Exception as exc:
         _logger.warning("get_current_user_db_lookup_failed username=%s reason=%s", username, exc)
 
@@ -897,6 +1035,13 @@ async def get_current_user_optional(
             )
             db_user = result.scalar_one_or_none()
             if db_user:
+                # F-14: a token from a revoked session generation is invalid.
+                if int(payload.get("ver", 0)) != int(db_user.token_version):
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Sitzung ungültig",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
                 user = {
                     "username": db_user.username,
                     "role": db_user.role,
@@ -904,6 +1049,8 @@ async def get_current_user_optional(
                     "email": db_user.email,
                     "created_at": db_user.created_at.isoformat() if db_user.created_at else None,
                 }
+    except HTTPException:
+        raise
     except Exception:
         pass
 
@@ -951,8 +1098,10 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     expire_delta = timedelta(hours=settings.JWT_ACCESS_TOKEN_EXPIRE_HOURS)
-    access_token = _create_access_token(
-        data={"sub": user["username"], "role": user.get("role", "trader"), "tier": user.get("tier", "free")},
+    access_token = await _issue_user_token(
+        user["username"],
+        role=user.get("role", "trader"),
+        tier=user.get("tier", "free"),
         expires_delta=expire_delta,
     )
     # Set httpOnly auth cookie + JS-readable CSRF cookie (Double-Submit pattern)
@@ -993,9 +1142,12 @@ WS_TOKEN_TTL_SECONDS = 120
 async def get_ws_token(
     current_user: UserInfo = Depends(get_current_user),
 ) -> dict:
-    token = _create_access_token(
-        {"sub": current_user.username, "scope": "ws"},
+    token = await _issue_user_token(
+        current_user.username,
+        role=current_user.role or "trader",
+        tier=current_user.tier or "free",
         expires_delta=timedelta(seconds=WS_TOKEN_TTL_SECONDS),
+        scope="ws",
     )
     return {"token": token, "expires_in": WS_TOKEN_TTL_SECONDS}
 
@@ -1003,11 +1155,24 @@ async def get_ws_token(
 @router.post(
     "/logout",
     status_code=status.HTTP_200_OK,
-    summary="Logout — Cookie löschen",
-    description="Löscht den httpOnly Auth-Cookie und den CSRF-Cookie. Kein Token erforderlich.",
+    summary="Logout — Sitzung serverseitig widerrufen + Cookie löschen",
+    description="Widerruft alle Sitzungen des Nutzers serverseitig (F-14) und löscht die Cookies.",
 )
-async def logout(response: Response) -> dict:
-    """Expire auth + CSRF cookies to terminate the browser session."""
+async def logout(request: Request, response: Response) -> dict:
+    """
+    F-14: revoke the user's sessions server-side (bump token_version → all
+    existing HTTP and WebSocket tokens become invalid on their next request),
+    then expire the cookies. Best-effort identification via the auth cookie;
+    logout always succeeds so the browser is cleared regardless.
+    """
+    try:
+        token, _ = _extract_token_from_request(request, None)
+        if token:
+            uname = _username_from_token(token)
+            if uname:
+                await _bump_token_version(uname)
+    except Exception:
+        pass
     _clear_auth_cookies(response)
     return {"message": "Erfolgreich abgemeldet"}
 
@@ -1025,8 +1190,10 @@ async def refresh_token(
     current_user: UserInfo = Depends(get_current_user),
 ) -> Token:
     expire_delta = timedelta(hours=settings.JWT_ACCESS_TOKEN_EXPIRE_HOURS)
-    access_token = _create_access_token(
-        data={"sub": current_user.username, "role": current_user.role or "trader", "tier": current_user.tier or "free"},
+    access_token = await _issue_user_token(
+        current_user.username,
+        role=current_user.role or "trader",
+        tier=current_user.tier or "free",
         expires_delta=expire_delta,
     )
     # Refresh cookies alongside the JSON token response
@@ -1208,6 +1375,8 @@ async def reset_password(request: Request, body: ResetPasswordRequest) -> dict:
 
             # Atomically: set new password AND mark token used (single-use).
             user.hashed_password = pwd_context.hash(body.password)
+            # F-14: invalidate all existing sessions on password reset.
+            user.token_version = (user.token_version or 0) + 1
             token_row.used_at = datetime.now(timezone.utc)
             await session.commit()
     except HTTPException:
@@ -1256,6 +1425,8 @@ async def delete_account(
                 user.is_active = False
                 user.email = f"deleted_{user.id}@geloescht.invalid"
                 user.hashed_password = ""
+                # F-14: terminate all sessions (HTTP + WS) of the deleted account.
+                user.token_version = (user.token_version or 0) + 1
             await session.commit()
     except Exception:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Datenbankfehler beim Löschen")
@@ -1305,6 +1476,8 @@ async def change_password(
             )
             user = result.scalar_one_or_none()
             user.hashed_password = pwd_context.hash(body.new_password)
+            # F-14: invalidate all existing sessions (HTTP + WS) on password change.
+            user.token_version = (user.token_version or 0) + 1
             await session.commit()
     except Exception:
         raise HTTPException(

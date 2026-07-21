@@ -1013,32 +1013,17 @@ app.add_middleware(RequestCounterMiddleware)
 # ---------------------------------------------------------------------------
 # CORS
 # ---------------------------------------------------------------------------
-# Build the effective origins list: base list + optional PRODUCTION_URL env var
-_cors_origins: list[str] = list(settings.ALLOWED_ORIGINS)
-if settings.PRODUCTION_URL:
-    # Accept both http and https variants of the production URL
-    for _origin in [settings.PRODUCTION_URL.rstrip("/")]:
-        if _origin not in _cors_origins:
-            _cors_origins.append(_origin)
-if settings.FRONTEND_URL:
-    _fe = settings.FRONTEND_URL.rstrip("/")
-    if _fe not in _cors_origins:
-        _cors_origins.append(_fe)
-
-# H3: in hardened environments, never fall back to localhost dev origins and
-# never reflect arbitrary origins. Drop loopback origins and require that at
-# least one real origin is configured.
-if is_hardened_environment():
-    _cors_origins = [
-        o for o in _cors_origins
-        if not (o.startswith("http://localhost") or o.startswith("http://127.0.0.1"))
-    ]
-    if not _cors_origins:
-        logger.warning(
-            "cors_no_production_origins",
-            hint="Set ALLOWED_ORIGINS / PRODUCTION_URL / FRONTEND_URL to your real "
-                 "frontend origin(s); CORS will reject all cross-origin requests until then.",
-        )
+# F-16: single source of truth for the exact origin allow-list — shared by the
+# CORS middleware, the WebSocket origin check, and the CSRF Origin/Referer check
+# (app.api.auth._check_origin_allowlist). Exact-match only, no regex/suffix.
+from app.core.config import cors_allowed_origins as _cors_allowed_origins
+_cors_origins: list[str] = _cors_allowed_origins()
+if is_hardened_environment() and not _cors_origins:
+    logger.warning(
+        "cors_no_production_origins",
+        hint="Set ALLOWED_ORIGINS / PRODUCTION_URL / FRONTEND_URL to your real "
+             "frontend origin(s); CORS will reject all cross-origin requests until then.",
+    )
 
 # Explicit method/header allow-lists instead of "*" (required anyway once
 # allow_credentials=True is combined with concrete origins).
@@ -1126,7 +1111,7 @@ async def websocket_endpoint(
        (server logs, proxies, browser history). Kept only for backward
        compatibility with existing clients; logs a deprecation warning.
     """
-    from app.api.auth import _verify_token, _username_from_token
+    from app.api.auth import _verify_ws_token
 
     # Origin allow-list: browsers always send Origin on WebSocket handshakes;
     # a foreign origin means a cross-site page is opening the socket (CSWSH).
@@ -1149,13 +1134,14 @@ async def websocket_endpoint(
             channel=channel,
         )
 
-    if not _verify_token(resolved_token):
+    # F-14/F-17: validate the token AND enforce server-side revocation
+    # (is_active + token_version) before accepting the socket, and bind the
+    # connection to its owning user for owner-scoped channels (price alerts).
+    ws_username = await _verify_ws_token(resolved_token)
+    if ws_username is None:
         await websocket.close(code=4001)
         return
 
-    # Bind the connection to its owning user so owner-scoped channels (e.g.
-    # price alerts) can be filtered server-side (F-12 / F-17).
-    ws_username = _username_from_token(resolved_token)
     await ws_manager.connect(
         websocket, channel, subprotocol=protocol_token or None, username=ws_username
     )
