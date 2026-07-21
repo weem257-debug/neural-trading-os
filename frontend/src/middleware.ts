@@ -28,7 +28,10 @@ import { NextRequest, NextResponse } from "next/server";
 // (white screen). Flip to enforce via CSP_MODE=enforce ONLY after HTML routes
 // are switched to dynamic rendering (so Next stamps the nonce onto its scripts)
 // and the Report-Only telemetry is clean. See audit follow-up TASK-CSP-ENFORCE.
-const CSP_MODE = process.env.CSP_MODE ?? "report-only"; // "enforce" | "report-only"
+// "enforce" (default): enforce CSP on the dynamic auth/dashboard routes,
+// Report-Only elsewhere. "report-only": global kill-switch → Report-Only on
+// every route (used if an enforce regression is observed in production).
+const CSP_MODE = process.env.CSP_MODE ?? "enforce";
 
 // Hosts that should never be indexed by search engines (F-05).
 const NOINDEX_HOSTS = new Set<string>([
@@ -63,9 +66,11 @@ function buildCsp(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
     // style-src keeps 'unsafe-inline' — this is explicitly permitted by the
     // audit (F-03) and does not weaken script XSS protection.
-    "style-src 'self' 'unsafe-inline'",
+    // fonts.googleapis.com: globals.css @imports the Google Fonts stylesheet.
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "img-src 'self' data: https: blob:",
-    "font-src 'self' data:",
+    // fonts.gstatic.com: the actual font files referenced by the Google Fonts CSS.
+    "font-src 'self' data: https://fonts.gstatic.com",
     `connect-src ${connectSrc.join(" ")}`,
     "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
     "worker-src 'self' blob:",
@@ -90,11 +95,27 @@ export function middleware(request: NextRequest) {
   requestHeaders.set("Content-Security-Policy", csp);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const path = request.nextUrl.pathname;
 
-  const cspHeaderName =
-    CSP_MODE === "report-only"
-      ? "Content-Security-Policy-Report-Only"
-      : "Content-Security-Policy";
+  // Per-path enforcement (F-03/F-25 staged rollout). The security-critical auth
+  // + dashboard routes are rendered dynamically (force-dynamic in their layouts)
+  // so Next stamps the per-request nonce onto their <script> tags — there the
+  // policy is ENFORCED. All other routes (static marketing/legal pages whose
+  // pre-rendered scripts carry no nonce) stay in Report-Only so an enforcing
+  // nonce policy can't white-screen them; flipping those requires converting
+  // them to dynamic rendering too. CSP_MODE=report-only forces report-only
+  // everywhere (global kill-switch).
+  const enforcePath =
+    path === "/login" ||
+    path === "/register" ||
+    path === "/forgot-password" ||
+    path === "/reset-password" ||
+    path === "/dashboard" ||
+    path.startsWith("/dashboard/");
+  const enforce = CSP_MODE !== "report-only" && enforcePath;
+  const cspHeaderName = enforce
+    ? "Content-Security-Policy"
+    : "Content-Security-Policy-Report-Only";
   response.headers.set(cspHeaderName, csp);
 
   // F-05: noindex for the Railway default host.
@@ -106,7 +127,6 @@ export function middleware(request: NextRequest) {
   // F-06: kill long-lived HTML caching. Auth pages → no-store; other HTML docs
   // → revalidate. Static assets are excluded via the matcher below and keep
   // their immutable caching.
-  const path = request.nextUrl.pathname;
   if (NO_STORE_PATHS.has(path)) {
     response.headers.set("Cache-Control", "private, no-store, max-age=0, must-revalidate");
   } else {
