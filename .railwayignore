@@ -1,0 +1,16 @@
+# Backend service builds from ./backend (railway.toml source="backend").
+# Exclude everything the backend image does not need so `railway up` from
+# dashboard/ uploads a small, fast payload (frontend node_modules/.next alone
+# are >1GB, which was timing out the upload).
+frontend/node_modules
+frontend/.next
+frontend/out
+frontend/.vercel
+frontend/playwright-report
+frontend/test-results
+frontend/android
+frontend/android-assets
+node_modules
+*.db
+*.sqlite
+docker
