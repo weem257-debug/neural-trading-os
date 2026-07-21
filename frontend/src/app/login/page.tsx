@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Cpu, Lock, User, AlertTriangle } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { API_BASE } from "@/lib/api";
+import { safeRedirectPath } from "@/lib/safeRedirect";
 
 function LoginForm() {
   const router = useRouter();
@@ -16,7 +17,7 @@ function LoginForm() {
     if (isAuthenticated) {
       const redirectTo =
         searchParams.get("next") ?? searchParams.get("from") ?? "/dashboard";
-      router.replace(redirectTo.startsWith("/") ? redirectTo : "/dashboard");
+      router.replace(safeRedirectPath(redirectTo));
     }
   }, [isAuthenticated, router, searchParams]);
 
@@ -66,8 +67,7 @@ function LoginForm() {
           if (meResp.ok) { const me = await meResp.json(); role = me.role; tier = me.tier; }
         } catch { /* ignore */ }
         login(token, username.trim(), role, expiresIn, tier);
-        const next = searchParams.get("next");
-        router.push(next && next.startsWith("/") ? next : "/dashboard");
+        router.push(safeRedirectPath(searchParams.get("next")));
       } catch {
         setError("Zugriff verweigert");
         setLoading(false);
