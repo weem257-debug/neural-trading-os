@@ -79,6 +79,48 @@ class TestFlagDefaultOff:
         assert settings.REFRESH_ROTATION_ENABLED is False
 
 
+_PW2 = "R0tateStr0ng!7"
+
+
+class TestRefreshRotationE2E:
+    """Full HTTP flow with the flag ON — proves it before flipping prod."""
+
+    def _register_login(self, client, user):
+        client.cookies.clear()
+        client.post("/api/auth/register", json={
+            "username": user, "email": f"{user}@example.com",
+            "password": _PW2, "gdpr_consent": True,
+        })
+        r = client.post("/api/auth/token", data={"username": user, "password": _PW2})
+        assert r.status_code == 200, r.text
+
+    def test_rotation_and_replay_over_http(self, client, monkeypatch):
+        from app.core.config import settings
+        monkeypatch.setattr(settings, "REFRESH_ROTATION_ENABLED", True)
+
+        self._register_login(client, "e2e_rot")
+        # Login issued a refresh cookie.
+        old_refresh = client.cookies.get("refresh_token")
+        assert old_refresh, "login should set a refresh_token cookie when enabled"
+        csrf = client.cookies.get("csrf_token") or ""
+
+        # First /refresh rotates the token successfully.
+        r1 = client.post("/api/auth/refresh", headers={"X-CSRF-Token": csrf})
+        assert r1.status_code == 200, r1.text
+        new_refresh = client.cookies.get("refresh_token")
+        assert new_refresh and new_refresh != old_refresh  # rotated
+
+        # Replaying the OLD (consumed) refresh cookie → 401 + family revoked.
+        replay = client.post(
+            "/api/auth/refresh",
+            headers={"X-CSRF-Token": csrf},
+            cookies={"refresh_token": old_refresh,
+                     "access_token": client.cookies.get("access_token"),
+                     "csrf_token": csrf},
+        )
+        assert replay.status_code == 401, replay.text
+
+
 class TestScanCostEndpoint:
     def test_scan_cost_requires_admin(self, client):
         client.cookies.clear()
