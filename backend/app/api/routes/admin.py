@@ -209,6 +209,59 @@ async def update_user(
     )
 
 
+@router.get("/scan-cost")
+async def get_scan_cost(_: UserInfo = Depends(_require_admin)) -> dict:
+    """
+    Scanner observability (admin-only): today's LLM spend vs the hard daily cap,
+    analysis count, whether the scanner is enabled, and the most recent scanner
+    signals — so the live 24/7 scanner's spend is checkable without log streaming.
+    """
+    from datetime import datetime, UTC
+    from app.db.models import ScanCostDaily
+
+    today = datetime.now(UTC).strftime("%Y-%m-%d")
+    cap = float(settings.SCAN_DAILY_CAP_USD)
+    spent = 0.0
+    analyses = 0
+    recent: list[dict] = []
+    async with get_session() as session:
+        row = (await session.execute(
+            select(ScanCostDaily.spent_usd, ScanCostDaily.analyses_count)
+            .where(ScanCostDaily.date_utc == today)
+        )).first()
+        if row is not None:
+            spent = float(row[0] or 0.0)
+            analyses = int(row[1] or 0)
+        sig_rows = (await session.execute(
+            select(
+                SignalRecord.ticker, SignalRecord.direction,
+                SignalRecord.confidence, SignalRecord.generated_at,
+            )
+            .where(SignalRecord.source.like("scanner%"))
+            .order_by(SignalRecord.generated_at.desc())
+            .limit(5)
+        )).all()
+        recent = [
+            {
+                "ticker": t, "direction": d, "confidence": float(c),
+                "generated_at": g.isoformat() if g else None,
+            }
+            for (t, d, c, g) in sig_rows
+        ]
+
+    return {
+        "date_utc": today,
+        "scanner_enabled": bool(settings.SCANNER_ENABLED),
+        "spent_usd": round(spent, 6),
+        "cap_usd": cap,
+        "utilization_pct": round((spent / cap * 100.0), 2) if cap > 0 else None,
+        "analyses_count": analyses,
+        "interval_seconds": settings.SCAN_INTERVAL_SECONDS,
+        "top_n": settings.SCAN_TOP_N,
+        "recent_signals": recent,
+    }
+
+
 @router.get("/stats/growth", response_model=GrowthResponse)
 async def get_growth_stats(_: UserInfo = Depends(_require_admin)) -> GrowthResponse:
     """Return daily signup + signal counts for the last 7 days."""

@@ -156,6 +156,14 @@ class Settings(BaseSettings):
     AUTH_COOKIE_NAME: str = "access_token"
     CSRF_COOKIE_NAME: str = "csrf_token"
     COOKIE_SECURE: bool = False
+
+    # F-14: refresh-token-family rotation with replay detection. OFF by default —
+    # when off, /refresh keeps re-issuing the access token as before (no behaviour
+    # change on deploy). Turn on via REFRESH_ROTATION_ENABLED=true after verifying
+    # the deploy is healthy. token_version remains the hard all-session kill-switch.
+    REFRESH_ROTATION_ENABLED: bool = False
+    REFRESH_COOKIE_NAME: str = "refresh_token"
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     # SameSite for auth/CSRF cookies. Default "lax" — the browser only talks
     # to the API same-origin (Next rewrite proxy). Set COOKIE_SAMESITE=none
     # only for cross-site clients (e.g. Capacitor WebView); "none" forces

@@ -681,6 +681,30 @@ async def _bump_token_version(username: str) -> None:
         _logger.warning("token_version_bump_failed username=%s", username, exc_info=True)
 
 
+async def _issue_refresh_cookie(response: Response, username: str) -> None:
+    """F-14: mint a new refresh-token family and set the httpOnly refresh cookie."""
+    from app.core import refresh_tokens as _rt
+    raw = await _rt.issue(username)
+    secure, samesite_val = _cookie_policy()
+    response.set_cookie(
+        key=settings.REFRESH_COOKIE_NAME,
+        value=raw,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+        path="/",
+        httponly=True,
+        secure=secure,
+        samesite=samesite_val,
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    secure, samesite_val = _cookie_policy()
+    response.set_cookie(
+        key=settings.REFRESH_COOKIE_NAME, value="", max_age=0, path="/",
+        httponly=True, secure=secure, samesite=samesite_val,
+    )
+
+
 async def _verify_ws_token(token: str) -> Optional[str]:
     """
     WebSocket token validation WITH server-side revocation enforcement (F-14).
@@ -1106,6 +1130,9 @@ async def login_for_access_token(
     )
     # Set httpOnly auth cookie + JS-readable CSRF cookie (Double-Submit pattern)
     _set_auth_cookies(response, access_token, expire_delta)
+    # F-14: start a refresh-token family (flag-gated; off = no behaviour change).
+    if settings.REFRESH_ROTATION_ENABLED:
+        await _issue_refresh_cookie(response, user["username"])
     return Token(
         access_token=access_token,
         token_type="bearer",
@@ -1171,9 +1198,14 @@ async def logout(request: Request, response: Response) -> dict:
             uname = _username_from_token(token)
             if uname:
                 await _bump_token_version(uname)
+                # F-14: revoke the user's refresh-token families too.
+                if settings.REFRESH_ROTATION_ENABLED:
+                    from app.core import refresh_tokens as _rt
+                    await _rt.revoke_user(uname)
     except Exception:
         pass
     _clear_auth_cookies(response)
+    _clear_refresh_cookie(response)
     return {"message": "Erfolgreich abgemeldet"}
 
 
@@ -1190,6 +1222,39 @@ async def refresh_token(
     current_user: UserInfo = Depends(get_current_user),
 ) -> Token:
     expire_delta = timedelta(hours=settings.JWT_ACCESS_TOKEN_EXPIRE_HOURS)
+    # F-14: rotate the refresh-token family (flag-gated). Off = unchanged.
+    if settings.REFRESH_ROTATION_ENABLED:
+        from app.core import refresh_tokens as _rt
+        presented = request.cookies.get(settings.REFRESH_COOKIE_NAME, "")
+        try:
+            rotated = await _rt.rotate(presented) if presented else None
+        except _rt.RefreshReplayError as replay:
+            # Stolen/replayed token: family already revoked in the module; also
+            # bump token_version (hard kill-switch) and refuse.
+            await _bump_token_version(replay.username)
+            _clear_refresh_cookie(response)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Sitzung wurde aus Sicherheitsgründen beendet. Bitte neu anmelden.",
+            )
+        except _rt.RefreshInvalidError:
+            _clear_refresh_cookie(response)
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh-Token ungültig oder abgelaufen.",
+            )
+        if rotated is not None:
+            new_raw, _uname = rotated
+            secure, samesite_val = _cookie_policy()
+            response.set_cookie(
+                key=settings.REFRESH_COOKIE_NAME, value=new_raw,
+                max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400, path="/",
+                httponly=True, secure=secure, samesite=samesite_val,
+            )
+        else:
+            # Unknown/absent (legacy session predating rotation) → start a family.
+            await _issue_refresh_cookie(response, current_user.username)
+
     access_token = await _issue_user_token(
         current_user.username,
         role=current_user.role or "trader",

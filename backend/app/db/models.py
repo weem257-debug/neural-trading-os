@@ -537,3 +537,34 @@ class ScanCostDaily(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+
+
+class RefreshToken(Base):
+    """
+    F-14: refresh-token family with rotation + replay detection.
+
+    Only the SHA-256 hash of each refresh token is stored (never the raw value).
+    A login starts a new ``family_id``; every /refresh rotates: the presented
+    token's row is marked ``revoked_at`` + ``replaced_by`` (successor hash) and a
+    new generation is issued. Presenting an ALREADY-rotated/revoked token of a
+    family is treated as a replay/theft signal → the whole family is revoked.
+
+    Additive table — no changes to existing schema. Gated behind
+    ``REFRESH_ROTATION_ENABLED`` (default off) at the application layer.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    family_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    generation: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    issued_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    replaced_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, default=None)
