@@ -19,9 +19,14 @@
 #  before enabling in production.)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# CPU-only torch (install from the CPU wheel index to avoid pulling CUDA):
-#   pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
-torch==2.2.2
+# CPU-only torch. The +cpu local build lives ONLY on the PyTorch CPU wheel
+# index, so it forces the lean CPU wheel (the plain PyPI wheel bundles CUDA,
+# ~800MB). Install with the CPU index as an EXTRA index so torch's own deps
+# (sympy/networkx/jinja2/…) still resolve from PyPI:
+#   pip install --extra-index-url https://download.pytorch.org/whl/cpu \
+#       "numpy>=1.26,<2.0" -r requirements-kronos.txt
+# The explicit numpy pin keeps torch from silently pulling numpy>=2 (hard pin).
+torch==2.2.2+cpu
 
 einops==0.8.1
 huggingface_hub>=0.33.1

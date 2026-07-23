@@ -14,6 +14,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
+# ── Optional Kronos forecasting deps (CPU-only torch) ──────────────────────
+# Enables the additive Kronos K-line forecast in the scanner. Adds ~200MB to
+# the image and is only exercised at runtime when KRONOS_ENABLED=true; with the
+# flag off the packages sit unused. Installed into the SAME /install prefix so
+# the runtime stage inherits them via the existing COPY, and BEFORE any app code
+# is copied (app code is only added in the runtime stage) so this heavy layer
+# stays cached across code-only deploys. The explicit numpy pin prevents torch
+# from pulling numpy>=2 (base stack requires numpy<2); the CPU wheel index is an
+# EXTRA index so torch's transitive deps still resolve from PyPI.
+COPY requirements-kronos.txt .
+RUN pip install --no-cache-dir --prefix=/install \
+      --extra-index-url https://download.pytorch.org/whl/cpu \
+      "numpy>=1.26,<2.0" -r requirements-kronos.txt
+
 # ─── Stage 2: Runtime ────────────────────────────────────────────────────────
 FROM python:3.12-slim AS runtime
 
