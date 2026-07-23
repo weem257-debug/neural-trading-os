@@ -65,6 +65,18 @@ def _load_predictor():
         if _LOAD_FAILED:
             return None
         try:
+            # Ensure a writable HuggingFace cache. In the container the app runs
+            # as a non-root system user whose HOME may be unwritable, so the
+            # default ~/.cache/huggingface download target fails. Honour an
+            # explicit HF_HOME if set (Dockerfile), else fall back to a temp dir
+            # that is always writable — otherwise from_pretrained cannot cache
+            # the downloaded weights and load fails.
+            import os
+            import tempfile
+            os.environ.setdefault(
+                "HF_HOME", os.path.join(tempfile.gettempdir(), "kronos_hf_cache")
+            )
+
             import torch  # noqa: F401  (heavy, optional dependency)
             from app.services.scanner.kronos_model import (
                 Kronos,
@@ -100,9 +112,12 @@ def _load_predictor():
             return _predictor
         except Exception as e:
             _LOAD_FAILED = True
+            # Put the reason IN the message: this app renders logs via structlog,
+            # where stdlib ``extra={}`` fields are dropped — so the reason must be
+            # inline to be visible in the deploy logs.
             logger.warning(
-                "kronos_predictor_load_failed_disabling",
-                extra={"reason": str(e)},
+                "kronos_predictor_load_failed_disabling reason=%r hf_home=%s",
+                str(e), os.environ.get("HF_HOME"),
             )
             return None
 

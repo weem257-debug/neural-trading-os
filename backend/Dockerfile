@@ -40,7 +40,14 @@ COPY --from=builder /install /usr/local
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 # Create data/log directories and assign ownership before switching user
-RUN mkdir -p /app/data /app/logs && chown -R appuser:appgroup /app
+RUN mkdir -p /app/data /app/logs /app/data/hf && chown -R appuser:appgroup /app
+
+# HuggingFace cache for the optional Kronos model. The app runs as a non-root
+# system user whose HOME is not writable, so point HF at a dir owned by appuser
+# (created + chowned above); otherwise Kronos weight downloads fail and Kronos
+# silently disables itself. Only used when KRONOS_ENABLED=true.
+ENV HF_HOME=/app/data/hf \
+    HF_HUB_DISABLE_TELEMETRY=1
 
 # Copy application code
 COPY --chown=appuser:appgroup . .
