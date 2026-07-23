@@ -53,6 +53,19 @@ def _build_prompt(candidate) -> str:
     if candidate.reasons:
         lines.append("Prefilter-Begründung:")
         lines.extend(f"  - {r}" for r in candidate.reasons)
+
+    # Kronos forecast (optional, additive). Presented as one additional input;
+    # the analyst is instructed to weigh it, not to follow it blindly.
+    fc = getattr(candidate, "forecast", None)
+    if fc and fc.get("available"):
+        exp_ret = fc.get("expected_return")
+        lines.append("Kronos-Forecast (K-Line Foundation-Model, additiv):")
+        lines.append(f"  Richtung = {fc.get('direction')}")
+        lines.append(f"  Modell-Score = {fc.get('score')}  (0..1)")
+        if exp_ret is not None:
+            lines.append(
+                f"  Erwartete Rendite über {fc.get('horizon')} Candles = {exp_ret * 100:.2f}%"
+            )
     return "\n".join(lines)
 
 
@@ -84,7 +97,11 @@ async def deep_analyze(candidate) -> tuple[Optional[dict], dict]:
     system_prompt = (
         "You are an expert quantitative trading analyst reviewing a symbol that a "
         "technical prefilter has flagged. Confirm or reject the setup and return a "
-        "JSON trading signal. JSON schema (strict, no extra keys):\n"
+        "JSON trading signal. If a Kronos forecast is provided, treat it as ONE "
+        "additional input (a K-line foundation-model prediction): let it raise or "
+        "lower your confidence and corroborate/contradict the technical read, but "
+        "do NOT follow it blindly — the technical evidence and your judgment remain "
+        "decisive. JSON schema (strict, no extra keys):\n"
         '{"direction": "BUY|SELL|HOLD|STRONG_BUY|STRONG_SELL", '
         '"confidence": 0.0-1.0, '
         '"price_target": float_or_null, '

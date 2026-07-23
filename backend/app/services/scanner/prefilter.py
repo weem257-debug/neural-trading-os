@@ -44,6 +44,11 @@ class Candidate:
     reasons: list[str] = field(default_factory=list)
     last_price: Optional[float] = None
     indicators: dict = field(default_factory=dict)
+    # Optional Kronos forecast enrichment, attached post-prefilter by
+    # ``app.services.scanner.forecast.attach_forecasts`` when KRONOS_ENABLED.
+    # None means "no forecast available" — the signal path behaves exactly as
+    # before (technical-only). Never used for ranking; surfaced to Stage 2.
+    forecast: Optional[dict] = None
 
 
 def _obv_trend(hist_df):

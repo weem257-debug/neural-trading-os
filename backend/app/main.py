@@ -934,6 +934,14 @@ async def lifespan(app: FastAPI):
     scanner_task = asyncio.create_task(scanner_loop())
     logger.info("market_scanner_started", enabled=settings.SCANNER_ENABLED)
 
+    # Optional Kronos forecasting model warm-up (additive; no-op unless
+    # KRONOS_ENABLED and the optional deps are installed). Scheduled as a
+    # background task so a slow model load never delays app readiness.
+    if settings.KRONOS_ENABLED:
+        from app.services.scanner.forecast import warm_up as _kronos_warm_up
+        asyncio.create_task(_kronos_warm_up())
+        logger.info("kronos_warmup_scheduled", model=settings.KRONOS_MODEL)
+
     logger.info("api_ready", live_trading=settings.ENABLE_LIVE_TRADING)
     yield
 

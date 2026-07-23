@@ -237,6 +237,40 @@ class Settings(BaseSettings):
     SCAN_QUIET_HOURS_START_UTC: int = 22
     SCAN_QUIET_HOURS_END_UTC: int = 6
 
+    # ── Kronos forecasting signal (additive scanner enrichment) ─────────────
+    # Opt-in K-line foundation-model forecast attached to the Top-N prefilter
+    # candidates and fed into the Sonnet deep analysis as an extra input. This
+    # is FULLY OPTIONAL and OFF by default: the model + its heavy deps (torch)
+    # are lazy/guarded-imported, and any failure degrades gracefully to the
+    # existing technical-only signal path (no candidate is ever dropped or
+    # blocked by Kronos). Enabling requires BOTH this flag AND the extra deps
+    # from requirements-kronos.txt being installed in the image.
+    KRONOS_ENABLED: bool = False
+    # HuggingFace repo ids for the forecaster + tokenizer. Defaults to the
+    # small model (24.7M params, context 512) — best CPU latency/quality trade.
+    KRONOS_MODEL: str = "NeoQuasar/Kronos-small"
+    KRONOS_TOKENIZER: str = "NeoQuasar/Kronos-Tokenizer-base"
+    # Inference device: "cpu" (Railway has no GPU). Left configurable for a
+    # future GPU host without a code change.
+    KRONOS_DEVICE: str = "cpu"
+    # Context window the predictor is allowed to attend over (<= model max).
+    KRONOS_MAX_CONTEXT: int = 512
+    # Lookback candles fed to the model, and how many future candles to forecast.
+    KRONOS_LOOKBACK: int = 200
+    KRONOS_PRED_LEN: int = 12
+    # Sampling: 1 = fastest + deterministic-ish; >1 averages N samples and
+    # yields a dispersion-based uncertainty measure at N× the latency.
+    KRONOS_SAMPLE_COUNT: int = 1
+    KRONOS_TEMPERATURE: float = 1.0
+    KRONOS_TOP_P: float = 0.9
+    # Hard wall-clock budget (seconds) for the whole Top-N forecast batch. If it
+    # overruns, the cycle proceeds WITHOUT Kronos enrichment rather than stalling.
+    KRONOS_TIMEOUT_SECONDS: float = 120.0
+    # Minimum absolute expected return (fraction, e.g. 0.005 = 0.5%) over the
+    # forecast horizon for Kronos to assert a directional bias; below this it
+    # reports NEUTRAL and does not nudge the signal.
+    KRONOS_MIN_ABS_RETURN: float = 0.005
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

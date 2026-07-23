@@ -37,6 +37,7 @@ from app.services.scanner.prefilter import run_prefilter
 from app.services.scanner.deep_analysis import deep_analyze, estimate_call_cost
 from app.services.scanner.cost_guard import can_spend, record_spend
 from app.services.scanner.delivery import deliver_signal
+from app.services.scanner.forecast import attach_forecasts
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,15 @@ async def _persist_signal(candidate, result: dict) -> SignalRecord:
     import uuid
     import json as _json
 
+    consensus = {
+        "prefilter_score": candidate.score,
+        "prefilter_reasons": candidate.reasons,
+    }
+    # Attach the Kronos forecast (if any) for observability / later evaluation.
+    # Additive only — never overrides the LLM-decided direction/confidence.
+    if candidate.forecast:
+        consensus["kronos_forecast"] = candidate.forecast
+
     record = SignalRecord(
         id=str(uuid.uuid4()),
         ticker=candidate.symbol,
@@ -69,9 +79,7 @@ async def _persist_signal(candidate, result: dict) -> SignalRecord:
         reasoning=result.get("reasoning", ""),
         source=f"{SCAN_SOURCE}:{result.get('model', 'sonnet')}",
         generated_at=datetime.now(UTC),
-        agents_consensus=_json.dumps(
-            {"prefilter_score": candidate.score, "prefilter_reasons": candidate.reasons}
-        ),
+        agents_consensus=_json.dumps(consensus),
         user_id=None,  # global scanner signal; delivery matches per-user watchlists
         price_target=result.get("price_target"),
         stop_loss=result.get("stop_loss"),
@@ -122,6 +130,16 @@ async def run_scan_cycle(
         # 3. Stage 1 — free prefilter.
         candidates = await run_prefilter(symbols, top_n=top_n)
         summary["candidates"] = len(candidates)
+
+        # 3b. Optional Kronos forecast enrichment (additive; only the Top-N that
+        #     survived the prefilter). Fully guarded: any failure leaves the
+        #     candidates untouched and the scan proceeds technical-only.
+        if settings.KRONOS_ENABLED and candidates:
+            try:
+                await attach_forecasts(candidates, now=now)
+                summary["forecasted"] = sum(1 for c in candidates if c.forecast)
+            except Exception as e:  # defensive: forecasting must never break a cycle
+                logger.warning("scan_cycle_forecast_failed", extra={"reason": str(e)})
 
         recent = await _recent_symbols(settings.SCAN_DEDUP_WINDOW_HOURS)
 

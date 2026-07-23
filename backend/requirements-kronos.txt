@@ -1,0 +1,29 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# OPTIONAL dependencies for the Kronos forecasting signal (app/services/scanner/
+# forecast.py + kronos_model/). These are DELIBERATELY NOT in requirements.txt.
+#
+# The base backend image must stay slim and unaffected: torch alone adds ~200MB+
+# to the image and lengthens Railway build times. The scanner works fully without
+# these — Kronos is lazy/guarded-imported and OFF by default (KRONOS_ENABLED).
+#
+# To enable Kronos in a deploy you must do BOTH:
+#   1. Install these deps into the image, e.g. add to the Dockerfile:
+#        RUN pip install --no-cache-dir -r requirements-kronos.txt
+#   2. Set KRONOS_ENABLED=true (and optionally KRONOS_MODEL/…) in the env.
+#
+# ── torch / numpy compatibility (HARD constraint) ───────────────────────────
+# The base backend pins numpy>=1.26,<2.0 (nautilus_trader/qlib/jesse). torch 2.2.x
+# is built against and fully compatible with the numpy 1.26 line, so it will NOT
+# force a numpy-2 upgrade. Pin the CPU build to keep the image GPU-free and small.
+# (Confirm the exact patch/version against the ai-ml-engineer recommendation
+#  before enabling in production.)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# CPU-only torch (install from the CPU wheel index to avoid pulling CUDA):
+#   pip install torch==2.2.2 --index-url https://download.pytorch.org/whl/cpu
+torch==2.2.2
+
+einops==0.8.1
+huggingface_hub>=0.33.1
+safetensors>=0.6.2
+tqdm>=4.67.1

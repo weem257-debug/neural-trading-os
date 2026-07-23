@@ -258,6 +258,12 @@ async def get_scan_cost(_: UserInfo = Depends(_require_admin)) -> dict:
         "analyses_count": analyses,
         "interval_seconds": settings.SCAN_INTERVAL_SECONDS,
         "top_n": settings.SCAN_TOP_N,
+        "kronos": {
+            "enabled": bool(settings.KRONOS_ENABLED),
+            "model": settings.KRONOS_MODEL if settings.KRONOS_ENABLED else None,
+            "pred_len": settings.KRONOS_PRED_LEN,
+            "sample_count": settings.KRONOS_SAMPLE_COUNT,
+        },
         "recent_signals": recent,
     }
 
