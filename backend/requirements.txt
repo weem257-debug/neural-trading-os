@@ -71,8 +71,17 @@ slowapi>=0.1.9
 structlog==24.4.0
 
 # Testing
-pytest==8.3.0
-pytest-asyncio==0.24.0
+# pytest 8.3.0 carries PYSEC-2026-1845 (fixed in 9.0.3). Bumped to the versions
+# the suite is actually validated against — the pinned 8.3.0/0.24.0 pair had
+# already drifted away from the installed dev environment. pytest 9 requires
+# pytest-asyncio >= 1.x; the `asyncio_mode` and
+# `asyncio_default_fixture_loop_scope` settings in pytest.ini work on both.
+pytest==9.1.0
+pytest-asyncio==1.4.0
+
+# lxml is transitive (it resolves on Linux/CI, not on the Windows dev box).
+# 6.0.4 carries PYSEC-2026-87; pin the fixed line so pip-audit stays green.
+lxml>=6.1.0
 # httpx already declared above — for TestClient
 
 # Type checking
