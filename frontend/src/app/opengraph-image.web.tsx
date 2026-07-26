@@ -19,7 +19,7 @@ export default async function OGImage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #080b14 0%, #0d1117 50%, #080b14 100%)",
+          background: "linear-gradient(135deg, #0B0E14 0%, #10141C 50%, #0B0E14 100%)",
           position: "relative",
           overflow: "hidden",
         }}
@@ -30,7 +30,7 @@ export default async function OGImage() {
             position: "absolute",
             inset: 0,
             backgroundImage:
-              "linear-gradient(rgba(0,212,255,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.06) 1px, transparent 1px)",
+              "linear-gradient(rgba(76,141,246,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(76,141,246,0.06) 1px, transparent 1px)",
             backgroundSize: "60px 60px",
           }}
         />
@@ -44,7 +44,7 @@ export default async function OGImage() {
             transform: "translateX(-50%)",
             width: "900px",
             height: "400px",
-            background: "radial-gradient(ellipse, rgba(0,212,255,0.12) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse, rgba(76,141,246,0.12) 0%, transparent 70%)",
             borderRadius: "50%",
           }}
         />
@@ -55,8 +55,8 @@ export default async function OGImage() {
             display: "flex",
             alignItems: "center",
             gap: "8px",
-            background: "rgba(0,212,255,0.1)",
-            border: "1px solid rgba(0,212,255,0.3)",
+            background: "rgba(76,141,246,0.1)",
+            border: "1px solid rgba(76,141,246,0.3)",
             borderRadius: "100px",
             padding: "6px 16px",
             marginBottom: "24px",
@@ -67,11 +67,11 @@ export default async function OGImage() {
               width: "8px",
               height: "8px",
               borderRadius: "50%",
-              background: "#00FF88",
-              boxShadow: "0 0 8px #00FF88",
+              background: "#3FB950",
+              boxShadow: "0 0 8px #3FB950",
             }}
           />
-          <span style={{ color: "#00D4FF", fontSize: "14px", fontWeight: 600 }}>
+          <span style={{ color: "#4C8DF6", fontSize: "14px", fontWeight: 600 }}>
             9 AI Engines · Live Claude Sonnet 4.6 Signals
           </span>
         </div>
@@ -123,7 +123,7 @@ export default async function OGImage() {
                 padding: "16px 28px",
               }}
             >
-              <span style={{ fontSize: "28px", fontWeight: 700, color: "#00D4FF" }}>{stat.value}</span>
+              <span style={{ fontSize: "28px", fontWeight: 700, color: "#4C8DF6" }}>{stat.value}</span>
               <span style={{ fontSize: "13px", color: "#64748b", marginTop: "4px" }}>{stat.label}</span>
             </div>
           ))}

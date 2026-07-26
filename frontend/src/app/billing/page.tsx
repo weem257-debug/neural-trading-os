@@ -35,10 +35,10 @@ const PLAN_ICONS: Record<string, React.ElementType> = {
 
 const PLAN_COLORS: Record<string, { text: string; border: string; bg: string }> = {
   free:         { text: "#94a3b8", border: "rgba(148,163,184,0.25)", bg: "rgba(148,163,184,0.08)" },
-  basic:        { text: "#00D4FF", border: "rgba(0,212,255,0.3)",    bg: "rgba(0,212,255,0.08)"   },
-  pro:          { text: "#7B2FFF", border: "rgba(123,47,255,0.4)",   bg: "rgba(123,47,255,0.1)"   },
-  institutional:{ text: "#FF0080", border: "rgba(255,0,128,0.3)",    bg: "rgba(255,0,128,0.08)"   },
-  signals:      { text: "#00FF88", border: "rgba(0,255,136,0.3)",    bg: "rgba(0,255,136,0.08)"   },
+  basic:        { text: "#4C8DF6", border: "rgba(76,141,246,0.3)",    bg: "rgba(76,141,246,0.08)"   },
+  pro:          { text: "#A371F7", border: "rgba(163,113,247,0.4)",   bg: "rgba(163,113,247,0.1)"   },
+  institutional:{ text: "#E5534B", border: "rgba(229,83,75,0.3)",    bg: "rgba(229,83,75,0.08)"   },
+  signals:      { text: "#3FB950", border: "rgba(63,185,80,0.3)",    bg: "rgba(63,185,80,0.08)"   },
 };
 
 interface UsageStatus {
@@ -87,7 +87,7 @@ function SuccessBanner() {
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       className="flex items-center gap-3 p-4 rounded-xl mb-6"
-      style={{ background: "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.25)" }}
+      style={{ background: "rgba(63,185,80,0.1)", border: "1px solid rgba(63,185,80,0.25)" }}
     >
       <CheckCircle className="w-5 h-5 text-neon-green flex-shrink-0" />
       <div>
@@ -101,7 +101,7 @@ function SuccessBanner() {
 function UsageCard({ usage }: { usage: UsageStatus }) {
   const unlimited = usage.signals_limit < 0;
   const pct = unlimited ? 0 : Math.min(100, (usage.signals_used_today / usage.signals_limit) * 100);
-  const barColor = pct >= 90 ? "#FF0080" : pct >= 70 ? "#FFD700" : "#00FF88";
+  const barColor = pct >= 90 ? "#E5534B" : pct >= 70 ? "#D29922" : "#3FB950";
 
   return (
     <GlassCard padding="p-4" className="mb-4">
@@ -209,7 +209,7 @@ function BillingPageInner() {
 
       {error && (
         <div className="flex items-start gap-2 p-3 rounded-lg mb-4"
-          style={{ background: "rgba(255,0,128,0.08)", border: "1px solid rgba(255,0,128,0.2)" }}>
+          style={{ background: "rgba(229,83,75,0.08)", border: "1px solid rgba(229,83,75,0.2)" }}>
           <AlertTriangle className="w-4 h-4 text-neon-pink mt-0.5 flex-shrink-0" />
           <p className="text-sm text-slate-300">{error}</p>
         </div>
@@ -253,7 +253,7 @@ function BillingPageInner() {
           </div>
           <div className="rounded-lg p-3" style={{ background: "rgba(255,255,255,0.03)" }}>
             <p className="text-xs text-slate-500 mb-1">Status</p>
-            <p className="text-sm font-bold" style={{ color: status?.status === "active" ? "#00FF88" : "#FF0080" }}>
+            <p className="text-sm font-bold" style={{ color: status?.status === "active" ? "#3FB950" : "#E5534B" }}>
               {status?.status ?? "active"}
             </p>
           </div>
@@ -314,8 +314,8 @@ function BillingPageInner() {
                   <span
                     className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold"
                     style={{
-                      background: inv.status === "paid" ? "rgba(0,255,136,0.12)" : "rgba(245,158,11,0.12)",
-                      color: inv.status === "paid" ? "#00FF88" : "#f59e0b",
+                      background: inv.status === "paid" ? "rgba(63,185,80,0.12)" : "rgba(245,158,11,0.12)",
+                      color: inv.status === "paid" ? "#3FB950" : "#f59e0b",
                     }}
                   >
                     {inv.status === "paid" ? "Bezahlt" : inv.status}
@@ -348,9 +348,9 @@ function BillingPageInner() {
                 onClick={() => setAnnual(false)}
                 className="text-xs px-3 py-1.5 rounded-lg transition-all duration-200"
                 style={{
-                  background: !annual ? "rgba(0,212,255,0.12)" : "transparent",
-                  color: !annual ? "#00D4FF" : "#64748b",
-                  border: !annual ? "1px solid rgba(0,212,255,0.3)" : "1px solid transparent",
+                  background: !annual ? "rgba(76,141,246,0.12)" : "transparent",
+                  color: !annual ? "#4C8DF6" : "#64748b",
+                  border: !annual ? "1px solid rgba(76,141,246,0.3)" : "1px solid transparent",
                 }}
               >
                 Monatlich
@@ -359,15 +359,15 @@ function BillingPageInner() {
                 onClick={() => setAnnual(true)}
                 className="relative text-xs px-3 py-1.5 rounded-lg transition-all duration-200"
                 style={{
-                  background: annual ? "rgba(0,212,255,0.12)" : "transparent",
-                  color: annual ? "#00D4FF" : "#64748b",
-                  border: annual ? "1px solid rgba(0,212,255,0.3)" : "1px solid transparent",
+                  background: annual ? "rgba(76,141,246,0.12)" : "transparent",
+                  color: annual ? "#4C8DF6" : "#64748b",
+                  border: annual ? "1px solid rgba(76,141,246,0.3)" : "1px solid transparent",
                 }}
               >
                 Jährlich
                 <span
                   className="absolute -top-2 -right-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                  style={{ background: "#00FF88", color: "#000" }}
+                  style={{ background: "#3FB950", color: "#000" }}
                 >
                   -17%
                 </span>
@@ -377,7 +377,7 @@ function BillingPageInner() {
 
           {!status.stripe_configured && (
             <div className="p-4 rounded-xl mb-4 space-y-2"
-              style={{ background: "rgba(0,212,255,0.05)", border: "1px solid rgba(0,212,255,0.15)" }}>
+              style={{ background: "rgba(76,141,246,0.05)", border: "1px solid rgba(76,141,246,0.15)" }}>
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle className="w-4 h-4 text-cyan-400 flex-shrink-0" />
                 <p className="text-xs font-semibold text-cyan-300">Stripe noch nicht aktiviert</p>
@@ -401,10 +401,10 @@ function BillingPageInner() {
           <div ref={plansRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {UPGRADE_PLANS.map((p) => {
               const colorMap: Record<string, { accent: string; border: string; bg: string }> = {
-                cyan:   { accent: "#00D4FF", border: "rgba(0,212,255,0.3)",   bg: "rgba(0,212,255,0.06)"   },
-                purple: { accent: "#7B2FFF", border: "rgba(123,47,255,0.4)",  bg: "rgba(123,47,255,0.08)"  },
-                green:  { accent: "#00FF88", border: "rgba(0,255,136,0.3)",   bg: "rgba(0,255,136,0.06)"   },
-                pink:   { accent: "#FF0080", border: "rgba(255,0,128,0.3)",   bg: "rgba(255,0,128,0.06)"   },
+                cyan:   { accent: "#4C8DF6", border: "rgba(76,141,246,0.3)",   bg: "rgba(76,141,246,0.06)"   },
+                purple: { accent: "#A371F7", border: "rgba(163,113,247,0.4)",  bg: "rgba(163,113,247,0.08)"  },
+                green:  { accent: "#3FB950", border: "rgba(63,185,80,0.3)",   bg: "rgba(63,185,80,0.06)"   },
+                pink:   { accent: "#E5534B", border: "rgba(229,83,75,0.3)",   bg: "rgba(229,83,75,0.06)"   },
               };
               const c = colorMap[p.color] ?? colorMap.cyan;
               const isPreselected = planParam === p.id;
@@ -497,7 +497,7 @@ function BillingPageInner() {
       {/* Already on paid plan */}
       {status?.plan !== "free" && status && (
         <div className="flex items-center gap-2 p-4 rounded-xl"
-          style={{ background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.15)" }}>
+          style={{ background: "rgba(63,185,80,0.06)", border: "1px solid rgba(63,185,80,0.15)" }}>
           <CheckCircle className="w-4 h-4 text-neon-green flex-shrink-0" />
           <p className="text-sm text-slate-300">
             Du bist auf dem <span className="text-neon-green font-semibold">{status.plan_name}</span>-Plan.

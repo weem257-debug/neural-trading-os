@@ -35,11 +35,11 @@ interface TrendingTicker {
 type DirectionFilter = "ALL" | "BUY" | "SELL" | "HOLD";
 
 const DIRECTION_COLOR: Record<string, string> = {
-  BUY: "#00FF88",
-  STRONG_BUY: "#00FF88",
-  SELL: "#FF0080",
-  STRONG_SELL: "#FF0080",
-  HOLD: "#00D4FF",
+  BUY: "#3FB950",
+  STRONG_BUY: "#3FB950",
+  SELL: "#E5534B",
+  STRONG_SELL: "#E5534B",
+  HOLD: "#4C8DF6",
 };
 
 const DIRECTION_ICON: Record<string, React.ElementType> = {
@@ -142,7 +142,7 @@ export default function SignalMarketplacePage() {
           <Zap className="w-5 h-5 text-neon-green" />
           <span className="text-xs font-bold text-neon-green tracking-widest uppercase">Signal Marketplace</span>
           <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-            style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88" }}>€19/Mo.</span>
+            style={{ background: "rgba(63,185,80,0.1)", color: "#3FB950" }}>€19/Mo.</span>
         </div>
         <h1 className="text-2xl font-bold text-white mb-1">KI-Signal Track Record</h1>
         <p className="text-sm text-slate-400">
@@ -158,21 +158,21 @@ export default function SignalMarketplacePage() {
             label: "Trefferquote",
             value: `${winRate}%`,
             icon: Target,
-            color: "#00FF88",
+            color: "#3FB950",
             sub: perf?.total_evaluated ? `${perf.total_evaluated} ausgewertet` : `${signals.length} Signale`,
           },
           {
             label: "Ø Konfidenz",
             value: `${avgConfidence}%`,
             icon: Brain,
-            color: "#00D4FF",
+            color: "#4C8DF6",
             sub: "Multi-Agent-Konsens",
           },
           {
             label: "Sim. Rendite",
             value: `${curveReturn >= 0 ? "+" : ""}${fmt(curveReturn)}%`,
             icon: curveReturn >= 0 ? TrendingUp : TrendingDown,
-            color: curveReturn >= 0 ? "#00FF88" : "#FF0080",
+            color: curveReturn >= 0 ? "#3FB950" : "#E5534B",
             sub: `${signals.length} Signale`,
           },
           {
@@ -183,7 +183,7 @@ export default function SignalMarketplacePage() {
               return d.getDate() === now.getDate();
             }).length || signals.slice(0, 6).length),
             icon: Zap,
-            color: "#7B2FFF",
+            color: "#A371F7",
             sub: "AAPL NVDA MSFT TSLA META AMD GOOGL AMZN BTC ETH SPY QQQ",
           },
         ].map((kpi, i) => {
@@ -228,7 +228,7 @@ export default function SignalMarketplacePage() {
               {trending.slice(0, 5).map((t, i) => {
                 const conf = Math.round(t.avg_confidence * 100);
                 const bar = conf;
-                const rankColors = ["#FFD700", "#C0C0C0", "#CD7F32", "#00D4FF", "#7B2FFF"];
+                const rankColors = ["#D29922", "#C0C0C0", "#CD7F32", "#4C8DF6", "#A371F7"];
                 const color = rankColors[i] ?? "#94a3b8";
                 return (
                   <motion.div
@@ -293,14 +293,14 @@ export default function SignalMarketplacePage() {
                 <AreaChart data={curve} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={curveReturn >= 0 ? "#00FF88" : "#FF0080"} stopOpacity={0.25} />
-                      <stop offset="95%" stopColor={curveReturn >= 0 ? "#00FF88" : "#FF0080"} stopOpacity={0.02} />
+                      <stop offset="5%" stopColor={curveReturn >= 0 ? "#3FB950" : "#E5534B"} stopOpacity={0.25} />
+                      <stop offset="95%" stopColor={curveReturn >= 0 ? "#3FB950" : "#E5534B"} stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="idx" hide />
                   <YAxis hide domain={["auto", "auto"]} />
                   <Tooltip
-                    contentStyle={{ background: "rgba(13,17,23,0.95)", border: "1px solid rgba(0,212,255,0.2)", borderRadius: 8 }}
+                    contentStyle={{ background: "rgba(13,17,23,0.95)", border: "1px solid rgba(76,141,246,0.2)", borderRadius: 8 }}
                     labelStyle={{ color: "#94a3b8", fontSize: 11 }}
                     formatter={(v: number) => [`$${v.toLocaleString()}`, "Equity"]}
                   />
@@ -308,7 +308,7 @@ export default function SignalMarketplacePage() {
                   <Area
                     type="monotone"
                     dataKey="equity"
-                    stroke={curveReturn >= 0 ? "#00FF88" : "#FF0080"}
+                    stroke={curveReturn >= 0 ? "#3FB950" : "#E5534B"}
                     strokeWidth={2}
                     fill="url(#equityGrad)"
                     dot={false}
@@ -376,7 +376,7 @@ export default function SignalMarketplacePage() {
                   className="px-3 py-1 rounded-md text-xs font-semibold transition-all duration-150"
                   style={
                     filter === tab.value
-                      ? { background: "rgba(0,212,255,0.15)", color: "#00D4FF", border: "1px solid rgba(0,212,255,0.3)" }
+                      ? { background: "rgba(76,141,246,0.15)", color: "#4C8DF6", border: "1px solid rgba(76,141,246,0.3)" }
                       : { color: "#64748b", border: "1px solid transparent" }
                   }
                 >
@@ -506,7 +506,7 @@ export default function SignalMarketplacePage() {
               >
                 <div
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-3"
-                  style={{ background: "rgba(123,47,255,0.15)", border: "1px solid rgba(123,47,255,0.3)", color: "#7B2FFF" }}
+                  style={{ background: "rgba(163,113,247,0.15)", border: "1px solid rgba(163,113,247,0.3)", color: "#A371F7" }}
                 >
                   <Lock className="w-3 h-3" />
                   {filteredSignals.length - FREE_ROWS} Signale verborgen
@@ -519,9 +519,9 @@ export default function SignalMarketplacePage() {
                   href={isAuthenticated ? "/billing?plan=signals" : "/register?plan=signals"}
                   className="inline-flex items-center gap-2 py-2 px-5 rounded-xl text-sm font-bold transition-all"
                   style={{
-                    background: "linear-gradient(135deg, #00FF88, #00D4FF)",
+                    background: "linear-gradient(135deg, #3FB950, #4C8DF6)",
                     color: "#000",
-                    boxShadow: "0 0 20px rgba(0,255,136,0.25)",
+                    boxShadow: "0 0 20px rgba(63,185,80,0.25)",
                   }}
                 >
                   <Zap className="w-3.5 h-3.5" />
@@ -540,8 +540,8 @@ export default function SignalMarketplacePage() {
         transition={{ delay: 0.5 }}
         className="rounded-2xl p-8 text-center"
         style={{
-          background: "linear-gradient(135deg, rgba(0,255,136,0.06), rgba(123,47,255,0.06))",
-          border: "1px solid rgba(0,255,136,0.15)",
+          background: "linear-gradient(135deg, rgba(63,185,80,0.06), rgba(163,113,247,0.06))",
+          border: "1px solid rgba(63,185,80,0.15)",
         }}
       >
         <Shield className="w-8 h-8 mx-auto mb-3 text-neon-green" />
@@ -555,9 +555,9 @@ export default function SignalMarketplacePage() {
             href={isAuthenticated ? "/billing?plan=signals" : "/register?plan=signals"}
             className="flex items-center justify-center gap-2 py-2.5 px-6 rounded-xl text-sm font-bold transition-all duration-200"
             style={{
-              background: "linear-gradient(135deg, #00FF88, #00D4FF)",
+              background: "linear-gradient(135deg, #3FB950, #4C8DF6)",
               color: "#000",
-              boxShadow: "0 0 20px rgba(0,255,136,0.3)",
+              boxShadow: "0 0 20px rgba(63,185,80,0.3)",
             }}
           >
             <Zap className="w-4 h-4" />

@@ -13,7 +13,7 @@ export default function AdminLoading() {
           <div
             key={i}
             className="rounded-2xl p-5"
-            style={{ background: "rgba(8,11,20,0.7)", border: "1px solid rgba(0,212,255,0.1)" }}
+            style={{ background: "rgba(8,11,20,0.7)", border: "1px solid rgba(76,141,246,0.1)" }}
           >
             <div className="h-2.5 w-20 rounded mb-3" style={{ background: "rgba(255,255,255,0.04)" }} />
             <div className="h-8 w-16 rounded" style={{ background: "rgba(255,255,255,0.08)" }} />
@@ -42,7 +42,7 @@ export default function AdminLoading() {
           <div
             key={i}
             className="rounded-2xl p-4"
-            style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(0,212,255,0.08)" }}
+            style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(76,141,246,0.08)" }}
           >
             <div className="h-2.5 w-16 rounded mb-2" style={{ background: "rgba(255,255,255,0.04)" }} />
             <div className="h-6 w-10 rounded" style={{ background: "rgba(255,255,255,0.07)" }} />
@@ -53,9 +53,9 @@ export default function AdminLoading() {
       {/* Growth chart */}
       <div
         className="rounded-2xl overflow-hidden"
-        style={{ background: "rgba(8,11,20,0.7)", border: "1px solid rgba(0,212,255,0.1)" }}
+        style={{ background: "rgba(8,11,20,0.7)", border: "1px solid rgba(76,141,246,0.1)" }}
       >
-        <div className="px-4 py-3" style={{ background: "rgba(0,212,255,0.06)", borderBottom: "1px solid rgba(0,212,255,0.1)" }}>
+        <div className="px-4 py-3" style={{ background: "rgba(76,141,246,0.06)", borderBottom: "1px solid rgba(76,141,246,0.1)" }}>
           <div className="h-3 w-36 rounded" style={{ background: "rgba(255,255,255,0.06)" }} />
         </div>
         <div className="p-4">
@@ -73,12 +73,12 @@ export default function AdminLoading() {
       {/* User table */}
       <div
         className="rounded-2xl overflow-hidden"
-        style={{ background: "rgba(8,11,20,0.7)", border: "1px solid rgba(0,212,255,0.1)" }}
+        style={{ background: "rgba(8,11,20,0.7)", border: "1px solid rgba(76,141,246,0.1)" }}
       >
         {/* Table header */}
         <div
           className="grid grid-cols-5 gap-4 px-4 py-3"
-          style={{ background: "rgba(0,212,255,0.06)", borderBottom: "1px solid rgba(0,212,255,0.1)" }}
+          style={{ background: "rgba(76,141,246,0.06)", borderBottom: "1px solid rgba(76,141,246,0.1)" }}
         >
           {[80, 120, 60, 60, 80].map((w, i) => (
             <div key={i} className="h-2.5 rounded" style={{ width: `${w}%`, background: "rgba(255,255,255,0.06)" }} />
@@ -93,7 +93,7 @@ export default function AdminLoading() {
           >
             <div className="h-3 rounded" style={{ width: "70%", background: "rgba(255,255,255,0.06)" }} />
             <div className="h-3 rounded" style={{ width: "90%", background: "rgba(255,255,255,0.04)" }} />
-            <div className="h-5 w-14 rounded-full" style={{ background: "rgba(0,212,255,0.08)" }} />
+            <div className="h-5 w-14 rounded-full" style={{ background: "rgba(76,141,246,0.08)" }} />
             <div className="h-3 rounded" style={{ width: "60%", background: "rgba(255,255,255,0.04)" }} />
             <div className="h-3 rounded" style={{ width: "80%", background: "rgba(255,255,255,0.04)" }} />
           </div>

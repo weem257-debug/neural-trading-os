@@ -35,7 +35,7 @@ function TachometerGauge({
   const pct = Math.min(value / max, 1);
   const isCrit = pct >= critAt;
   const isWarn = pct >= warnAt && !isCrit;
-  const color = isCrit ? "#FF0080" : isWarn ? "#FFD700" : "#00FF88";
+  const color = isCrit ? "#E5534B" : isWarn ? "#D29922" : "#3FB950";
 
   // Arc geometry: 220° sweep, starting at 160° (lower-left)
   const R = 70; const cx = 90; const cy = 90;
@@ -67,9 +67,9 @@ function TachometerGauge({
       <svg width="180" height="110" viewBox="0 0 180 110">
         <defs>
           <linearGradient id={`arc-grad-${label}`} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#00FF88" />
-            <stop offset="50%" stopColor="#FFD700" />
-            <stop offset="100%" stopColor="#FF0080" />
+            <stop offset="0%" stopColor="#3FB950" />
+            <stop offset="50%" stopColor="#D29922" />
+            <stop offset="100%" stopColor="#E5534B" />
           </linearGradient>
           <filter id={`glow-${label}`}>
             <feGaussianBlur stdDeviation="3" result="blur" />
@@ -113,7 +113,7 @@ function TachometerGauge({
           style={{ filter: `drop-shadow(0 0 4px ${color})` }}
         />
         <circle cx={cx} cy={cy} r="5" fill={color} style={{ filter: `drop-shadow(0 0 6px ${color})` }} />
-        <circle cx={cx} cy={cy} r="3" fill="#080B14" />
+        <circle cx={cx} cy={cy} r="3" fill="#0B0E14" />
 
         {/* Value text */}
         <text
@@ -139,7 +139,7 @@ function RiskBar({ label, value, max, unit = "%" }: {
   label: string; value: number; max: number; unit?: string;
 }) {
   const pct = Math.min((value / max) * 100, 100);
-  const color = pct >= 80 ? "#FF0080" : pct >= 55 ? "#FFD700" : "#00FF88";
+  const color = pct >= 80 ? "#E5534B" : pct >= 55 ? "#D29922" : "#3FB950";
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
@@ -154,7 +154,7 @@ function RiskBar({ label, value, max, unit = "%" }: {
           animate={{ width: `${pct}%` }}
           transition={{ duration: 1, ease: "easeOut" }}
           className="h-full rounded-full"
-          style={{ background: `linear-gradient(90deg, #00FF88, ${color})`, boxShadow: `0 0 6px ${color}` }}
+          style={{ background: `linear-gradient(90deg, #3FB950, ${color})`, boxShadow: `0 0 6px ${color}` }}
         />
       </div>
     </div>
@@ -279,7 +279,7 @@ export default function RiskPage() {
   }, [hasRealData]);
 
   const riskLevel = computeRiskLevel(metrics);
-  const riskColor = { LOW: "#00FF88", MEDIUM: "#FFD700", HIGH: "#FF0080" }[riskLevel];
+  const riskColor = { LOW: "#3FB950", MEDIUM: "#D29922", HIGH: "#E5534B" }[riskLevel];
   const hasAlerts = metrics.alerts && metrics.alerts.length > 0;
 
   return (
@@ -290,9 +290,9 @@ export default function RiskPage() {
           <div className="flex items-center gap-3 mb-1">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "rgba(255,0,128,0.15)", border: "1px solid rgba(255,0,128,0.3)" }}
+              style={{ background: "rgba(229,83,75,0.15)", border: "1px solid rgba(229,83,75,0.3)" }}
             >
-              <Shield className="w-4 h-4" style={{ color: "#FF0080" }} />
+              <Shield className="w-4 h-4" style={{ color: "#E5534B" }} />
             </div>
             <h1 className="text-2xl font-bold text-slate-100">Risiko-Panel</h1>
             <span
@@ -341,9 +341,9 @@ export default function RiskPage() {
           animate={{ opacity: 1, y: 0 }}
           className="rounded-xl p-4 flex items-start gap-3"
           style={{
-            background: "rgba(255,0,128,0.1)",
-            border: "1px solid rgba(255,0,128,0.4)",
-            boxShadow: "0 0 20px rgba(255,0,128,0.15)",
+            background: "rgba(229,83,75,0.1)",
+            border: "1px solid rgba(229,83,75,0.4)",
+            boxShadow: "0 0 20px rgba(229,83,75,0.15)",
             animation: "glow-pulse-pink 2s ease-in-out infinite",
           }}
         >
@@ -353,7 +353,7 @@ export default function RiskPage() {
             <ul className="space-y-1">
               {metrics.alerts.map((a, i) => (
                 <li key={i} className="text-sm text-slate-300 flex items-start gap-2">
-                  <span style={{ color: "#FF0080" }}>·</span> {a}
+                  <span style={{ color: "#E5534B" }}>·</span> {a}
                 </li>
               ))}
             </ul>
@@ -406,10 +406,10 @@ export default function RiskPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "VaR 95%",      value: `$${metrics.portfolio_var_95.toLocaleString()}`, color: "#00D4FF", icon: BarChart2 },
-          { label: "VaR 99%",      value: `$${metrics.portfolio_var_99.toLocaleString()}`, color: "#7B2FFF", icon: TrendingDown },
-          { label: "Max. Drawdown", value: `${(metrics.max_drawdown * 100).toFixed(2)}%`,  color: "#FF0080", icon: Activity },
-          { label: "Beta",         value: metrics.beta?.toFixed(2) ?? "k.A.",              color: "#FFD700", icon: Zap },
+          { label: "VaR 95%",      value: `$${metrics.portfolio_var_95.toLocaleString()}`, color: "#4C8DF6", icon: BarChart2 },
+          { label: "VaR 99%",      value: `$${metrics.portfolio_var_99.toLocaleString()}`, color: "#A371F7", icon: TrendingDown },
+          { label: "Max. Drawdown", value: `${(metrics.max_drawdown * 100).toFixed(2)}%`,  color: "#E5534B", icon: Activity },
+          { label: "Beta",         value: metrics.beta?.toFixed(2) ?? "k.A.",              color: "#D29922", icon: Zap },
         ].map(({ label, value, color, icon: Icon }, i) => (
           <motion.div
             key={label}
@@ -459,7 +459,7 @@ export default function RiskPage() {
                 <LimitRow
                   label="Live-Trading"
                   value={limits.enable_live_trading ? "Aktiviert" : "Deaktiviert"}
-                  valueColor={limits.enable_live_trading ? "#FF0080" : "#00FF88"}
+                  valueColor={limits.enable_live_trading ? "#E5534B" : "#3FB950"}
                 />
               </>
             ) : (

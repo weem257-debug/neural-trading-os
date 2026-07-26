@@ -24,7 +24,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - run: pip install -r requirements.txt
+      # requirements-dev.txt = runtime deps (via -r requirements.txt) + pytest.
+      # The runtime file no longer ships the test framework (it is what the prod
+      # image installs), so installing it alone would fail collection with
+      # `No module named pytest`.
+      - run: pip install -r requirements-dev.txt
         working-directory: backend
       # MUST run from backend/ — the suite imports `app.*` and there is no
       # installed package or src-layout, so the interpreter only resolves it
@@ -78,7 +82,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - run: pip install -r backend/requirements.txt
+      # Audit the DEV tree: it is a superset of the runtime tree, so a runtime
+      # CVE still fails here, and a test-only advisory (pytest, mypy) stays
+      # visible even though those packages no longer ship in the prod image.
+      - run: pip install -r backend/requirements-dev.txt
       - run: pip install pip-audit
       # --ignore-vuln PYSEC-2026-1325: `ecdsa` Minerva timing side-channel. It
       # is a transitive dep of python-jose and has NO fix release; this app uses
@@ -101,7 +108,7 @@ jobs:
           GITLEAKS_CONFIG: .gitleaks.toml
 
   # TODO(P1-4 follow-up): enable mypy as a BLOCKING step once a baseline is
-  # established. mypy==1.11.0 is already in backend/requirements.txt, but the
+  # established. mypy==1.11.0 is already in backend/requirements-dev.txt, but the
   # codebase has no [tool.mypy] config yet and a cold run reports a large
   # backlog. Turning it on blocking now would red-wall every PR. Plan:
   #   1. Add [tool.mypy] to backend/pyproject.toml (start lenient:
@@ -115,7 +122,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - run: pip install -r backend/requirements.txt
+      # mypy lives in requirements-dev.txt (not shipped in the prod image).
+      - run: pip install -r backend/requirements-dev.txt
       - name: "mypy (non-blocking — see TODO above)"
         run: mypy backend/app || true
 

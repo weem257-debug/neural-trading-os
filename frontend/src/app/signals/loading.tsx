@@ -15,8 +15,8 @@ export default function SignalsLoading() {
       <div
         className="rounded-2xl p-5"
         style={{
-          background: "linear-gradient(135deg, rgba(0,255,136,0.04), rgba(0,255,136,0.015))",
-          border: "1px solid rgba(0,255,136,0.1)",
+          background: "linear-gradient(135deg, rgba(63,185,80,0.04), rgba(63,185,80,0.015))",
+          border: "1px solid rgba(63,185,80,0.1)",
         }}
       >
         <SkeletonBlock height={10} width={100} className="mb-4" />
@@ -47,7 +47,7 @@ export default function SignalsLoading() {
             className="rounded-xl p-4"
             style={{
               background: "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
-              border: "1px solid rgba(0,212,255,0.12)",
+              border: "1px solid rgba(76,141,246,0.12)",
               opacity: 1 - i * 0.15,
             }}
           >

@@ -3,17 +3,17 @@ export default function ExecutionLoading() {
     <div className="space-y-5 animate-pulse">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg" style={{ background: "rgba(0,255,136,0.08)" }} />
+        <div className="w-8 h-8 rounded-lg" style={{ background: "rgba(63,185,80,0.08)" }} />
         <div className="h-7 w-36 rounded" style={{ background: "rgba(255,255,255,0.06)" }} />
-        <div className="h-5 w-16 rounded-full" style={{ background: "rgba(0,212,255,0.08)" }} />
+        <div className="h-5 w-16 rounded-full" style={{ background: "rgba(76,141,246,0.08)" }} />
       </div>
 
       {/* Mode banner skeleton */}
       <div
         className="rounded-xl p-4 flex items-center gap-3"
-        style={{ background: "rgba(0,212,255,0.05)", border: "1px solid rgba(0,212,255,0.15)" }}
+        style={{ background: "rgba(76,141,246,0.05)", border: "1px solid rgba(76,141,246,0.15)" }}
       >
-        <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ background: "rgba(0,212,255,0.15)" }} />
+        <div className="w-5 h-5 rounded-full flex-shrink-0" style={{ background: "rgba(76,141,246,0.15)" }} />
         <div className="space-y-1.5 flex-1">
           <div className="h-4 w-56 rounded" style={{ background: "rgba(255,255,255,0.06)" }} />
           <div className="h-3 w-72 rounded" style={{ background: "rgba(255,255,255,0.04)" }} />
@@ -25,12 +25,12 @@ export default function ExecutionLoading() {
         <div className="md:col-span-7">
           <div
             className="rounded-2xl p-5 space-y-4"
-            style={{ background: "rgba(8,11,20,0.7)", border: "1px solid rgba(0,255,136,0.1)" }}
+            style={{ background: "rgba(8,11,20,0.7)", border: "1px solid rgba(63,185,80,0.1)" }}
           >
             <div className="h-3 w-24 rounded" style={{ background: "rgba(255,255,255,0.06)" }} />
             {/* Buy/Sell toggle */}
             <div className="flex gap-2">
-              <div className="flex-1 h-12 rounded-xl" style={{ background: "rgba(0,255,136,0.08)" }} />
+              <div className="flex-1 h-12 rounded-xl" style={{ background: "rgba(63,185,80,0.08)" }} />
               <div className="flex-1 h-12 rounded-xl" style={{ background: "rgba(255,255,255,0.04)" }} />
             </div>
             {/* Fields */}
@@ -53,7 +53,7 @@ export default function ExecutionLoading() {
               </div>
             </div>
             {/* Submit button */}
-            <div className="h-12 rounded-xl" style={{ background: "rgba(0,255,136,0.07)" }} />
+            <div className="h-12 rounded-xl" style={{ background: "rgba(63,185,80,0.07)" }} />
           </div>
         </div>
 
@@ -66,7 +66,7 @@ export default function ExecutionLoading() {
             <div className="h-3 w-32 rounded mb-4" style={{ background: "rgba(255,255,255,0.06)" }} />
             {Array.from({ length: 10 }).map((_, i) => (
               <div key={i} className="flex justify-between py-1 px-2">
-                <div className="h-3 w-16 rounded" style={{ background: i < 5 ? "rgba(255,0,128,0.1)" : "rgba(0,255,136,0.1)" }} />
+                <div className="h-3 w-16 rounded" style={{ background: i < 5 ? "rgba(229,83,75,0.1)" : "rgba(63,185,80,0.1)" }} />
                 <div className="h-3 w-12 rounded" style={{ background: "rgba(255,255,255,0.04)" }} />
               </div>
             ))}

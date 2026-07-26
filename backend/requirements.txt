@@ -70,22 +70,19 @@ slowapi>=0.1.9
 # Logging & Monitoring
 structlog==24.4.0
 
-# Testing
-# pytest 8.3.0 carries PYSEC-2026-1845 (fixed in 9.0.3). Bumped to the versions
-# the suite is actually validated against — the pinned 8.3.0/0.24.0 pair had
-# already drifted away from the installed dev environment. pytest 9 requires
-# pytest-asyncio >= 1.x; the `asyncio_mode` and
-# `asyncio_default_fixture_loop_scope` settings in pytest.ini work on both.
-pytest==9.1.0
-pytest-asyncio==1.4.0
-
-# lxml is transitive (it resolves on Linux/CI, not on the Windows dev box).
+# Testing / type checking → requirements-dev.txt
+# This file is what the production Dockerfile installs, so it holds RUNTIME
+# dependencies only. pytest, pytest-asyncio and mypy used to sit here and
+# therefore shipped inside the prod image — code that never executes in
+# production, yet contributed attack surface and CVE exposure (the pytest
+# PYSEC-2026-1845 advisory was a prod-image finding for exactly that reason).
+# For development and CI install the dev file, which pulls this one in via -r:
+#   pip install -r requirements-dev.txt
+#
+# lxml stays here: it is a RUNTIME transitive (yfinance parses HTML with it),
+# not a test dependency. It resolves on Linux/CI but not on the Windows dev box.
 # 6.0.4 carries PYSEC-2026-87; pin the fixed line so pip-audit stays green.
 lxml>=6.1.0
-# httpx already declared above — for TestClient
-
-# Type checking
-mypy==1.11.0
 
 # ---- Broker Integrations ----
 # degiro-connector>=2.0.0   # DEGIRO community lib (optional — install separately)

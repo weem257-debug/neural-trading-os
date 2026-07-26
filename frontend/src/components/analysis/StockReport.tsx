@@ -59,15 +59,15 @@ interface VerdiktStyle {
 function getVerdiktStyle(verdict: StockVerdikt): VerdiktStyle {
   switch (verdict) {
     case "STRONG_BUY":
-      return { color: "#00FF88", bg: "rgba(0,255,136,0.12)", border: "rgba(0,255,136,0.35)", label: "STARK KAUFEN" };
+      return { color: "#3FB950", bg: "rgba(63,185,80,0.12)", border: "rgba(63,185,80,0.35)", label: "STARK KAUFEN" };
     case "BUY":
-      return { color: "#00FF88", bg: "rgba(0,255,136,0.08)", border: "rgba(0,255,136,0.25)", label: "KAUFEN" };
+      return { color: "#3FB950", bg: "rgba(63,185,80,0.08)", border: "rgba(63,185,80,0.25)", label: "KAUFEN" };
     case "HOLD":
-      return { color: "#FFD700", bg: "rgba(255,215,0,0.10)", border: "rgba(255,215,0,0.30)", label: "HALTEN" };
+      return { color: "#D29922", bg: "rgba(210,153,34,0.10)", border: "rgba(210,153,34,0.30)", label: "HALTEN" };
     case "SELL":
-      return { color: "#FF0080", bg: "rgba(255,0,128,0.08)", border: "rgba(255,0,128,0.25)", label: "VERKAUFEN" };
+      return { color: "#E5534B", bg: "rgba(229,83,75,0.08)", border: "rgba(229,83,75,0.25)", label: "VERKAUFEN" };
     case "STRONG_SELL":
-      return { color: "#FF0080", bg: "rgba(255,0,128,0.12)", border: "rgba(255,0,128,0.35)", label: "STARK VERKAUFEN" };
+      return { color: "#E5534B", bg: "rgba(229,83,75,0.12)", border: "rgba(229,83,75,0.35)", label: "STARK VERKAUFEN" };
     default:
       return { color: "#64748B", bg: "rgba(100,116,139,0.08)", border: "rgba(100,116,139,0.25)", label: "KEINE EMPFEHLUNG" };
   }
@@ -102,7 +102,7 @@ async function runWithLimit<T>(
 
 function ConfidenceBar({ value, label }: { value: number; label: string }) {
   const pct = Math.round(value * 100);
-  const color = pct >= 70 ? "#00FF88" : pct >= 40 ? "#FFD700" : "#FF0080";
+  const color = pct >= 70 ? "#3FB950" : pct >= 40 ? "#D29922" : "#E5534B";
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
@@ -157,7 +157,7 @@ function ReportCard({ ticker, state }: { ticker: string; state: TickerState }) {
   if (state.status === "loading") {
     return (
       <GlassCard className="flex items-center gap-4 py-6" animate={false}>
-        <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" style={{ color: "#00D4FF" }} />
+        <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" style={{ color: "#4C8DF6" }} />
         <div>
           <p className="font-mono font-bold text-slate-200">{ticker}</p>
           <p className="text-xs text-slate-500 mt-0.5">Analyse läuft … (10–30 s)</p>
@@ -231,22 +231,22 @@ function ReportCard({ ticker, state }: { ticker: string; state: TickerState }) {
             {
               label: "Positionsgröße",
               value: `${posPct}%`,
-              color: "#00D4FF",
+              color: "#4C8DF6",
             },
             {
               label: "Composite Score",
               value: `${report.composite_score >= 0 ? "+" : ""}${report.composite_score.toFixed(3)}`,
-              color: report.composite_score >= 0 ? "#00FF88" : "#FF0080",
+              color: report.composite_score >= 0 ? "#3FB950" : "#E5534B",
             },
             {
               label: "Stop-Loss",
               value: report.stop_loss != null ? `$${report.stop_loss.toFixed(2)}` : "—",
-              color: "#FF0080",
+              color: "#E5534B",
             },
             {
               label: "Take-Profit",
               value: report.take_profit != null ? `$${report.take_profit.toFixed(2)}` : "—",
-              color: "#00FF88",
+              color: "#3FB950",
             },
           ].map(({ label, value, color }) => (
             <div
@@ -317,7 +317,7 @@ function ReportCard({ ticker, state }: { ticker: string; state: TickerState }) {
                   if (val == null) return null;
                   const score = val as number;
                   const color =
-                    score >= 0.3 ? "#00FF88" : score <= -0.3 ? "#FF0080" : "#FFD700";
+                    score >= 0.3 ? "#3FB950" : score <= -0.3 ? "#E5534B" : "#D29922";
                   return (
                     <div
                       key={key}
@@ -453,9 +453,9 @@ function StockReportInner({ standalone }: { standalone: boolean }) {
                   onClick={handleShare}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex-shrink-0"
                   style={{
-                    background: "rgba(0,255,136,0.1)",
-                    border: "1px solid rgba(0,255,136,0.3)",
-                    color: "#00FF88",
+                    background: "rgba(63,185,80,0.1)",
+                    border: "1px solid rgba(63,185,80,0.3)",
+                    color: "#3FB950",
                   }}
                 >
                   <Share2 className="w-3 h-3" />
@@ -500,9 +500,9 @@ function StockReportInner({ standalone }: { standalone: boolean }) {
               disabled={!effectiveTickers.length || isLoading}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
               style={{
-                background: "linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,212,255,0.1))",
-                border: "1px solid rgba(0,255,136,0.4)",
-                color: "#00FF88",
+                background: "linear-gradient(135deg, rgba(63,185,80,0.2), rgba(76,141,246,0.1))",
+                border: "1px solid rgba(63,185,80,0.4)",
+                color: "#3FB950",
               }}
             >
               {isLoading ? (
@@ -546,13 +546,13 @@ function StockReportInner({ standalone }: { standalone: boolean }) {
   return (
     <div
       className="min-h-screen"
-      style={{ background: "linear-gradient(135deg, #080B14 0%, #0D1117 100%)" }}
+      style={{ background: "linear-gradient(135deg, #0B0E14 0%, #10141C 100%)" }}
     >
       {/* Minimal public header */}
       <div
         className="sticky top-0 z-10 flex items-center justify-between px-6 py-4"
         style={{
-          borderBottom: "1px solid rgba(0,212,255,0.1)",
+          borderBottom: "1px solid rgba(76,141,246,0.1)",
           background: "rgba(8,11,20,0.9)",
           backdropFilter: "blur(20px)",
         }}
@@ -561,15 +561,15 @@ function StockReportInner({ standalone }: { standalone: boolean }) {
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center"
             style={{
-              background: "linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,212,255,0.15))",
-              border: "1px solid rgba(0,255,136,0.3)",
+              background: "linear-gradient(135deg, rgba(63,185,80,0.2), rgba(76,141,246,0.15))",
+              border: "1px solid rgba(63,185,80,0.3)",
             }}
           >
-            <LineChart className="w-3.5 h-3.5" style={{ color: "#00FF88" }} />
+            <LineChart className="w-3.5 h-3.5" style={{ color: "#3FB950" }} />
           </div>
           <div>
             <p className="text-sm font-bold text-white leading-none">Aktienanalyse</p>
-            <p className="text-xs leading-none mt-0.5" style={{ color: "rgba(0,255,136,0.7)" }}>
+            <p className="text-xs leading-none mt-0.5" style={{ color: "rgba(63,185,80,0.7)" }}>
               Neural Trading OS
             </p>
           </div>
@@ -578,9 +578,9 @@ function StockReportInner({ standalone }: { standalone: boolean }) {
           onClick={handleShare}
           className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
           style={{
-            background: "rgba(0,255,136,0.1)",
-            border: "1px solid rgba(0,255,136,0.3)",
-            color: "#00FF88",
+            background: "rgba(63,185,80,0.1)",
+            border: "1px solid rgba(63,185,80,0.3)",
+            color: "#3FB950",
           }}
         >
           <Share2 className="w-3.5 h-3.5" />
@@ -604,13 +604,13 @@ export function StockReport({ standalone = false }: { standalone?: boolean }) {
         standalone ? (
           <div
             className="min-h-screen flex items-center justify-center"
-            style={{ background: "#080B14" }}
+            style={{ background: "#0B0E14" }}
           >
-            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#00FF88" }} />
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#3FB950" }} />
           </div>
         ) : (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#00FF88" }} />
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#3FB950" }} />
           </div>
         )
       }

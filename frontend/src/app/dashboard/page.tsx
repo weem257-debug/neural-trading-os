@@ -76,14 +76,14 @@ const MOCK_RISK: RiskMetrics = {
 };
 
 const AGENT_ACTIVITY = [
-  { name: "Fundamental",    active: true,  load: 78, color: "#00D4FF" },
-  { name: "Sentiment",      active: true,  load: 92, color: "#00FF88" },
-  { name: "Technisch",      active: false, load: 0,  color: "#7B2FFF" },
-  { name: "News",           active: true,  load: 45, color: "#FFD700" },
-  { name: "Risiko-Manager", active: true,  load: 61, color: "#FF0080" },
+  { name: "Fundamental",    active: true,  load: 78, color: "#4C8DF6" },
+  { name: "Sentiment",      active: true,  load: 92, color: "#3FB950" },
+  { name: "Technisch",      active: false, load: 0,  color: "#A371F7" },
+  { name: "News",           active: true,  load: 45, color: "#D29922" },
+  { name: "Risiko-Manager", active: true,  load: 61, color: "#E5534B" },
 ];
 
-const DONUT_COLORS = ["#00D4FF", "#00FF88", "#7B2FFF", "#FFD700", "#FF0080"];
+const DONUT_COLORS = ["#4C8DF6", "#3FB950", "#A371F7", "#D29922", "#E5534B"];
 
 /* ---- Explanation content for InfoButton modals ---- */
 const EXPLAIN_PORTFOLIO: ExplanationContent = {
@@ -160,11 +160,11 @@ const SOURCE_LABELS_DE: Record<string, string> = {
 function srcLabel(s: string) { return SOURCE_LABELS_DE[s] ?? s; }
 
 function directionStyle(d: string) {
-  if (d === "STRONG_BUY") return { bg: "rgba(0,255,136,0.15)", border: "rgba(0,255,136,0.4)", color: "#00FF88", label: "S.BUY" };
-  if (d === "BUY")         return { bg: "rgba(0,255,136,0.08)", border: "rgba(0,255,136,0.25)", color: "#00DD77", label: "BUY" };
-  if (d === "HOLD")        return { bg: "rgba(255,215,0,0.08)", border: "rgba(255,215,0,0.25)", color: "#FFD700", label: "HOLD" };
-  if (d === "SELL")        return { bg: "rgba(255,0,128,0.08)", border: "rgba(255,0,128,0.25)", color: "#FF6098", label: "SELL" };
-  return                          { bg: "rgba(255,0,128,0.15)", border: "rgba(255,0,128,0.4)", color: "#FF0080", label: "S.SELL" };
+  if (d === "STRONG_BUY") return { bg: "rgba(63,185,80,0.15)", border: "rgba(63,185,80,0.4)", color: "#3FB950", label: "S.BUY" };
+  if (d === "BUY")         return { bg: "rgba(63,185,80,0.08)", border: "rgba(63,185,80,0.25)", color: "#3FB950", label: "BUY" };
+  if (d === "HOLD")        return { bg: "rgba(210,153,34,0.08)", border: "rgba(210,153,34,0.25)", color: "#D29922", label: "HOLD" };
+  if (d === "SELL")        return { bg: "rgba(229,83,75,0.08)", border: "rgba(229,83,75,0.25)", color: "#E5534B", label: "SELL" };
+  return                          { bg: "rgba(229,83,75,0.15)", border: "rgba(229,83,75,0.4)", color: "#E5534B", label: "S.SELL" };
 }
 
 /* ---- Sparkline (SVG micro-chart) ---- */
@@ -243,9 +243,9 @@ function TachometerGauge({ value, max, label, unit, color }: {
       <svg width="100" height="65" viewBox="0 0 100 65">
         <defs>
           <linearGradient id={`gauge-${label}`} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#00FF88" />
-            <stop offset="50%" stopColor="#FFD700" />
-            <stop offset="100%" stopColor="#FF0080" />
+            <stop offset="0%" stopColor="#3FB950" />
+            <stop offset="50%" stopColor="#D29922" />
+            <stop offset="100%" stopColor="#E5534B" />
           </linearGradient>
         </defs>
         {/* Background arc */}
@@ -276,10 +276,10 @@ function KpiCard({
   color: "cyan" | "green" | "pink" | "purple"; icon: React.ElementType; delay?: number;
 }) {
   const colorMap = {
-    cyan:   { text: "#00D4FF", bg: "rgba(0,212,255,0.1)",   border: "rgba(0,212,255,0.25)",   glow: "rgba(0,212,255,0.3)" },
-    green:  { text: "#00FF88", bg: "rgba(0,255,136,0.1)",   border: "rgba(0,255,136,0.25)",   glow: "rgba(0,255,136,0.3)" },
-    pink:   { text: "#FF0080", bg: "rgba(255,0,128,0.1)",   border: "rgba(255,0,128,0.25)",   glow: "rgba(255,0,128,0.3)" },
-    purple: { text: "#7B2FFF", bg: "rgba(123,47,255,0.1)",  border: "rgba(123,47,255,0.25)",  glow: "rgba(123,47,255,0.3)" },
+    cyan:   { text: "#4C8DF6", bg: "rgba(76,141,246,0.1)",   border: "rgba(76,141,246,0.25)",   glow: "rgba(76,141,246,0.3)" },
+    green:  { text: "#3FB950", bg: "rgba(63,185,80,0.1)",   border: "rgba(63,185,80,0.25)",   glow: "rgba(63,185,80,0.3)" },
+    pink:   { text: "#E5534B", bg: "rgba(229,83,75,0.1)",   border: "rgba(229,83,75,0.25)",   glow: "rgba(229,83,75,0.3)" },
+    purple: { text: "#A371F7", bg: "rgba(163,113,247,0.1)",  border: "rgba(163,113,247,0.25)",  glow: "rgba(163,113,247,0.3)" },
   };
   const c = colorMap[color];
   return (
@@ -344,17 +344,17 @@ function MarketStatusBadge() {
     <div
       className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold"
       style={{
-        background: status.open ? "rgba(0,255,136,0.06)" : "rgba(100,116,139,0.06)",
-        border: `1px solid ${status.open ? "rgba(0,255,136,0.2)" : "rgba(100,116,139,0.15)"}`,
-        color: status.open ? "#00FF88" : "#64748b",
+        background: status.open ? "rgba(63,185,80,0.06)" : "rgba(100,116,139,0.06)",
+        border: `1px solid ${status.open ? "rgba(63,185,80,0.2)" : "rgba(100,116,139,0.15)"}`,
+        color: status.open ? "#3FB950" : "#64748b",
       }}
       title={status.hint}
     >
       <span
         className="w-1.5 h-1.5 rounded-full shrink-0"
         style={{
-          background: status.open ? "#00FF88" : "#64748b",
-          boxShadow: status.open ? "0 0 4px #00FF88" : "none",
+          background: status.open ? "#3FB950" : "#64748b",
+          boxShadow: status.open ? "0 0 4px #3FB950" : "none",
         }}
       />
       {status.label}
@@ -583,15 +583,15 @@ export default function DashboardPage() {
             <h1
               className="text-2xl sm:text-4xl font-bold font-mono"
               style={{
-                color: "#00D4FF",
-                textShadow: "0 0 30px rgba(0,212,255,0.5), 0 0 60px rgba(0,212,255,0.2)",
+                color: "#4C8DF6",
+                textShadow: "0 0 30px rgba(76,141,246,0.5), 0 0 60px rgba(76,141,246,0.2)",
               }}
             >
               $<CountUp end={portfolio.total_value} decimals={2} separator="," duration={1.5} key={tick} />
             </h1>
             <span
               className="text-lg font-semibold font-mono"
-              style={{ color: pnlPos ? "#00FF88" : "#FF0080" }}
+              style={{ color: pnlPos ? "#3FB950" : "#E5534B" }}
             >
               {pnlPos ? "+" : ""}{(portfolio.total_pnl_pct * 100).toFixed(2)}%
             </span>
@@ -606,30 +606,30 @@ export default function DashboardPage() {
           <div
             className="flex items-center gap-2 px-3 py-2 rounded-lg"
             style={{
-              background: isApiOnline ? "rgba(0,255,136,0.08)" : "rgba(239,68,68,0.08)",
-              border: isApiOnline ? "1px solid rgba(0,255,136,0.2)" : "1px solid rgba(239,68,68,0.2)",
+              background: isApiOnline ? "rgba(63,185,80,0.08)" : "rgba(239,68,68,0.08)",
+              border: isApiOnline ? "1px solid rgba(63,185,80,0.2)" : "1px solid rgba(239,68,68,0.2)",
             }}
           >
             <div
               className="status-dot-live"
               style={isApiOnline ? {} : { background: "#EF4444", boxShadow: "0 0 6px #EF4444" }}
             />
-            <span style={{ color: isApiOnline ? "#00FF88" : "#EF4444" }}>
+            <span style={{ color: isApiOnline ? "#3FB950" : "#EF4444" }}>
               {isApiOnline ? "Systeme Online" : "API Offline"}
             </span>
           </div>
           <div
             className="flex items-center gap-2 px-3 py-2 rounded-lg"
             style={{
-              background: executionMode === "live" ? "rgba(255,0,128,0.08)" : "rgba(0,212,255,0.08)",
-              border: executionMode === "live" ? "1px solid rgba(255,0,128,0.2)" : "1px solid rgba(0,212,255,0.2)",
+              background: executionMode === "live" ? "rgba(229,83,75,0.08)" : "rgba(76,141,246,0.08)",
+              border: executionMode === "live" ? "1px solid rgba(229,83,75,0.2)" : "1px solid rgba(76,141,246,0.2)",
             }}
           >
             <Radio
               className="w-3 h-3"
-              style={{ color: executionMode === "live" ? "#FF0080" : "#00D4FF" }}
+              style={{ color: executionMode === "live" ? "#E5534B" : "#4C8DF6" }}
             />
-            <span style={{ color: executionMode === "live" ? "#FF0080" : "#00D4FF" }}>
+            <span style={{ color: executionMode === "live" ? "#E5534B" : "#4C8DF6" }}>
               {executionMode === "live" ? "LIVE-MODUS" : "PAPER-MODUS"}
             </span>
           </div>
@@ -639,9 +639,9 @@ export default function DashboardPage() {
             disabled={isRefreshing}
             className="flex items-center gap-2 px-3 py-2 rounded-lg transition-opacity disabled:opacity-50"
             style={{
-              background: "rgba(123,47,255,0.08)",
-              border: "1px solid rgba(123,47,255,0.25)",
-              color: "#7B2FFF",
+              background: "rgba(163,113,247,0.08)",
+              border: "1px solid rgba(163,113,247,0.25)",
+              color: "#A371F7",
               cursor: isRefreshing ? "not-allowed" : "pointer",
             }}
             title="Portfolio-Daten aktualisieren"
@@ -665,18 +665,18 @@ export default function DashboardPage() {
           exit={{ opacity: 0, y: -12 }}
           className="relative overflow-hidden rounded-2xl p-5"
           style={{
-            background: "linear-gradient(135deg, rgba(0,212,255,0.07), rgba(123,47,255,0.05))",
-            border: "1px solid rgba(0,212,255,0.2)",
+            background: "linear-gradient(135deg, rgba(76,141,246,0.07), rgba(163,113,247,0.05))",
+            border: "1px solid rgba(76,141,246,0.2)",
           }}
         >
           {/* Glow */}
           <div className="absolute top-0 left-0 w-72 h-24 pointer-events-none"
-            style={{ background: "radial-gradient(ellipse, rgba(0,212,255,0.12) 0%, transparent 70%)" }} />
+            style={{ background: "radial-gradient(ellipse, rgba(76,141,246,0.12) 0%, transparent 70%)" }} />
           <div className="flex items-center justify-between gap-6 relative">
             <div className="flex items-start gap-4">
               <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: "rgba(0,212,255,0.12)", border: "1px solid rgba(0,212,255,0.3)" }}>
-                <Zap className="w-5 h-5" style={{ color: "#00D4FF" }} />
+                style={{ background: "rgba(76,141,246,0.12)", border: "1px solid rgba(76,141,246,0.3)" }}>
+                <Zap className="w-5 h-5" style={{ color: "#4C8DF6" }} />
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-100 mb-0.5">Willkommen! Generiere dein erstes KI-Signal</p>
@@ -692,9 +692,9 @@ export default function DashboardPage() {
                 onClick={dismissFirstRun}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
                 style={{
-                  background: "rgba(0,212,255,0.18)",
-                  border: "1px solid rgba(0,212,255,0.45)",
-                  color: "#00D4FF",
+                  background: "rgba(76,141,246,0.18)",
+                  border: "1px solid rgba(76,141,246,0.45)",
+                  color: "#4C8DF6",
                 }}
               >
                 <Zap className="w-4 h-4" />
@@ -717,7 +717,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
           label="Gesamt P&L"
-          value={<span style={{ color: pnlPos ? "#00FF88" : "#FF0080" }}>
+          value={<span style={{ color: pnlPos ? "#3FB950" : "#E5534B" }}>
             {pnlPos ? "+" : ""}${Math.abs(portfolio.total_pnl).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>}
           sub={`${pnlPos ? "+" : ""}${(portfolio.total_pnl_pct * 100).toFixed(2)}% gesamt`}
@@ -727,7 +727,7 @@ export default function DashboardPage() {
         />
         <KpiCard
           label="Heute P&L"
-          value={<span style={{ color: dayPos ? "#00FF88" : "#FF0080" }}>
+          value={<span style={{ color: dayPos ? "#3FB950" : "#E5534B" }}>
             {dayPos ? "+" : ""}${Math.abs(portfolio.day_pnl).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>}
           sub={`${dayPos ? "+" : ""}${(portfolio.day_pnl_pct * 100).toFixed(2)}% heute`}
@@ -784,7 +784,7 @@ export default function DashboardPage() {
                     <Tooltip
                       contentStyle={{
                         background: "rgba(8,11,20,0.95)",
-                        border: "1px solid rgba(0,212,255,0.3)",
+                        border: "1px solid rgba(76,141,246,0.3)",
                         borderRadius: "8px",
                         color: "#E2E8F0",
                         fontSize: "12px",
@@ -818,7 +818,7 @@ export default function DashboardPage() {
             <div className="space-y-3">
               {portfolio.positions.slice(0, 4).map((p, i) => {
                 const pos = p.unrealized_pnl >= 0;
-                const sparkColor = pos ? "#00FF88" : "#FF0080";
+                const sparkColor = pos ? "#3FB950" : "#E5534B";
                 return (
                   <div key={p.ticker} className="flex items-center gap-3">
                     <div
@@ -950,7 +950,7 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
-            <div className="mt-3 pt-3 space-y-1.5" style={{ borderTop: "1px solid rgba(123,47,255,0.2)" }}>
+            <div className="mt-3 pt-3 space-y-1.5" style={{ borderTop: "1px solid rgba(163,113,247,0.2)" }}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Cpu className="w-3.5 h-3.5 text-neon-purple" />
@@ -989,26 +989,26 @@ export default function DashboardPage() {
                 max={20}
                 label="Drawdown"
                 unit="%"
-                color="#FF0080"
+                color="#E5534B"
               />
               <TachometerGauge
                 value={risk.sharpe_ratio}
                 max={3}
                 label="Sharpe"
                 unit="x"
-                color="#00FF88"
+                color="#3FB950"
               />
             </div>
             <div className="mt-2 flex items-center justify-center gap-2">
               {risk.alerts.length > 0 ? (
                 <>
-                  <AlertTriangle className="w-3.5 h-3.5" style={{ color: "#FF0080" }} />
-                  <span className="text-xs" style={{ color: "#FF0080" }}>{risk.alerts.length} Risiko-Warnung{risk.alerts.length !== 1 ? "en" : ""}</span>
+                  <AlertTriangle className="w-3.5 h-3.5" style={{ color: "#E5534B" }} />
+                  <span className="text-xs" style={{ color: "#E5534B" }}>{risk.alerts.length} Risiko-Warnung{risk.alerts.length !== 1 ? "en" : ""}</span>
                 </>
               ) : (
                 <>
                   <Activity className="w-3.5 h-3.5 text-neon-green" />
-                  <span className="text-xs" style={{ color: "#00FF88" }}>Risiko im Rahmen</span>
+                  <span className="text-xs" style={{ color: "#3FB950" }}>Risiko im Rahmen</span>
                 </>
               )}
             </div>
@@ -1020,33 +1020,33 @@ export default function DashboardPage() {
               <Zap className="w-4 h-4 text-cyan-400" />
               <SectionLabel>Signale heute</SectionLabel>
             </div>
-            <div className="text-3xl font-bold font-mono text-center py-2" style={{ color: "#00D4FF", textShadow: "0 0 20px rgba(0,212,255,0.5)" }}>
+            <div className="text-3xl font-bold font-mono text-center py-2" style={{ color: "#4C8DF6", textShadow: "0 0 20px rgba(76,141,246,0.5)" }}>
               {dailyStats?.total_today ?? (INITIAL_SIGNALS_COUNT + signals.length)}
             </div>
             <div className="flex justify-around text-center mt-1">
               <div>
-                <p className="text-xs font-bold" style={{ color: "#00FF88" }}>{dailyStats?.buy ?? signalCounts.buy}</p>
+                <p className="text-xs font-bold" style={{ color: "#3FB950" }}>{dailyStats?.buy ?? signalCounts.buy}</p>
                 <p className="text-xs text-slate-500">Kauf</p>
               </div>
               <div>
-                <p className="text-xs font-bold" style={{ color: "#FFD700" }}>{dailyStats?.hold ?? signalCounts.hold}</p>
+                <p className="text-xs font-bold" style={{ color: "#D29922" }}>{dailyStats?.hold ?? signalCounts.hold}</p>
                 <p className="text-xs text-slate-500">Halten</p>
               </div>
               <div>
-                <p className="text-xs font-bold" style={{ color: "#FF0080" }}>{dailyStats?.sell ?? signalCounts.sell}</p>
+                <p className="text-xs font-bold" style={{ color: "#E5534B" }}>{dailyStats?.sell ?? signalCounts.sell}</p>
                 <p className="text-xs text-slate-500">Verkauf</p>
               </div>
             </div>
             {quotaUsage && quotaUsage.signals_limit > 0 && (
-              <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(0,212,255,0.15)" }}>
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid rgba(76,141,246,0.15)" }}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-slate-500">Tageskontingent</span>
                   <span
                     className="text-xs font-mono font-bold"
                     style={{
-                      color: quotaUsage.signals_remaining === 0 ? "#FF0080"
-                        : quotaUsage.signals_remaining <= 1 ? "#FFD700"
-                        : "#00D4FF",
+                      color: quotaUsage.signals_remaining === 0 ? "#E5534B"
+                        : quotaUsage.signals_remaining <= 1 ? "#D29922"
+                        : "#4C8DF6",
                     }}
                   >
                     {quotaUsage.signals_used_today}/{quotaUsage.signals_limit}
@@ -1057,14 +1057,14 @@ export default function DashboardPage() {
                     className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${Math.min((quotaUsage.signals_used_today / quotaUsage.signals_limit) * 100, 100)}%`,
-                      background: quotaUsage.signals_remaining === 0 ? "#FF0080"
-                        : quotaUsage.signals_remaining <= 1 ? "#FFD700"
-                        : "#00D4FF",
+                      background: quotaUsage.signals_remaining === 0 ? "#E5534B"
+                        : quotaUsage.signals_remaining <= 1 ? "#D29922"
+                        : "#4C8DF6",
                     }}
                   />
                 </div>
                 {quotaUsage.signals_remaining === 0 && (
-                  <p className="text-xs mt-1 text-center" style={{ color: "#FF0080" }}>Kontingent aufgebraucht · Reset 00:00 UTC</p>
+                  <p className="text-xs mt-1 text-center" style={{ color: "#E5534B" }}>Kontingent aufgebraucht · Reset 00:00 UTC</p>
                 )}
               </div>
             )}
@@ -1080,7 +1080,7 @@ export default function DashboardPage() {
               <Link
                 href="/signals/marketplace"
                 className="flex items-center justify-between px-3 py-2 rounded-lg group transition-colors"
-                style={{ background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.12)" }}
+                style={{ background: "rgba(76,141,246,0.06)", border: "1px solid rgba(76,141,246,0.12)" }}
               >
                 <div className="flex items-center gap-2">
                   <BarChart2 className="w-3.5 h-3.5 text-cyan-400" />
@@ -1091,7 +1091,7 @@ export default function DashboardPage() {
               <Link
                 href="/pricing"
                 className="flex items-center justify-between px-3 py-2 rounded-lg group transition-colors"
-                style={{ background: "rgba(123,47,255,0.06)", border: "1px solid rgba(123,47,255,0.12)" }}
+                style={{ background: "rgba(163,113,247,0.06)", border: "1px solid rgba(163,113,247,0.12)" }}
               >
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-3.5 h-3.5 text-neon-purple" />
@@ -1102,7 +1102,7 @@ export default function DashboardPage() {
               <Link
                 href="/billing"
                 className="flex items-center justify-between px-3 py-2 rounded-lg group transition-colors"
-                style={{ background: "rgba(0,255,136,0.05)", border: "1px solid rgba(0,255,136,0.1)" }}
+                style={{ background: "rgba(63,185,80,0.05)", border: "1px solid rgba(63,185,80,0.1)" }}
               >
                 <div className="flex items-center gap-2">
                   <CreditCard className="w-3.5 h-3.5 text-neon-green" />
@@ -1117,7 +1117,7 @@ export default function DashboardPage() {
           {username && tier !== "demo" && (
             <GlassCard delay={0.46}>
               <div className="flex items-center gap-2 mb-2">
-                <ArrowUpRight className="w-4 h-4" style={{ color: "#00FF88" }} />
+                <ArrowUpRight className="w-4 h-4" style={{ color: "#3FB950" }} />
                 <SectionLabel>Freunde einladen</SectionLabel>
               </div>
               <p className="text-xs text-slate-500 mb-3">Teile Neural Trading OS mit deinem Netzwerk.</p>
@@ -1125,25 +1125,25 @@ export default function DashboardPage() {
                 onClick={copyReferralLink}
                 className="w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all"
                 style={{
-                  background: referralCopied ? "rgba(0,255,136,0.08)" : "rgba(0,212,255,0.05)",
-                  border: `1px solid ${referralCopied ? "rgba(0,255,136,0.3)" : "rgba(0,212,255,0.12)"}`,
+                  background: referralCopied ? "rgba(63,185,80,0.08)" : "rgba(76,141,246,0.05)",
+                  border: `1px solid ${referralCopied ? "rgba(63,185,80,0.3)" : "rgba(76,141,246,0.12)"}`,
                 }}
               >
                 <span className="text-xs font-mono text-slate-400 truncate max-w-[140px]">
                   /invite/{btoa(username)}
                 </span>
                 {referralCopied
-                  ? <Check className="w-3.5 h-3.5 shrink-0 ml-2" style={{ color: "#00FF88" }} />
+                  ? <Check className="w-3.5 h-3.5 shrink-0 ml-2" style={{ color: "#3FB950" }} />
                   : <Copy className="w-3.5 h-3.5 shrink-0 ml-2 text-slate-500" />
                 }
               </button>
-              <p className="text-xs text-center mt-1.5" style={{ color: referralCopied ? "#00FF88" : "#475569" }}>
+              <p className="text-xs text-center mt-1.5" style={{ color: referralCopied ? "#3FB950" : "#475569" }}>
                 {referralCopied ? "Link kopiert!" : "Klicken zum Kopieren"}
               </p>
               {referralCount !== null && (
-                <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: "1px solid rgba(0,255,136,0.1)" }}>
+                <div className="mt-3 pt-3 flex items-center justify-between" style={{ borderTop: "1px solid rgba(63,185,80,0.1)" }}>
                   <span className="text-xs text-slate-600">Eingeladene Nutzer</span>
-                  <span className="text-xs font-bold font-mono" style={{ color: referralCount > 0 ? "#00FF88" : "#475569" }}>
+                  <span className="text-xs font-bold font-mono" style={{ color: referralCount > 0 ? "#3FB950" : "#475569" }}>
                     {referralCount > 0 ? `✓ ${referralCount}` : "0"}
                   </span>
                 </div>
@@ -1157,8 +1157,8 @@ export default function DashboardPage() {
               <div
                 className="rounded-xl p-4 text-center"
                 style={{
-                  background: "linear-gradient(135deg, rgba(123,47,255,0.1), rgba(0,212,255,0.06))",
-                  border: "1px solid rgba(123,47,255,0.25)",
+                  background: "linear-gradient(135deg, rgba(163,113,247,0.1), rgba(76,141,246,0.06))",
+                  border: "1px solid rgba(163,113,247,0.25)",
                 }}
               >
                 <p className="text-xs font-bold text-violet-400 tracking-wider uppercase mb-1">Free Plan</p>
@@ -1167,8 +1167,8 @@ export default function DashboardPage() {
                   href="/billing?plan=basic"
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all"
                   style={{
-                    background: "rgba(123,47,255,0.2)",
-                    border: "1px solid rgba(123,47,255,0.4)",
+                    background: "rgba(163,113,247,0.2)",
+                    border: "1px solid rgba(163,113,247,0.4)",
                     color: "#a78bfa",
                   }}
                 >
@@ -1192,11 +1192,11 @@ export default function DashboardPage() {
                   className="rounded-xl p-3 transition-all group-hover:brightness-110"
                   style={{
                     background: topSignal.direction.includes("BUY")
-                      ? "rgba(0,255,136,0.06)"
+                      ? "rgba(63,185,80,0.06)"
                       : topSignal.direction.includes("SELL")
-                      ? "rgba(255,0,128,0.06)"
-                      : "rgba(255,215,0,0.06)",
-                    border: `1px solid ${topSignal.direction.includes("BUY") ? "rgba(0,255,136,0.2)" : topSignal.direction.includes("SELL") ? "rgba(255,0,128,0.2)" : "rgba(255,215,0,0.2)"}`,
+                      ? "rgba(229,83,75,0.06)"
+                      : "rgba(210,153,34,0.06)",
+                    border: `1px solid ${topSignal.direction.includes("BUY") ? "rgba(63,185,80,0.2)" : topSignal.direction.includes("SELL") ? "rgba(229,83,75,0.2)" : "rgba(210,153,34,0.2)"}`,
                   }}
                 >
                   <div className="flex items-center justify-between mb-1">
@@ -1204,8 +1204,8 @@ export default function DashboardPage() {
                     <span
                       className="text-xs font-bold px-2 py-0.5 rounded-md"
                       style={{
-                        color: topSignal.direction.includes("BUY") ? "#00FF88" : topSignal.direction.includes("SELL") ? "#FF0080" : "#FFD700",
-                        background: topSignal.direction.includes("BUY") ? "rgba(0,255,136,0.12)" : topSignal.direction.includes("SELL") ? "rgba(255,0,128,0.12)" : "rgba(255,215,0,0.12)",
+                        color: topSignal.direction.includes("BUY") ? "#3FB950" : topSignal.direction.includes("SELL") ? "#E5534B" : "#D29922",
+                        background: topSignal.direction.includes("BUY") ? "rgba(63,185,80,0.12)" : topSignal.direction.includes("SELL") ? "rgba(229,83,75,0.12)" : "rgba(210,153,34,0.12)",
                       }}
                     >
                       {dirLabel(topSignal.direction)}
@@ -1217,7 +1217,7 @@ export default function DashboardPage() {
                         className="h-1.5 rounded-full"
                         style={{
                           width: `${Math.round((topSignal.confidence ?? 0) * 100)}%`,
-                          background: topSignal.direction.includes("BUY") ? "#00FF88" : topSignal.direction.includes("SELL") ? "#FF0080" : "#FFD700",
+                          background: topSignal.direction.includes("BUY") ? "#3FB950" : topSignal.direction.includes("SELL") ? "#E5534B" : "#D29922",
                         }}
                       />
                     </div>
@@ -1285,8 +1285,8 @@ export default function DashboardPage() {
                       <span
                         className="font-mono font-bold"
                         style={{
-                          color: pos2 ? "#00FF88" : "#FF0080",
-                          textShadow: pos2 ? "0 0 6px rgba(0,255,136,0.3)" : "0 0 6px rgba(255,0,128,0.3)",
+                          color: pos2 ? "#3FB950" : "#E5534B",
+                          textShadow: pos2 ? "0 0 6px rgba(63,185,80,0.3)" : "0 0 6px rgba(229,83,75,0.3)",
                         }}
                       >
                         {pos2 ? "+" : ""}{(pos.unrealized_pnl_pct * 100).toFixed(2)}%

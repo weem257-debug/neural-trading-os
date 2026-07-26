@@ -23,9 +23,9 @@ import {
 function JobStatusBadge({ status }: { status: BacktestJob["status"] }) {
   const config = {
     queued:    { color: "#64748B", bg: "rgba(100,116,139,0.12)",  label: "WARTEND",   icon: Clock },
-    running:   { color: "#00D4FF", bg: "rgba(0,212,255,0.12)",    label: "LÄUFT",     icon: Loader2 },
-    completed: { color: "#00FF88", bg: "rgba(0,255,136,0.12)",    label: "FERTIG",    icon: CheckCircle },
-    failed:    { color: "#FF0080", bg: "rgba(255,0,128,0.12)",    label: "FEHLER",    icon: XCircle },
+    running:   { color: "#4C8DF6", bg: "rgba(76,141,246,0.12)",    label: "LÄUFT",     icon: Loader2 },
+    completed: { color: "#3FB950", bg: "rgba(63,185,80,0.12)",    label: "FERTIG",    icon: CheckCircle },
+    failed:    { color: "#E5534B", bg: "rgba(229,83,75,0.12)",    label: "FEHLER",    icon: XCircle },
   };
   const c = config[status];
   const Icon = c.icon;
@@ -50,32 +50,32 @@ function ResultMetrics({ result }: { result: NonNullable<BacktestJob["result"]> 
     {
       label: "Gesamtrendite",
       value: `${positive ? "+" : ""}${result.total_return_pct.toFixed(2)}%`,
-      color: positive ? "#00FF88" : "#FF0080",
+      color: positive ? "#3FB950" : "#E5534B",
     },
     {
       label: "Sharpe Ratio",
       value: result.sharpe_ratio.toFixed(2),
-      color: "#00D4FF",
+      color: "#4C8DF6",
     },
     {
       label: "Max Drawdown",
       value: `-${result.max_drawdown_pct.toFixed(2)}%`,
-      color: "#FF0080",
+      color: "#E5534B",
     },
     {
       label: "Trefferquote",
       value: `${(result.win_rate * 100).toFixed(1)}%`,
-      color: "#00FF88",
+      color: "#3FB950",
     },
     {
       label: "Trades",
       value: result.total_trades.toString(),
-      color: "#FFD700",
+      color: "#D29922",
     },
     {
       label: "Jährl. Rendite",
       value: `${result.annualized_return_pct.toFixed(2)}%`,
-      color: "#7B2FFF",
+      color: "#A371F7",
     },
   ];
 
@@ -107,14 +107,14 @@ function ResultMetrics({ result }: { result: NonNullable<BacktestJob["result"]> 
               <AreaChart data={result.equity_curve}>
                 <defs>
                   <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={positive ? "#00FF88" : "#FF0080"} stopOpacity="0.3" />
-                    <stop offset="100%" stopColor={positive ? "#00FF88" : "#FF0080"} stopOpacity="0" />
+                    <stop offset="0%" stopColor={positive ? "#3FB950" : "#E5534B"} stopOpacity="0.3" />
+                    <stop offset="100%" stopColor={positive ? "#3FB950" : "#E5534B"} stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 <Area
                   type="monotone"
                   dataKey="value"
-                  stroke={positive ? "#00FF88" : "#FF0080"}
+                  stroke={positive ? "#3FB950" : "#E5534B"}
                   fill="url(#eqGrad)"
                   strokeWidth={2}
                   dot={false}
@@ -124,7 +124,7 @@ function ResultMetrics({ result }: { result: NonNullable<BacktestJob["result"]> 
                 <Tooltip
                   contentStyle={{
                     background: "rgba(8,11,20,0.95)",
-                    border: "1px solid rgba(0,212,255,0.3)",
+                    border: "1px solid rgba(76,141,246,0.3)",
                     borderRadius: "8px",
                     fontSize: "11px",
                   }}
@@ -170,7 +170,7 @@ function JobCard({ job, index, onDelete }: { job: BacktestJob; index: number; on
         className="rounded-xl overflow-hidden cursor-pointer transition-all"
         style={{
           background: "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))",
-          border: `1px solid ${open ? "rgba(0,212,255,0.3)" : "rgba(255,255,255,0.07)"}`,
+          border: `1px solid ${open ? "rgba(76,141,246,0.3)" : "rgba(255,255,255,0.07)"}`,
         }}
         onClick={() => setOpen(!open)}
       >
@@ -180,8 +180,8 @@ function JobCard({ job, index, onDelete }: { job: BacktestJob; index: number; on
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs flex-shrink-0"
               style={{
-                background: job.status === "completed" ? "rgba(0,255,136,0.12)" : "rgba(0,212,255,0.12)",
-                color: job.status === "completed" ? "#00FF88" : "#00D4FF",
+                background: job.status === "completed" ? "rgba(63,185,80,0.12)" : "rgba(76,141,246,0.12)",
+                color: job.status === "completed" ? "#3FB950" : "#4C8DF6",
               }}
             >
               {job.request.ticker.slice(0, 3)}
@@ -197,7 +197,7 @@ function JobCard({ job, index, onDelete }: { job: BacktestJob; index: number; on
             {job.result && (
               <span
                 className="text-sm font-bold font-mono"
-                style={{ color: positive ? "#00FF88" : "#FF0080" }}
+                style={{ color: positive ? "#3FB950" : "#E5534B" }}
               >
                 {positive ? "+" : ""}{job.result.total_return_pct.toFixed(2)}%
               </span>
@@ -208,7 +208,7 @@ function JobCard({ job, index, onDelete }: { job: BacktestJob; index: number; on
               disabled={deleting}
               aria-label="Job löschen"
               className="p-1.5 rounded-lg transition-all opacity-40 hover:opacity-100 disabled:opacity-20"
-              style={{ color: "#FF0080" }}
+              style={{ color: "#E5534B" }}
             >
               {deleting
                 ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -237,7 +237,7 @@ function JobCard({ job, index, onDelete }: { job: BacktestJob; index: number; on
 
         {/* Expanded: error */}
         {open && job.error && (
-          <div className="px-4 pb-4" style={{ borderTop: "1px solid rgba(255,0,128,0.2)" }}>
+          <div className="px-4 pb-4" style={{ borderTop: "1px solid rgba(229,83,75,0.2)" }}>
             <p className="text-sm text-red-400 mt-3 font-mono">{job.error}</p>
           </div>
         )}
@@ -245,7 +245,7 @@ function JobCard({ job, index, onDelete }: { job: BacktestJob; index: number; on
         {/* Expanded: still running */}
         {open && job.status === "running" && !job.result && (
           <div className="px-4 pb-4 flex items-center gap-2 text-cyan-400 text-sm"
-            style={{ borderTop: "1px solid rgba(0,212,255,0.1)" }}>
+            style={{ borderTop: "1px solid rgba(76,141,246,0.1)" }}>
             <Loader2 className="w-4 h-4 animate-spin mt-4" />
             <span className="mt-4">Backtest läuft — aktualisiert alle 2 Sek.…</span>
           </div>
@@ -457,7 +457,7 @@ export default function BacktestPage() {
           <div className="flex items-center gap-3">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "rgba(0,212,255,0.15)", border: "1px solid rgba(0,212,255,0.3)" }}
+              style={{ background: "rgba(76,141,246,0.15)", border: "1px solid rgba(76,141,246,0.3)" }}
             >
               <BarChart2 className="w-4 h-4 text-cyan-400" />
             </div>
@@ -496,9 +496,9 @@ export default function BacktestPage() {
               aria-label="Letzten abgeschlossenen Backtest als CSV exportieren"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
               style={{
-                background: "rgba(0,212,255,0.08)",
-                border: "1px solid rgba(0,212,255,0.25)",
-                color: "#00D4FF",
+                background: "rgba(76,141,246,0.08)",
+                border: "1px solid rgba(76,141,246,0.25)",
+                color: "#4C8DF6",
               }}
             >
               <Download className="w-3.5 h-3.5" aria-hidden="true" />
@@ -528,7 +528,7 @@ export default function BacktestPage() {
               style={{ ...fieldStyle, cursor: "pointer" }}
             >
               {strategies.map((s) => (
-                <option key={s.id} value={s.id} style={{ background: "#0D1117" }}>
+                <option key={s.id} value={s.id} style={{ background: "#10141C" }}>
                   {s.name}
                 </option>
               ))}
@@ -588,16 +588,16 @@ export default function BacktestPage() {
               onChange={(e) => setForm((f) => ({ ...f, engine: e.target.value as typeof form.engine }))}
               style={{ ...fieldStyle, cursor: "pointer" }}
             >
-              <option value="jesse"        style={{ background: "#0D1117" }}>Jesse (Krypto)</option>
-              <option value="vibe_trading" style={{ background: "#0D1117" }}>Vibe-Trading (452 Alpha)</option>
-              <option value="qlib"         style={{ background: "#0D1117" }}>qlib (ML · Microsoft)</option>
+              <option value="jesse"        style={{ background: "#10141C" }}>Jesse (Krypto)</option>
+              <option value="vibe_trading" style={{ background: "#10141C" }}>Vibe-Trading (452 Alpha)</option>
+              <option value="qlib"         style={{ background: "#10141C" }}>qlib (ML · Microsoft)</option>
             </select>
           </div>
         </div>
 
         {/* MA Crossover custom parameter inputs */}
         {form.strategy_id === "ma_crossover" && (
-          <div className="grid grid-cols-2 gap-3 mt-3 pt-3" style={{ borderTop: "1px solid rgba(0,212,255,0.08)" }}>
+          <div className="grid grid-cols-2 gap-3 mt-3 pt-3" style={{ borderTop: "1px solid rgba(76,141,246,0.08)" }}>
             <div>
               <label className="text-xs text-slate-500 mb-1.5 block">
                 Kurze Periode <span className="text-slate-700">(5–100, Standard 20)</span>
@@ -634,7 +634,7 @@ export default function BacktestPage() {
 
         {/* RSI Mean Reversion custom parameter inputs */}
         {form.strategy_id === "rsi_mean_reversion" && (
-          <div className="grid grid-cols-3 gap-3 mt-3 pt-3" style={{ borderTop: "1px solid rgba(0,212,255,0.08)" }}>
+          <div className="grid grid-cols-3 gap-3 mt-3 pt-3" style={{ borderTop: "1px solid rgba(76,141,246,0.08)" }}>
             <div>
               <label className="text-xs text-slate-500 mb-1.5 block">
                 RSI-Periode <span className="text-slate-700">(5–50, Standard 14)</span>
@@ -691,10 +691,10 @@ export default function BacktestPage() {
               disabled={submitting || comparing || (form.strategy_id === "ma_crossover" && form.fast_period >= form.slow_period)}
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 transition-all"
               style={{
-                background: "linear-gradient(135deg, rgba(0,212,255,0.25), rgba(123,47,255,0.15))",
-                border: "1px solid rgba(0,212,255,0.4)",
-                color: "#00D4FF",
-                boxShadow: "0 0 20px rgba(0,212,255,0.2)",
+                background: "linear-gradient(135deg, rgba(76,141,246,0.25), rgba(163,113,247,0.15))",
+                border: "1px solid rgba(76,141,246,0.4)",
+                color: "#4C8DF6",
+                boxShadow: "0 0 20px rgba(76,141,246,0.2)",
               }}
             >
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
@@ -706,9 +706,9 @@ export default function BacktestPage() {
               disabled={submitting || comparing}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold disabled:opacity-50 transition-all"
               style={{
-                background: comparing ? "rgba(0,255,136,0.06)" : "rgba(0,255,136,0.12)",
-                border: "1px solid rgba(0,255,136,0.35)",
-                color: "#00FF88",
+                background: comparing ? "rgba(63,185,80,0.06)" : "rgba(63,185,80,0.12)",
+                border: "1px solid rgba(63,185,80,0.35)",
+                color: "#3FB950",
               }}
             >
               {comparing
@@ -751,23 +751,23 @@ export default function BacktestPage() {
                       key={row.strategy}
                       style={
                         row.is_best
-                          ? { background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.25)" }
+                          ? { background: "rgba(76,141,246,0.06)", border: "1px solid rgba(76,141,246,0.25)" }
                           : { borderBottom: "1px solid rgba(255,255,255,0.04)" }
                       }
                     >
-                      <td className="px-4 py-2.5 font-mono text-xs font-bold" style={{ color: row.is_best ? "#00D4FF" : "#CBD5E1" }}>
+                      <td className="px-4 py-2.5 font-mono text-xs font-bold" style={{ color: row.is_best ? "#4C8DF6" : "#CBD5E1" }}>
                         {row.strategy}
                         {row.is_best && (
-                          <span className="ml-2 text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(0,212,255,0.15)", color: "#00D4FF", fontSize: "9px" }}>
+                          <span className="ml-2 text-xs px-1.5 py-0.5 rounded" style={{ background: "rgba(76,141,246,0.15)", color: "#4C8DF6", fontSize: "9px" }}>
                             BEST
                           </span>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 font-mono text-xs font-bold" style={{ color: row.return_pct >= 0 ? "#00FF88" : "#FF0080" }}>
+                      <td className="px-4 py-2.5 font-mono text-xs font-bold" style={{ color: row.return_pct >= 0 ? "#3FB950" : "#E5534B" }}>
                         {row.return_pct >= 0 ? "+" : ""}{row.return_pct.toFixed(2)}%
                       </td>
                       <td className="px-4 py-2.5 font-mono text-xs text-slate-300">{row.sharpe.toFixed(3)}</td>
-                      <td className="px-4 py-2.5 font-mono text-xs" style={{ color: "#FF6098" }}>-{row.drawdown.toFixed(2)}%</td>
+                      <td className="px-4 py-2.5 font-mono text-xs" style={{ color: "#E5534B" }}>-{row.drawdown.toFixed(2)}%</td>
                       <td className="px-4 py-2.5 font-mono text-xs text-slate-400">{row.trades}</td>
                     </tr>
                   ))}
@@ -781,9 +781,9 @@ export default function BacktestPage() {
       {/* Engine info cards */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { name: "Jesse",        sub: "300+ Krypto-Indikatoren",  color: "#00D4FF", icon: TrendingUp,   tag: "Crypto" },
-          { name: "Vibe-Trading", sub: "452 Alpha-Faktoren",       color: "#7B2FFF", icon: Zap,          tag: "Quant" },
-          { name: "qlib (ML)",    sub: "Microsoft KI-Framework",   color: "#00FF88", icon: TrendingDown, tag: "ML" },
+          { name: "Jesse",        sub: "300+ Krypto-Indikatoren",  color: "#4C8DF6", icon: TrendingUp,   tag: "Crypto" },
+          { name: "Vibe-Trading", sub: "452 Alpha-Faktoren",       color: "#A371F7", icon: Zap,          tag: "Quant" },
+          { name: "qlib (ML)",    sub: "Microsoft KI-Framework",   color: "#3FB950", icon: TrendingDown, tag: "ML" },
         ].map(({ name, sub, color, icon: Icon, tag }, i) => (
           <motion.div
             key={name}

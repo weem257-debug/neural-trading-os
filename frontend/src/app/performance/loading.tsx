@@ -3,7 +3,7 @@ export default function PerformanceLoading() {
     <div className="min-h-screen px-4 py-12 max-w-5xl mx-auto space-y-10">
       {/* Heading */}
       <div className="text-center space-y-3">
-        <div className="h-8 w-64 mx-auto rounded-xl animate-pulse" style={{ background: "rgba(0,212,255,0.1)" }} />
+        <div className="h-8 w-64 mx-auto rounded-xl animate-pulse" style={{ background: "rgba(76,141,246,0.1)" }} />
         <div className="h-4 w-80 mx-auto rounded animate-pulse" style={{ background: "rgba(100,116,139,0.15)" }} />
       </div>
 
@@ -12,7 +12,7 @@ export default function PerformanceLoading() {
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="rounded-2xl p-5 animate-pulse" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.06)" }}>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-4 h-4 rounded" style={{ background: "rgba(0,212,255,0.15)" }} />
+              <div className="w-4 h-4 rounded" style={{ background: "rgba(76,141,246,0.15)" }} />
               <div className="h-3 w-20 rounded" style={{ background: "rgba(100,116,139,0.15)" }} />
             </div>
             <div className="h-8 w-24 rounded-lg mb-1" style={{ background: "rgba(255,255,255,0.07)" }} />
@@ -30,9 +30,9 @@ export default function PerformanceLoading() {
           {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="flex items-center gap-4 px-5 py-3 animate-pulse">
               <div className="h-4 w-14 rounded" style={{ background: "rgba(255,255,255,0.06)" }} />
-              <div className="h-4 w-10 rounded" style={{ background: "rgba(0,212,255,0.08)" }} />
+              <div className="h-4 w-10 rounded" style={{ background: "rgba(76,141,246,0.08)" }} />
               <div className="flex-1 h-3 rounded" style={{ background: "rgba(100,116,139,0.1)" }} />
-              <div className="h-4 w-12 rounded" style={{ background: "rgba(0,255,136,0.1)" }} />
+              <div className="h-4 w-12 rounded" style={{ background: "rgba(63,185,80,0.1)" }} />
             </div>
           ))}
         </div>
@@ -40,7 +40,7 @@ export default function PerformanceLoading() {
 
       {/* CTA skeleton */}
       <div className="flex justify-center">
-        <div className="h-12 w-52 rounded-xl animate-pulse" style={{ background: "rgba(0,212,255,0.1)" }} />
+        <div className="h-12 w-52 rounded-xl animate-pulse" style={{ background: "rgba(76,141,246,0.1)" }} />
       </div>
     </div>
   );

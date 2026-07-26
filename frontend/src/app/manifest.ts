@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
       "KI-gestütztes Trading-Dashboard — 9 Agenten, Claude-Signale, Echtzeit-WebSocket-Kurse und Multi-Broker-Depots.",
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#080b14",
-    theme_color: "#00D4FF",
+    background_color: "#0B0E14",
+    theme_color: "#4C8DF6",
     orientation: "portrait-primary",
     categories: ["finance", "productivity"],
     icons: [

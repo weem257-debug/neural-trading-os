@@ -6,20 +6,20 @@ export default function GlobalLoading() {
           <div
             className="absolute inset-0 rounded-full border-2 animate-spin"
             style={{
-              borderColor: "rgba(0,212,255,0.15)",
-              borderTopColor: "#00D4FF",
+              borderColor: "rgba(76,141,246,0.15)",
+              borderTopColor: "#4C8DF6",
             }}
           />
           <div
             className="absolute inset-1.5 rounded-full"
             style={{
-              background: "radial-gradient(circle, rgba(0,212,255,0.1) 0%, transparent 70%)",
+              background: "radial-gradient(circle, rgba(76,141,246,0.1) 0%, transparent 70%)",
             }}
           />
         </div>
         <p
           className="text-xs font-mono tracking-widest uppercase"
-          style={{ color: "rgba(0,212,255,0.4)" }}
+          style={{ color: "rgba(76,141,246,0.4)" }}
         >
           Lädt…
         </p>

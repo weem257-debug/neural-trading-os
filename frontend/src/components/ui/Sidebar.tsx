@@ -98,8 +98,8 @@ function NavContent({ onNavClick }: { onNavClick?: () => void }) {
 
   const tierBadge = (() => {
     switch (tier) {
-      case "basic":        return { label: "BASIC",         bg: "rgba(0,212,255,0.15)",  border: "rgba(0,212,255,0.4)",  color: "#00D4FF" };
-      case "pro":          return { label: "PRO",           bg: "rgba(123,47,255,0.15)", border: "rgba(123,47,255,0.4)", color: "#7B2FFF" };
+      case "basic":        return { label: "BASIC",         bg: "rgba(76,141,246,0.15)",  border: "rgba(76,141,246,0.4)",  color: "#4C8DF6" };
+      case "pro":          return { label: "PRO",           bg: "rgba(163,113,247,0.15)", border: "rgba(163,113,247,0.4)", color: "#A371F7" };
       case "institutional":return { label: "INST",          bg: "rgba(236,72,153,0.15)", border: "rgba(236,72,153,0.4)", color: "#EC4899" };
       case "signals":      return { label: "SIGNALS",       bg: "rgba(245,158,11,0.15)", border: "rgba(245,158,11,0.4)", color: "#F59E0B" };
       default:             return { label: "FREE",          bg: "rgba(100,116,139,0.1)", border: "rgba(100,116,139,0.3)", color: "#64748B" };
@@ -115,21 +115,21 @@ function NavContent({ onNavClick }: { onNavClick?: () => void }) {
   return (
     <>
       {/* Logo */}
-      <div className="px-4 py-5" style={{ borderBottom: "1px solid rgba(0,212,255,0.1)" }}>
+      <div className="px-4 py-5" style={{ borderBottom: "1px solid rgba(76,141,246,0.1)" }}>
         <div className="flex items-center gap-2.5 mb-1">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
             style={{
-              background: "linear-gradient(135deg, rgba(0,212,255,0.2), rgba(123,47,255,0.2))",
-              border: "1px solid rgba(0,212,255,0.3)",
-              boxShadow: "0 0 12px rgba(0,212,255,0.2)",
+              background: "linear-gradient(135deg, rgba(76,141,246,0.2), rgba(163,113,247,0.2))",
+              border: "1px solid rgba(76,141,246,0.3)",
+              boxShadow: "0 0 12px rgba(76,141,246,0.2)",
             }}
           >
             <Cpu className="w-4 h-4 text-cyan-400" />
           </div>
           <div>
             <p className="text-xs font-bold text-white leading-none">NEURAL</p>
-            <p className="text-xs font-bold leading-none" style={{ color: "#00D4FF" }}>TRADING OS</p>
+            <p className="text-xs font-bold leading-none" style={{ color: "#4C8DF6" }}>TRADING OS</p>
           </div>
         </div>
         <p className="text-xs mt-2" style={{ color: "rgba(100,116,139,0.8)" }}>9 AI engines unified</p>
@@ -273,13 +273,13 @@ function NavContent({ onNavClick }: { onNavClick?: () => void }) {
       </div>
 
       {/* System status footer */}
-      <div className="px-4 py-4" style={{ borderTop: "1px solid rgba(0,212,255,0.1)" }}>
+      <div className="px-4 py-4" style={{ borderTop: "1px solid rgba(76,141,246,0.1)" }}>
         {/* Mode badge */}
         <div
           className="flex items-center gap-2 px-3 py-2 rounded-lg mb-3"
           style={{
-            background: "rgba(0,212,255,0.08)",
-            border: "1px solid rgba(0,212,255,0.2)",
+            background: "rgba(76,141,246,0.08)",
+            border: "1px solid rgba(76,141,246,0.2)",
           }}
         >
           <div className="status-dot-paper" />
@@ -317,10 +317,10 @@ function HamburgerButton({ open, onClick }: { open: boolean; onClick: () => void
       aria-label={open ? "Navigation schließen" : "Navigation öffnen"}
       className="fixed top-3 left-3 z-50 md:hidden flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200"
       style={{
-        background: open ? "rgba(0,212,255,0.15)" : "rgba(8,11,20,0.9)",
-        border: "1px solid rgba(0,212,255,0.2)",
+        background: open ? "rgba(76,141,246,0.15)" : "rgba(8,11,20,0.9)",
+        border: "1px solid rgba(76,141,246,0.2)",
         backdropFilter: "blur(12px)",
-        boxShadow: "0 0 16px rgba(0,212,255,0.1)",
+        boxShadow: "0 0 16px rgba(76,141,246,0.1)",
       }}
     >
       <AnimatePresence mode="wait" initial={false}>
@@ -382,19 +382,19 @@ function MobileDrawer({ open, onClose }: { open: boolean; onClose: () => void })
             className="fixed top-0 left-0 bottom-0 z-50 w-60 flex flex-col md:hidden relative overflow-hidden"
             style={{
               background: "linear-gradient(180deg, rgba(8,11,20,0.98) 0%, rgba(13,17,23,0.98) 100%)",
-              borderRight: "1px solid rgba(0,212,255,0.12)",
+              borderRight: "1px solid rgba(76,141,246,0.12)",
               backdropFilter: "blur(24px)",
             }}
           >
             {/* Subtle left accent line */}
             <div
               className="absolute left-0 top-0 bottom-0 w-px"
-              style={{ background: "linear-gradient(180deg, transparent, rgba(0,212,255,0.4), transparent)" }}
+              style={{ background: "linear-gradient(180deg, transparent, rgba(76,141,246,0.4), transparent)" }}
             />
             {/* Neural bottom line */}
             <div
               className="absolute bottom-0 left-4 right-4 h-px"
-              style={{ background: "linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent)" }}
+              style={{ background: "linear-gradient(90deg, transparent, rgba(76,141,246,0.4), transparent)" }}
             />
 
             <NavContent onNavClick={onClose} />
@@ -457,19 +457,19 @@ export function Sidebar() {
         className="hidden md:flex w-52 flex-shrink-0 flex-col border-r relative overflow-hidden"
         style={{
           background: "linear-gradient(180deg, rgba(8,11,20,0.95) 0%, rgba(13,17,23,0.95) 100%)",
-          borderColor: "rgba(0,212,255,0.12)",
+          borderColor: "rgba(76,141,246,0.12)",
           backdropFilter: "blur(20px)",
         }}
       >
         {/* Subtle left accent line */}
         <div
           className="absolute left-0 top-0 bottom-0 w-px"
-          style={{ background: "linear-gradient(180deg, transparent, rgba(0,212,255,0.4), transparent)" }}
+          style={{ background: "linear-gradient(180deg, transparent, rgba(76,141,246,0.4), transparent)" }}
         />
         {/* Neural bottom line */}
         <div
           className="absolute bottom-0 left-4 right-4 h-px"
-          style={{ background: "linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent)" }}
+          style={{ background: "linear-gradient(90deg, transparent, rgba(76,141,246,0.4), transparent)" }}
         />
 
         <NavContent />

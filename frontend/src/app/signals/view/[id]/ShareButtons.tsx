@@ -48,7 +48,7 @@ export function ShareButtons({
       <button
         onClick={copyLink}
         className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
-        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: copied ? "#00FF88" : "#94a3b8" }}
+        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: copied ? "#3FB950" : "#94a3b8" }}
       >
         {copied ? <CheckCircle className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
         {copied ? "Kopiert!" : "Link kopieren"}

@@ -96,7 +96,7 @@ export function TickerBar() {
       style={{
         height: "36px",
         background: "rgba(8,11,20,0.95)",
-        borderBottom: "1px solid rgba(0,212,255,0.12)",
+        borderBottom: "1px solid rgba(76,141,246,0.12)",
       }}
     >
       {/* Left fade */}
@@ -122,12 +122,12 @@ export function TickerBar() {
         <div
           className="w-1.5 h-1.5 rounded-full"
           style={{
-            background: hasLiveData ? "#00FF88" : "#888",
-            boxShadow: hasLiveData ? "0 0 6px #00FF88" : "none",
+            background: hasLiveData ? "#3FB950" : "#888",
+            boxShadow: hasLiveData ? "0 0 6px #3FB950" : "none",
             animation: hasLiveData ? "glow-pulse-green 1.5s ease-in-out infinite" : "none",
           }}
         />
-        <span className="text-xs font-bold tracking-widest" style={{ color: hasLiveData ? "#00FF88" : "#888", fontSize: "9px" }}>
+        <span className="text-xs font-bold tracking-widest" style={{ color: hasLiveData ? "#3FB950" : "#888", fontSize: "9px" }}>
           {hasLiveData ? "LIVE" : "DEMO"}
         </span>
       </div>
@@ -148,10 +148,10 @@ export function TickerBar() {
                 <span
                   className="font-semibold"
                   style={{
-                    color: positive ? "#00FF88" : "#FF0080",
+                    color: positive ? "#3FB950" : "#E5534B",
                     textShadow: positive
-                      ? "0 0 6px rgba(0,255,136,0.4)"
-                      : "0 0 6px rgba(255,0,128,0.4)",
+                      ? "0 0 6px rgba(63,185,80,0.4)"
+                      : "0 0 6px rgba(229,83,75,0.4)",
                   }}
                 >
                   {positive ? "+" : ""}

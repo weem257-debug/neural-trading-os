@@ -21,11 +21,11 @@ interface ExplanationModalProps {
 }
 
 const COLOR_MAP = {
-  cyan:   { accent: "#00D4FF", bg: "rgba(0,212,255,0.08)",   border: "rgba(0,212,255,0.2)"  },
-  green:  { accent: "#00FF88", bg: "rgba(0,255,136,0.08)",   border: "rgba(0,255,136,0.2)"  },
-  pink:   { accent: "#FF0080", bg: "rgba(255,0,128,0.08)",   border: "rgba(255,0,128,0.2)"  },
-  purple: { accent: "#7B2FFF", bg: "rgba(123,47,255,0.08)",  border: "rgba(123,47,255,0.2)" },
-  yellow: { accent: "#FFD700", bg: "rgba(255,215,0,0.08)",   border: "rgba(255,215,0,0.2)"  },
+  cyan:   { accent: "#4C8DF6", bg: "rgba(76,141,246,0.08)",   border: "rgba(76,141,246,0.2)"  },
+  green:  { accent: "#3FB950", bg: "rgba(63,185,80,0.08)",   border: "rgba(63,185,80,0.2)"  },
+  pink:   { accent: "#E5534B", bg: "rgba(229,83,75,0.08)",   border: "rgba(229,83,75,0.2)"  },
+  purple: { accent: "#A371F7", bg: "rgba(163,113,247,0.08)",  border: "rgba(163,113,247,0.2)" },
+  yellow: { accent: "#D29922", bg: "rgba(210,153,34,0.08)",   border: "rgba(210,153,34,0.2)"  },
 };
 
 export function ExplanationModal({ open, onClose, content }: ExplanationModalProps) {
@@ -147,9 +147,9 @@ export function ExplanationModal({ open, onClose, content }: ExplanationModalPro
               {content.practicalTip && (
                 <div
                   className="rounded-xl p-4"
-                  style={{ background: "rgba(255,215,0,0.06)", border: "1px solid rgba(255,215,0,0.2)" }}
+                  style={{ background: "rgba(210,153,34,0.06)", border: "1px solid rgba(210,153,34,0.2)" }}
                 >
-                  <p className="text-xs font-bold tracking-widest mb-1.5" style={{ color: "#FFD700" }}>PRAXIS-TIPP</p>
+                  <p className="text-xs font-bold tracking-widest mb-1.5" style={{ color: "#D29922" }}>PRAXIS-TIPP</p>
                   <p className="text-sm text-slate-300 leading-relaxed">{content.practicalTip}</p>
                 </div>
               )}

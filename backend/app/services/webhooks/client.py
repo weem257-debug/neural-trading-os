@@ -55,7 +55,7 @@ def _ip_is_blocked(ip: ipaddress._BaseAddress) -> bool:
     )
 
 
-def validate_webhook_url(url: str, *, allow_local: bool = False) -> None:
+def validate_webhook_url(url: str, *, allow_local: bool = False) -> list[str]:
     """
     SSRF guard for outbound webhook targets (H2).
 
@@ -67,6 +67,12 @@ def validate_webhook_url(url: str, *, allow_local: bool = False) -> None:
     ``allow_local`` is enabled only in non-hardened (dev/test) environments so
     local development against http://localhost keeps working. Raises
     WebhookURLError on any violation.
+
+    Returns the addresses that passed the check so a caller can CONNECT to a
+    vetted address instead of resolving the hostname a second time. Without that,
+    validation and connection are two independent lookups, and whoever controls
+    the DNS record can answer the first with a public address and the second with
+    an internal one (DNS rebinding).
     """
     parsed = urlparse(url)
 
@@ -86,6 +92,7 @@ def validate_webhook_url(url: str, *, allow_local: bool = False) -> None:
         raise WebhookURLError(f"Webhook-Host konnte nicht aufgelöst werden: {host}") from exc
 
     resolved_ips = {info[4][0] for info in infos}
+    vetted: list[str] = []
     for raw_ip in resolved_ips:
         try:
             ip = ipaddress.ip_address(raw_ip.split("%")[0])  # strip scope id
@@ -101,11 +108,38 @@ def validate_webhook_url(url: str, *, allow_local: bool = False) -> None:
                 and str(ip) not in _METADATA_IPS
                 and not ip.is_link_local
             )
-            if dev_allowed:
-                continue
-            raise WebhookURLError(
-                f"Webhook-Ziel ist nicht erlaubt (interne/reservierte Adresse: {ip})."
-            )
+            if not dev_allowed:
+                raise WebhookURLError(
+                    f"Webhook-Ziel ist nicht erlaubt (interne/reservierte Adresse: {ip})."
+                )
+        # Reached only for addresses this environment accepts — including the
+        # loopback/private ones the dev exception just waved through, which must
+        # stay connectable when the caller pins one of these addresses.
+        vetted.append(str(ip))
+    return vetted
+
+def _pin_target(url: str, ip: str) -> tuple[str, dict, dict]:
+    """
+    Rewrite ``url`` to connect to the already-validated ``ip``.
+
+    Returns ``(url, headers, extensions)``:
+      * url        — same URL with the host replaced by the literal address, so
+                     no second DNS lookup happens between check and connect.
+      * headers    — ``Host`` set to the original authority, so virtual hosting
+                     and the receiver's routing keep working.
+      * extensions — ``sni_hostname`` set to the original hostname, so the TLS
+                     handshake sends the right SNI and the certificate is still
+                     verified against the NAME (an IP-literal URL would otherwise
+                     demand an IP in the certificate's SAN and fail).
+    """
+    parsed = urlparse(url)
+    host = parsed.hostname or ""
+    literal = f"[{ip}]" if ":" in ip else ip
+    netloc = f"{literal}:{parsed.port}" if parsed.port else literal
+    pinned = parsed._replace(netloc=netloc).geturl()
+    authority = f"{host}:{parsed.port}" if parsed.port else host
+    return pinned, {"Host": authority}, {"sni_hostname": host}
+
 
 # Valid event types
 WEBHOOK_EVENTS = frozenset([
@@ -280,11 +314,17 @@ class WebhookManager:
         except Exception:
             allow_local = False
         try:
-            validate_webhook_url(wh.url, allow_local=allow_local)
+            vetted_ips = validate_webhook_url(wh.url, allow_local=allow_local)
         except WebhookURLError as exc:
             wh.delivery_failures += 1
             logger.error("webhook_delivery_blocked_ssrf id=%s reason=%s", wh.id, str(exc))
             return 0
+
+        # Connect to an address the check just cleared instead of resolving the
+        # hostname again. Re-resolving reopens the very window the re-validation
+        # above is meant to close: the attacker's DNS answers the check with a
+        # public address and the connect with an internal one.
+        pinned_url, pin_headers, pin_extensions = _pin_target(wh.url, vetted_ips[0])
 
         body = json.dumps(envelope, default=str).encode()
         signature = _sign(body, wh.secret)
@@ -293,6 +333,7 @@ class WebhookManager:
             "X-Trading-Signature": f"sha256={signature}",
             "X-Trading-Event": envelope.get("event", ""),
             "User-Agent": "NeuralTradingOS-Webhook/1.0",
+            **pin_headers,
         }
 
         last_status = 0
@@ -303,7 +344,10 @@ class WebhookManager:
                 if delay > 0:
                     await asyncio.sleep(delay)
                 try:
-                    response = await client.post(wh.url, content=body, headers=headers)
+                    response = await client.post(
+                        pinned_url, content=body, headers=headers,
+                        extensions=pin_extensions,
+                    )
                     last_status = response.status_code
                     wh.last_delivery_at = datetime.now(UTC)
                     wh.last_delivery_status = last_status

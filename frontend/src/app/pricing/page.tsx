@@ -112,32 +112,32 @@ const SIGNAL_MARKETPLACE = {
 
 const colorMap: Record<string, { border: string; glow: string; text: string; bg: string; badge: string }> = {
   green: {
-    border: "rgba(0,255,136,0.3)",
-    glow: "0 0 30px rgba(0,255,136,0.08)",
-    text: "#00FF88",
-    bg: "rgba(0,255,136,0.07)",
-    badge: "rgba(0,255,136,0.15)",
+    border: "rgba(63,185,80,0.3)",
+    glow: "0 0 30px rgba(63,185,80,0.08)",
+    text: "#3FB950",
+    bg: "rgba(63,185,80,0.07)",
+    badge: "rgba(63,185,80,0.15)",
   },
   cyan: {
-    border: "rgba(0,212,255,0.35)",
-    glow: "0 0 40px rgba(0,212,255,0.1)",
-    text: "#00D4FF",
-    bg: "rgba(0,212,255,0.08)",
-    badge: "rgba(0,212,255,0.15)",
+    border: "rgba(76,141,246,0.35)",
+    glow: "0 0 40px rgba(76,141,246,0.1)",
+    text: "#4C8DF6",
+    bg: "rgba(76,141,246,0.08)",
+    badge: "rgba(76,141,246,0.15)",
   },
   purple: {
-    border: "rgba(123,47,255,0.5)",
-    glow: "0 0 60px rgba(123,47,255,0.2)",
-    text: "#7B2FFF",
-    bg: "rgba(123,47,255,0.1)",
-    badge: "rgba(123,47,255,0.2)",
+    border: "rgba(163,113,247,0.5)",
+    glow: "0 0 60px rgba(163,113,247,0.2)",
+    text: "#A371F7",
+    bg: "rgba(163,113,247,0.1)",
+    badge: "rgba(163,113,247,0.2)",
   },
   pink: {
-    border: "rgba(255,0,128,0.35)",
-    glow: "0 0 40px rgba(255,0,128,0.1)",
-    text: "#FF0080",
-    bg: "rgba(255,0,128,0.08)",
-    badge: "rgba(255,0,128,0.15)",
+    border: "rgba(229,83,75,0.35)",
+    glow: "0 0 40px rgba(229,83,75,0.1)",
+    text: "#E5534B",
+    bg: "rgba(229,83,75,0.08)",
+    badge: "rgba(229,83,75,0.15)",
   },
 };
 
@@ -245,7 +245,7 @@ export default function PricingPage() {
           transition={{ duration: 0.5 }}
         >
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4"
-            style={{ background: "rgba(0,212,255,0.1)", border: "1px solid rgba(0,212,255,0.2)" }}>
+            style={{ background: "rgba(76,141,246,0.1)", border: "1px solid rgba(76,141,246,0.2)" }}>
             <Cpu className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-xs font-semibold text-cyan-400 tracking-wider">NEURAL TRADING OS</span>
           </div>
@@ -269,7 +269,7 @@ export default function PricingPage() {
           <button
             onClick={() => setAnnual((v) => !v)}
             className="relative w-11 h-6 rounded-full transition-colors duration-200"
-            style={{ background: annual ? "#7B2FFF" : "rgba(255,255,255,0.1)" }}
+            style={{ background: annual ? "#A371F7" : "rgba(255,255,255,0.1)" }}
           >
             <span
               className="absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200"
@@ -279,7 +279,7 @@ export default function PricingPage() {
           <span className={`text-sm font-medium ${annual ? "text-white" : "text-slate-500"}`}>
             Jährlich
             <span className="ml-1.5 text-xs font-bold px-1.5 py-0.5 rounded-full"
-              style={{ background: "rgba(0,255,136,0.15)", color: "#00FF88" }}>
+              style={{ background: "rgba(63,185,80,0.15)", color: "#3FB950" }}>
               −17%
             </span>
           </span>
@@ -429,7 +429,7 @@ export default function PricingPage() {
                   <div className="flex flex-wrap gap-1">
                     {SIGNAL_MARKETPLACE.tickers.map((t) => (
                       <span key={t} className="text-xs px-1.5 py-0.5 rounded font-mono"
-                        style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88" }}>
+                        style={{ background: "rgba(63,185,80,0.1)", color: "#3FB950" }}>
                         {t}
                       </span>
                     ))}
@@ -439,9 +439,9 @@ export default function PricingPage() {
                   href={isAuthenticated ? "/billing?plan=signals" : "/register?plan=signals"}
                   className="flex items-center justify-center gap-1.5 py-2 px-4 rounded-xl text-sm font-semibold transition-all duration-200"
                   style={{
-                    background: "rgba(0,255,136,0.15)",
-                    border: "1px solid rgba(0,255,136,0.3)",
-                    color: "#00FF88",
+                    background: "rgba(63,185,80,0.15)",
+                    border: "1px solid rgba(63,185,80,0.3)",
+                    color: "#3FB950",
                   }}
                 >
                   Abonnieren
@@ -473,8 +473,8 @@ export default function PricingPage() {
           transition={{ delay: 0.8 }}
           className="rounded-2xl p-8"
           style={{
-            background: "linear-gradient(135deg, rgba(0,212,255,0.08), rgba(123,47,255,0.08))",
-            border: "1px solid rgba(0,212,255,0.15)",
+            background: "linear-gradient(135deg, rgba(76,141,246,0.08), rgba(163,113,247,0.08))",
+            border: "1px solid rgba(76,141,246,0.15)",
           }}
         >
           <Shield className="w-8 h-8 mx-auto mb-3 text-cyan-400" />
@@ -487,9 +487,9 @@ export default function PricingPage() {
               href="/register"
               className="flex items-center justify-center gap-2 py-2.5 px-5 rounded-xl text-sm font-bold transition-all duration-200"
               style={{
-                background: "linear-gradient(135deg, #00D4FF, #7B2FFF)",
+                background: "linear-gradient(135deg, #4C8DF6, #A371F7)",
                 color: "#fff",
-                boxShadow: "0 0 20px rgba(0,212,255,0.3)",
+                boxShadow: "0 0 20px rgba(76,141,246,0.3)",
               }}
             >
               <Zap className="w-4 h-4" />

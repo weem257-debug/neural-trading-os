@@ -22,9 +22,9 @@ export default function DepotPage() {
         <div className="flex items-center gap-3 mb-1">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(0,212,255,0.15)", border: "1px solid rgba(0,212,255,0.3)" }}
+            style={{ background: "rgba(76,141,246,0.15)", border: "1px solid rgba(76,141,246,0.3)" }}
           >
-            <Wallet className="w-4 h-4" style={{ color: "#00D4FF" }} />
+            <Wallet className="w-4 h-4" style={{ color: "#4C8DF6" }} />
           </div>
           <h1 className="text-2xl font-bold text-slate-100">Depot</h1>
         </div>
@@ -36,7 +36,7 @@ export default function DepotPage() {
       <Collapsible
         title="Meine Depots"
         subtitle="Privat- und Geschäftsdepots verwalten"
-        icon={<Briefcase className="w-3.5 h-3.5" style={{ color: "#00D4FF" }} />}
+        icon={<Briefcase className="w-3.5 h-3.5" style={{ color: "#4C8DF6" }} />}
         defaultOpen
       >
         <PortfoliosSection />
@@ -45,7 +45,7 @@ export default function DepotPage() {
       <Collapsible
         title="P2P Kredite"
         subtitle="Mintos · Bondora · PeerBerry"
-        icon={<Landmark className="w-3.5 h-3.5" style={{ color: "#00D4FF" }} />}
+        icon={<Landmark className="w-3.5 h-3.5" style={{ color: "#4C8DF6" }} />}
       >
         <P2PSection />
       </Collapsible>
@@ -53,7 +53,7 @@ export default function DepotPage() {
       <Collapsible
         title="Broker"
         subtitle="Alle Broker-Depots in der Übersicht"
-        icon={<Building2 className="w-3.5 h-3.5" style={{ color: "#00D4FF" }} />}
+        icon={<Building2 className="w-3.5 h-3.5" style={{ color: "#4C8DF6" }} />}
       >
         <BrokersSection />
       </Collapsible>
@@ -61,7 +61,7 @@ export default function DepotPage() {
       <Collapsible
         title="Net-Worth"
         subtitle="Konsolidiertes Gesamtvermögen"
-        icon={<PiggyBank className="w-3.5 h-3.5" style={{ color: "#00D4FF" }} />}
+        icon={<PiggyBank className="w-3.5 h-3.5" style={{ color: "#4C8DF6" }} />}
       >
         <NetWorthSection />
       </Collapsible>

@@ -275,7 +275,7 @@ function TelegramSection() {
         <Send className="w-4 h-4 text-cyan-400" />
         <SectionLabel>Telegram-Benachrichtigungen</SectionLabel>
         {status?.configured === false && (
-          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(255,215,0,0.1)", color: "#FFD700" }}>
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(210,153,34,0.1)", color: "#D29922" }}>
             Bot-Token nicht gesetzt
           </span>
         )}
@@ -283,7 +283,7 @@ function TelegramSection() {
 
       {/* Bot-Token input (shown when not configured) */}
       {status?.configured === false && (
-        <div className="mb-4 p-3 rounded-xl space-y-2" style={{ background: "rgba(255,215,0,0.05)", border: "1px solid rgba(255,215,0,0.15)" }}>
+        <div className="mb-4 p-3 rounded-xl space-y-2" style={{ background: "rgba(210,153,34,0.05)", border: "1px solid rgba(210,153,34,0.15)" }}>
           <p className="text-xs text-yellow-300 font-medium">Telegram Bot-Token hinterlegen</p>
           <p className="text-xs text-slate-500">
             Erstelle einen Bot via <span className="text-cyan-400">@BotFather</span> → /newbot → Token kopieren.
@@ -296,7 +296,7 @@ function TelegramSection() {
               placeholder="1234567890:ABCdef..."
               autoComplete="off"
               className="flex-1 rounded-xl px-3 py-2 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,215,0,0.2)" }}
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(210,153,34,0.2)" }}
               onKeyDown={e => { if (e.key === "Enter") handleSaveToken(); }}
             />
             <button
@@ -304,9 +304,9 @@ function TelegramSection() {
               disabled={tokenSaving || !botToken.trim()}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
               style={{
-                background: tokenSaved ? "rgba(0,255,136,0.12)" : "rgba(255,215,0,0.12)",
-                border: `1px solid ${tokenSaved ? "rgba(0,255,136,0.3)" : "rgba(255,215,0,0.3)"}`,
-                color: tokenSaved ? "#00FF88" : "#FFD700",
+                background: tokenSaved ? "rgba(63,185,80,0.12)" : "rgba(210,153,34,0.12)",
+                border: `1px solid ${tokenSaved ? "rgba(63,185,80,0.3)" : "rgba(210,153,34,0.3)"}`,
+                color: tokenSaved ? "#3FB950" : "#D29922",
               }}
             >
               {tokenSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tokenSaved ? <CheckCircle className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
@@ -318,11 +318,11 @@ function TelegramSection() {
 
       {/* Webhook setup (shown when configured) */}
       {status?.configured && (
-        <div className="mb-4 p-3 rounded-xl space-y-2" style={{ background: "rgba(0,212,255,0.04)", border: "1px solid rgba(0,212,255,0.12)" }}>
+        <div className="mb-4 p-3 rounded-xl space-y-2" style={{ background: "rgba(76,141,246,0.04)", border: "1px solid rgba(76,141,246,0.12)" }}>
           <div className="flex items-center justify-between">
             <p className="text-xs text-cyan-300 font-medium">Webhook (Schritt 2)</p>
             {(webhookUrl || status.webhook_url) && (
-              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88" }}>
+              <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(63,185,80,0.1)", color: "#3FB950" }}>
                 ✓ Aktiv
               </span>
             )}
@@ -342,16 +342,16 @@ function TelegramSection() {
               onChange={e => setBackendUrl(e.target.value)}
               placeholder={`${API_BASE} (auto-detect)`}
               className="flex-1 rounded-xl px-3 py-2 text-xs font-mono text-slate-200 placeholder-slate-600 outline-none"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.15)" }}
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(76,141,246,0.15)" }}
             />
             <button
               onClick={handleSetupWebhook}
               disabled={webhookSetting === "loading"}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 whitespace-nowrap"
               style={{
-                background: webhookSetting === "ok" ? "rgba(0,255,136,0.12)" : webhookSetting === "error" ? "rgba(255,0,80,0.12)" : "rgba(0,212,255,0.1)",
-                border: `1px solid ${webhookSetting === "ok" ? "rgba(0,255,136,0.3)" : webhookSetting === "error" ? "rgba(255,0,80,0.3)" : "rgba(0,212,255,0.25)"}`,
-                color: webhookSetting === "ok" ? "#00FF88" : webhookSetting === "error" ? "#FF0050" : "#00D4FF",
+                background: webhookSetting === "ok" ? "rgba(63,185,80,0.12)" : webhookSetting === "error" ? "rgba(255,0,80,0.12)" : "rgba(76,141,246,0.1)",
+                border: `1px solid ${webhookSetting === "ok" ? "rgba(63,185,80,0.3)" : webhookSetting === "error" ? "rgba(255,0,80,0.3)" : "rgba(76,141,246,0.25)"}`,
+                color: webhookSetting === "ok" ? "#3FB950" : webhookSetting === "error" ? "#FF0050" : "#4C8DF6",
               }}
             >
               {webhookSetting === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
@@ -372,7 +372,7 @@ function TelegramSection() {
 
       {status?.connected ? (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm" style={{ color: "#00FF88" }}>
+          <div className="flex items-center gap-2 text-sm" style={{ color: "#3FB950" }}>
             <CheckCircle className="w-4 h-4" />
             Verbunden{status.username ? ` als @${status.username}` : ""}
           </div>
@@ -383,14 +383,14 @@ function TelegramSection() {
             <button
               onClick={handleTest}
               className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
-              style={{ background: "rgba(0,212,255,0.1)", color: "#00D4FF", border: "1px solid rgba(0,212,255,0.2)" }}
+              style={{ background: "rgba(76,141,246,0.1)", color: "#4C8DF6", border: "1px solid rgba(76,141,246,0.2)" }}
             >
               {testSent ? "Gesendet!" : "Test senden"}
             </button>
             <button
               onClick={handleDisconnect}
               className="text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors"
-              style={{ background: "rgba(255,0,128,0.08)", color: "#FF0080", border: "1px solid rgba(255,0,128,0.2)" }}
+              style={{ background: "rgba(229,83,75,0.08)", color: "#E5534B", border: "1px solid rgba(229,83,75,0.2)" }}
             >
               Trennen
             </button>
@@ -406,7 +406,7 @@ function TelegramSection() {
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all"
-            style={{ background: "linear-gradient(135deg, #00D4FF22, #7B2FFF22)", border: "1px solid rgba(0,212,255,0.3)", color: "#00D4FF" }}
+            style={{ background: "linear-gradient(135deg, #4C8DF622, #A371F722)", border: "1px solid rgba(76,141,246,0.3)", color: "#4C8DF6" }}
           >
             <Send className="w-3.5 h-3.5" />
             Telegram Bot öffnen
@@ -425,7 +425,7 @@ function TelegramSection() {
             onClick={handleConnect}
             disabled={loading || status?.configured === false}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
-            style={{ background: "rgba(0,212,255,0.1)", color: "#00D4FF", border: "1px solid rgba(0,212,255,0.25)" }}
+            style={{ background: "rgba(76,141,246,0.1)", color: "#4C8DF6", border: "1px solid rgba(76,141,246,0.25)" }}
           >
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             Telegram verbinden
@@ -468,14 +468,14 @@ function EngineStatusSection() {
 
   return (
     <GlassCard delay={0.15}>
-      <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ background: "rgba(0,212,255,0.04)", borderBottom: "1px solid rgba(0,212,255,0.08)" }}>
+      <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ background: "rgba(76,141,246,0.04)", borderBottom: "1px solid rgba(76,141,246,0.08)" }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-cyan-400" aria-hidden="true" />
             <SectionLabel>KI-Engine-Status</SectionLabel>
           </div>
           {!loading && repos && (
-            <span className="text-xs font-mono" style={{ color: installedCount === entries.length ? "#00FF88" : "#FFD700" }}>
+            <span className="text-xs font-mono" style={{ color: installedCount === entries.length ? "#3FB950" : "#D29922" }}>
               {installedCount}/{entries.length} installiert
             </span>
           )}
@@ -493,12 +493,12 @@ function EngineStatusSection() {
               key={key}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
               style={{
-                background: entry.exists ? "rgba(0,255,136,0.04)" : "rgba(255,255,255,0.02)",
-                border: `1px solid ${entry.exists ? "rgba(0,255,136,0.15)" : "rgba(255,255,255,0.06)"}`,
+                background: entry.exists ? "rgba(63,185,80,0.04)" : "rgba(255,255,255,0.02)",
+                border: `1px solid ${entry.exists ? "rgba(63,185,80,0.15)" : "rgba(255,255,255,0.06)"}`,
               }}
             >
               {entry.exists ? (
-                <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: "#00FF88" }} />
+                <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: "#3FB950" }} />
               ) : (
                 <AlertTriangle className="w-4 h-4 flex-shrink-0 text-slate-600" />
               )}
@@ -506,16 +506,16 @@ function EngineStatusSection() {
                 <p className={`text-sm font-semibold ${entry.exists ? "text-slate-200" : "text-slate-500"}`}>
                   {REPO_LABELS[key] ?? key}
                 </p>
-                <p className="text-xs font-mono truncate" style={{ color: entry.exists ? "rgba(0,255,136,0.5)" : "rgba(100,116,139,0.5)" }}>
+                <p className="text-xs font-mono truncate" style={{ color: entry.exists ? "rgba(63,185,80,0.5)" : "rgba(100,116,139,0.5)" }}>
                   {entry.path}
                 </p>
               </div>
               <span
                 className="flex-shrink-0 text-xs font-bold px-2 py-0.5 rounded-full"
                 style={{
-                  background: entry.exists ? "rgba(0,255,136,0.12)" : "rgba(100,116,139,0.1)",
-                  color: entry.exists ? "#00FF88" : "#475569",
-                  border: `1px solid ${entry.exists ? "rgba(0,255,136,0.25)" : "rgba(100,116,139,0.15)"}`,
+                  background: entry.exists ? "rgba(63,185,80,0.12)" : "rgba(100,116,139,0.1)",
+                  color: entry.exists ? "#3FB950" : "#475569",
+                  border: `1px solid ${entry.exists ? "rgba(63,185,80,0.25)" : "rgba(100,116,139,0.15)"}`,
                 }}
               >
                 {entry.exists ? "BEREIT" : "FEHLT"}
@@ -575,7 +575,7 @@ function SystemMetricsSection() {
 
   return (
     <GlassCard delay={0.18}>
-      <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ background: "rgba(0,212,255,0.04)", borderBottom: "1px solid rgba(0,212,255,0.08)" }}>
+      <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ background: "rgba(76,141,246,0.04)", borderBottom: "1px solid rgba(76,141,246,0.08)" }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-cyan-400" aria-hidden="true" />
@@ -600,14 +600,14 @@ function SystemMetricsSection() {
               key={label}
               className="px-3 py-2.5 rounded-xl"
               style={{
-                background: highlight ? "rgba(0,255,136,0.04)" : "rgba(255,255,255,0.02)",
-                border: `1px solid ${highlight ? "rgba(0,255,136,0.12)" : "rgba(255,255,255,0.06)"}`,
+                background: highlight ? "rgba(63,185,80,0.04)" : "rgba(255,255,255,0.02)",
+                border: `1px solid ${highlight ? "rgba(63,185,80,0.12)" : "rgba(255,255,255,0.06)"}`,
               }}
             >
               <p className="text-xs text-slate-600 mb-0.5">{label}</p>
               <p
                 className="text-sm font-mono font-semibold"
-                style={{ color: highlight ? "#00FF88" : "#CBD5E1" }}
+                style={{ color: highlight ? "#3FB950" : "#CBD5E1" }}
               >
                 {value}
               </p>
@@ -655,11 +655,11 @@ function ChangePasswordSection() {
 
   const pwStrength = useMemo(() => getPasswordStrength(next), [next]);
   const inputCls = "w-full pl-10 pr-10 py-2.5 rounded-lg text-sm text-slate-200 placeholder-slate-600 outline-none transition-all duration-200";
-  const inputStyle = { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.15)" };
+  const inputStyle = { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(76,141,246,0.15)" };
 
   return (
     <GlassCard variant="cyan" delay={0.3}>
-      <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ background: "rgba(0,212,255,0.06)", borderBottom: "1px solid rgba(0,212,255,0.1)" }}>
+      <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ background: "rgba(76,141,246,0.06)", borderBottom: "1px solid rgba(76,141,246,0.1)" }}>
         <div className="flex items-center gap-2">
           <Lock className="w-4 h-4 text-cyan-400" aria-hidden="true" />
           <SectionLabel>Passwort ändern</SectionLabel>
@@ -673,7 +673,7 @@ function ChangePasswordSection() {
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4" style={{ background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.3)" }}>
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4" style={{ background: "rgba(63,185,80,0.08)", border: "1px solid rgba(63,185,80,0.3)" }}>
           <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
           <span className="text-xs text-green-400">Passwort erfolgreich geändert.</span>
         </div>
@@ -688,7 +688,7 @@ function ChangePasswordSection() {
           <div key={id}>
             <label htmlFor={id} className="block text-xs font-semibold tracking-wider mb-1" style={{ color: "rgba(100,116,139,0.8)" }}>{label}</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "rgba(0,212,255,0.4)" }} />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "rgba(76,141,246,0.4)" }} />
               <input
                 id={id}
                 type={showPw ? "text" : "password"}
@@ -734,9 +734,9 @@ function ChangePasswordSection() {
           disabled={loading || !current || !next || !confirm}
           className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all"
           style={{
-            background: "linear-gradient(135deg, rgba(0,212,255,0.15), rgba(123,47,255,0.1))",
-            border: "1px solid rgba(0,212,255,0.35)",
-            color: "#00D4FF",
+            background: "linear-gradient(135deg, rgba(76,141,246,0.15), rgba(163,113,247,0.1))",
+            border: "1px solid rgba(76,141,246,0.35)",
+            color: "#4C8DF6",
             opacity: (!current || !next || !confirm) ? 0.5 : 1,
           }}
         >
@@ -817,7 +817,7 @@ function WebhooksSection() {
     <GlassCard delay={0.22}>
       <div
         className="-m-4 mb-4 px-4 py-3 rounded-t-xl"
-        style={{ background: "rgba(123,47,255,0.06)", borderBottom: "1px solid rgba(123,47,255,0.1)" }}
+        style={{ background: "rgba(163,113,247,0.06)", borderBottom: "1px solid rgba(163,113,247,0.1)" }}
       >
         <div className="flex items-center gap-2">
           <Webhook className="w-4 h-4 text-neon-purple" aria-hidden="true" />
@@ -833,7 +833,7 @@ function WebhooksSection() {
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://your-endpoint.com/hook"
           className="w-full rounded-xl px-3 py-2 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(123,47,255,0.2)" }}
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(163,113,247,0.2)" }}
         />
         <div className="flex flex-wrap gap-2">
           {WEBHOOK_EVENT_OPTIONS.map(({ value, label }) => (
@@ -842,8 +842,8 @@ function WebhooksSection() {
               onClick={() => toggleEvent(value)}
               className="px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
               style={{
-                background: events.includes(value) ? "rgba(123,47,255,0.2)" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${events.includes(value) ? "rgba(123,47,255,0.5)" : "rgba(255,255,255,0.08)"}`,
+                background: events.includes(value) ? "rgba(163,113,247,0.2)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${events.includes(value) ? "rgba(163,113,247,0.5)" : "rgba(255,255,255,0.08)"}`,
                 color: events.includes(value) ? "#A78BFA" : "#64748B",
               }}
             >
@@ -856,8 +856,8 @@ function WebhooksSection() {
           disabled={loading || !url.trim() || events.length === 0}
           className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
           style={{
-            background: "rgba(123,47,255,0.15)",
-            border: "1px solid rgba(123,47,255,0.35)",
+            background: "rgba(163,113,247,0.15)",
+            border: "1px solid rgba(163,113,247,0.35)",
             color: "#A78BFA",
           }}
         >
@@ -880,14 +880,14 @@ function WebhooksSection() {
               <div
                 key={wh.id}
                 className="flex items-start justify-between p-3 rounded-xl text-sm"
-                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(123,47,255,0.12)" }}
+                style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(163,113,247,0.12)" }}
               >
                 <div className="min-w-0 flex-1">
                   <p className="font-mono text-slate-300 text-xs truncate">{wh.url}</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {wh.events.map((ev) => (
                       <span key={ev} className="text-xs px-1.5 py-0.5 rounded text-purple-300"
-                        style={{ background: "rgba(123,47,255,0.15)", fontSize: "10px" }}>
+                        style={{ background: "rgba(163,113,247,0.15)", fontSize: "10px" }}>
                         {ev}
                       </span>
                     ))}
@@ -984,7 +984,7 @@ function P2PCredentialsSection() {
     <GlassCard variant="purple" delay={0.16}>
       <div
         className="-m-4 mb-4 px-4 py-3 rounded-t-xl"
-        style={{ background: "rgba(123,47,255,0.06)", borderBottom: "1px solid rgba(123,47,255,0.1)" }}
+        style={{ background: "rgba(163,113,247,0.06)", borderBottom: "1px solid rgba(163,113,247,0.1)" }}
       >
         <div className="flex items-center gap-2">
           <Landmark className="w-4 h-4 text-neon-purple" aria-hidden="true" />
@@ -1010,7 +1010,7 @@ function P2PCredentialsSection() {
                     <>
                       <span
                         className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                        style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88", border: "1px solid rgba(0,255,136,0.25)" }}
+                        style={{ background: "rgba(63,185,80,0.1)", color: "#3FB950", border: "1px solid rgba(63,185,80,0.25)" }}
                       >
                         konfiguriert ✓
                       </span>
@@ -1043,7 +1043,7 @@ function P2PCredentialsSection() {
                     placeholder={isConfigured ? "Neuen Wert eingeben zum Überschreiben…" : placeholder}
                     autoComplete="off"
                     className="w-full rounded-xl px-3 py-2 pr-10 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(123,47,255,0.2)" }}
+                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(163,113,247,0.2)" }}
                     onKeyDown={(e) => { if (e.key === "Enter") handleSave(key); }}
                   />
                   {type === "password" && (
@@ -1061,9 +1061,9 @@ function P2PCredentialsSection() {
                   disabled={saving[key] || !values[key]?.trim()}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
                   style={{
-                    background: saved[key] ? "rgba(0,255,136,0.12)" : "rgba(123,47,255,0.15)",
-                    border: `1px solid ${saved[key] ? "rgba(0,255,136,0.3)" : "rgba(123,47,255,0.35)"}`,
-                    color: saved[key] ? "#00FF88" : "#A78BFA",
+                    background: saved[key] ? "rgba(63,185,80,0.12)" : "rgba(163,113,247,0.15)",
+                    border: `1px solid ${saved[key] ? "rgba(63,185,80,0.3)" : "rgba(163,113,247,0.35)"}`,
+                    color: saved[key] ? "#3FB950" : "#A78BFA",
                   }}
                 >
                   {saving[key]
@@ -1158,7 +1158,7 @@ function FlatexSyncBlock() {
 
   return (
     <div className="space-y-2 rounded-xl p-3"
-      style={{ background: "rgba(123,47,255,0.06)", border: "1px solid rgba(123,47,255,0.2)" }}>
+      style={{ background: "rgba(163,113,247,0.06)", border: "1px solid rgba(163,113,247,0.2)" }}>
       <p className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
         <Lock className="w-3.5 h-3.5 text-purple-400" />
         Flatex Kontostand synchronisieren
@@ -1175,7 +1175,7 @@ function FlatexSyncBlock() {
             placeholder="FinTS-PIN eingeben…"
             autoComplete="one-time-code"
             className="w-full rounded-xl px-3 py-2 pr-10 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(123,47,255,0.3)" }}
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(163,113,247,0.3)" }}
             onKeyDown={(e) => { if (e.key === "Enter") handleSync(); }}
           />
           <button type="button" onClick={() => setShowPin((v) => !v)}
@@ -1187,7 +1187,7 @@ function FlatexSyncBlock() {
           onClick={handleSync}
           disabled={syncing || !pin.trim()}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
-          style={{ background: "rgba(123,47,255,0.12)", border: "1px solid rgba(123,47,255,0.3)", color: "#9B5DFF" }}
+          style={{ background: "rgba(163,113,247,0.12)", border: "1px solid rgba(163,113,247,0.3)", color: "#9B5DFF" }}
         >
           {syncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
           Sync
@@ -1196,8 +1196,8 @@ function FlatexSyncBlock() {
       {result && (
         <div className="rounded-lg px-3 py-2 text-xs"
           style={{
-            background: result.error ? "rgba(255,0,128,0.06)" : "rgba(0,255,136,0.06)",
-            border: `1px solid ${result.error ? "rgba(255,0,128,0.2)" : "rgba(0,255,136,0.2)"}`,
+            background: result.error ? "rgba(229,83,75,0.06)" : "rgba(63,185,80,0.06)",
+            border: `1px solid ${result.error ? "rgba(229,83,75,0.2)" : "rgba(63,185,80,0.2)"}`,
           }}>
           {result.error
             ? <p className="text-red-400">{result.error}</p>
@@ -1288,7 +1288,7 @@ function ComdirectOAuthBlock({
             onClick={handleInitiate}
             disabled={initiating}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
-            style={{ background: "rgba(0,212,255,0.1)", border: "1px solid rgba(0,212,255,0.3)", color: "#00D4FF" }}
+            style={{ background: "rgba(76,141,246,0.1)", border: "1px solid rgba(76,141,246,0.3)", color: "#4C8DF6" }}
           >
             {initiating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
             OAuth starten (PHOTO-TAN)
@@ -1300,7 +1300,7 @@ function ComdirectOAuthBlock({
             onClick={handleRefresh}
             disabled={refreshing}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
-            style={{ background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.25)", color: "#00FF88" }}
+            style={{ background: "rgba(63,185,80,0.08)", border: "1px solid rgba(63,185,80,0.25)", color: "#3FB950" }}
           >
             {refreshing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             Token erneuern
@@ -1312,8 +1312,8 @@ function ComdirectOAuthBlock({
       {oauthResult && (
         <div className="rounded-lg px-3 py-2.5 text-xs space-y-1"
           style={{
-            background: oauthResult.success ? "rgba(0,212,255,0.06)" : "rgba(255,0,128,0.06)",
-            border: `1px solid ${oauthResult.success ? "rgba(0,212,255,0.2)" : "rgba(255,0,128,0.2)"}`,
+            background: oauthResult.success ? "rgba(76,141,246,0.06)" : "rgba(229,83,75,0.06)",
+            border: `1px solid ${oauthResult.success ? "rgba(76,141,246,0.2)" : "rgba(229,83,75,0.2)"}`,
           }}>
           {oauthResult.success ? (
             <>
@@ -1333,8 +1333,8 @@ function ComdirectOAuthBlock({
       {refreshResult && (
         <div className="rounded-lg px-3 py-2 text-xs"
           style={{
-            background: refreshResult.success ? "rgba(0,255,136,0.06)" : "rgba(255,170,0,0.06)",
-            border: `1px solid ${refreshResult.success ? "rgba(0,255,136,0.2)" : "rgba(255,170,0,0.2)"}`,
+            background: refreshResult.success ? "rgba(63,185,80,0.06)" : "rgba(255,170,0,0.06)",
+            border: `1px solid ${refreshResult.success ? "rgba(63,185,80,0.2)" : "rgba(255,170,0,0.2)"}`,
           }}>
           {refreshResult.success
             ? <p className="text-green-300">{refreshResult.message}</p>
@@ -1392,7 +1392,7 @@ function BrokerCredentialsSection() {
     <GlassCard variant="cyan" delay={0.165}>
       <div
         className="-m-4 mb-4 px-4 py-3 rounded-t-xl"
-        style={{ background: "rgba(0,212,255,0.06)", borderBottom: "1px solid rgba(0,212,255,0.1)" }}
+        style={{ background: "rgba(76,141,246,0.06)", borderBottom: "1px solid rgba(76,141,246,0.1)" }}
       >
         <div className="flex items-center gap-2">
           <Building2 className="w-4 h-4 text-cyan-400" aria-hidden="true" />
@@ -1417,7 +1417,7 @@ function BrokerCredentialsSection() {
                 {configuredCount > 0 && (
                   <span
                     className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                    style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88", border: "1px solid rgba(0,255,136,0.25)" }}
+                    style={{ background: "rgba(63,185,80,0.1)", color: "#3FB950", border: "1px solid rgba(63,185,80,0.25)" }}
                   >
                     {configuredCount}/{fields.length} konfiguriert
                   </span>
@@ -1451,7 +1451,7 @@ function BrokerCredentialsSection() {
                           <>
                             <span
                               className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                              style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88", border: "1px solid rgba(0,255,136,0.25)" }}
+                              style={{ background: "rgba(63,185,80,0.1)", color: "#3FB950", border: "1px solid rgba(63,185,80,0.25)" }}
                             >
                               konfiguriert ✓
                             </span>
@@ -1484,7 +1484,7 @@ function BrokerCredentialsSection() {
                           placeholder={isConfigured ? "Neuen Wert eingeben zum Überschreiben…" : placeholder}
                           autoComplete="off"
                           className="w-full rounded-xl px-3 py-2 pr-10 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
-                          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.2)" }}
+                          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(76,141,246,0.2)" }}
                           onKeyDown={(e) => { if (e.key === "Enter") handleSave(key); }}
                         />
                         {type === "password" && (
@@ -1502,9 +1502,9 @@ function BrokerCredentialsSection() {
                         disabled={saving[key] || !values[key]?.trim()}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
                         style={{
-                          background: saved[key] ? "rgba(0,255,136,0.12)" : "rgba(0,212,255,0.1)",
-                          border: `1px solid ${saved[key] ? "rgba(0,255,136,0.3)" : "rgba(0,212,255,0.25)"}`,
-                          color: saved[key] ? "#00FF88" : "#00D4FF",
+                          background: saved[key] ? "rgba(63,185,80,0.12)" : "rgba(76,141,246,0.1)",
+                          border: `1px solid ${saved[key] ? "rgba(63,185,80,0.3)" : "rgba(76,141,246,0.25)"}`,
+                          color: saved[key] ? "#3FB950" : "#4C8DF6",
                         }}
                       >
                         {saving[key]
@@ -1617,10 +1617,10 @@ function MaskedInput({
           className="w-full rounded-xl px-4 py-2.5 pr-12 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none transition-all"
           style={{
             background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(0,212,255,0.15)",
+            border: "1px solid rgba(76,141,246,0.15)",
           }}
-          onFocus={(e) => { e.target.style.borderColor = "rgba(0,212,255,0.4)"; e.target.style.boxShadow = "0 0 12px rgba(0,212,255,0.1)"; }}
-          onBlur={(e) => { e.target.style.borderColor = "rgba(0,212,255,0.15)"; e.target.style.boxShadow = "none"; }}
+          onFocus={(e) => { e.target.style.borderColor = "rgba(76,141,246,0.4)"; e.target.style.boxShadow = "0 0 12px rgba(76,141,246,0.1)"; }}
+          onBlur={(e) => { e.target.style.borderColor = "rgba(76,141,246,0.15)"; e.target.style.boxShadow = "none"; }}
         />
         <button
           type="button"
@@ -1667,8 +1667,8 @@ function Toggle({
         tabIndex={0}
         className="relative flex-shrink-0 w-11 h-6 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
         style={{
-          background: checked ? "rgba(0,212,255,0.4)" : "rgba(255,255,255,0.08)",
-          border: checked ? "1px solid rgba(0,212,255,0.6)" : "1px solid rgba(255,255,255,0.12)",
+          background: checked ? "rgba(76,141,246,0.4)" : "rgba(255,255,255,0.08)",
+          border: checked ? "1px solid rgba(76,141,246,0.6)" : "1px solid rgba(255,255,255,0.12)",
         }}
       >
         <span
@@ -1736,8 +1736,8 @@ export default function SettingsPage() {
   }
 
   const sectionHeaderStyle = {
-    background: "rgba(0,212,255,0.06)",
-    borderBottom: "1px solid rgba(0,212,255,0.1)",
+    background: "rgba(76,141,246,0.06)",
+    borderBottom: "1px solid rgba(76,141,246,0.1)",
   };
 
   return (
@@ -1768,19 +1768,19 @@ export default function SettingsPage() {
           <div
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
             style={{
-              background: backendKeyStatus === "configured" ? "rgba(0,255,136,0.06)" : "rgba(255,165,0,0.06)",
-              border: `1px solid ${backendKeyStatus === "configured" ? "rgba(0,255,136,0.2)" : "rgba(255,165,0,0.25)"}`,
+              background: backendKeyStatus === "configured" ? "rgba(63,185,80,0.06)" : "rgba(255,165,0,0.06)",
+              border: `1px solid ${backendKeyStatus === "configured" ? "rgba(63,185,80,0.2)" : "rgba(255,165,0,0.25)"}`,
             }}
           >
             {backendKeyStatus === "loading" ? (
               <Loader2 className="w-4 h-4 animate-spin text-slate-500 flex-shrink-0" />
             ) : backendKeyStatus === "configured" ? (
-              <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: "#00FF88" }} />
+              <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: "#3FB950" }} />
             ) : (
               <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-400" />
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold" style={{ color: backendKeyStatus === "configured" ? "#00FF88" : "#fbbf24" }}>
+              <p className="text-xs font-semibold" style={{ color: backendKeyStatus === "configured" ? "#3FB950" : "#fbbf24" }}>
                 Backend ANTHROPIC_API_KEY:{" "}
                 {backendKeyStatus === "loading" ? "prüfe..." : backendKeyStatus === "configured" ? "konfiguriert ✓" : "nicht gesetzt"}
               </p>
@@ -1822,7 +1822,7 @@ export default function SettingsPage() {
 
       {/* ── Section 2: Trading Preferences ── */}
       <GlassCard variant="green" delay={0.1}>
-        <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ ...sectionHeaderStyle, background: "rgba(0,255,136,0.06)", borderBottomColor: "rgba(0,255,136,0.1)" }}>
+        <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ ...sectionHeaderStyle, background: "rgba(63,185,80,0.06)", borderBottomColor: "rgba(63,185,80,0.1)" }}>
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-neon-green" aria-hidden="true" />
             <SectionLabel>Trading-Einstellungen</SectionLabel>
@@ -1843,9 +1843,9 @@ export default function SettingsPage() {
               onChange={(e) => update("watchlist", e.target.value)}
               placeholder="AAPL,MSFT,NVDA,TSLA,BTC-USD"
               className="w-full rounded-xl px-4 py-2.5 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none transition-all"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,255,136,0.15)" }}
-              onFocus={(e) => { e.target.style.borderColor = "rgba(0,255,136,0.4)"; }}
-              onBlur={(e) => { e.target.style.borderColor = "rgba(0,255,136,0.15)"; }}
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(63,185,80,0.15)" }}
+              onFocus={(e) => { e.target.style.borderColor = "rgba(63,185,80,0.4)"; }}
+              onBlur={(e) => { e.target.style.borderColor = "rgba(63,185,80,0.15)"; }}
             />
           </div>
 
@@ -1861,9 +1861,9 @@ export default function SettingsPage() {
                   aria-pressed={settings.refreshInterval === v}
                   className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
                   style={{
-                    background: settings.refreshInterval === v ? "rgba(0,255,136,0.15)" : "rgba(255,255,255,0.04)",
-                    border: `1px solid ${settings.refreshInterval === v ? "rgba(0,255,136,0.4)" : "rgba(255,255,255,0.08)"}`,
-                    color: settings.refreshInterval === v ? "#00FF88" : "#64748B",
+                    background: settings.refreshInterval === v ? "rgba(63,185,80,0.15)" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${settings.refreshInterval === v ? "rgba(63,185,80,0.4)" : "rgba(255,255,255,0.08)"}`,
+                    color: settings.refreshInterval === v ? "#3FB950" : "#64748B",
                   }}
                 >
                   {v}s
@@ -1885,13 +1885,13 @@ export default function SettingsPage() {
                   className="flex-1 py-2 rounded-xl text-sm font-semibold capitalize transition-all"
                   style={{
                     background: settings.tradingMode === mode
-                      ? mode === "paper" ? "rgba(0,212,255,0.15)" : "rgba(255,0,128,0.15)"
+                      ? mode === "paper" ? "rgba(76,141,246,0.15)" : "rgba(229,83,75,0.15)"
                       : "rgba(255,255,255,0.04)",
                     border: `1px solid ${settings.tradingMode === mode
-                      ? mode === "paper" ? "rgba(0,212,255,0.4)" : "rgba(255,0,128,0.4)"
+                      ? mode === "paper" ? "rgba(76,141,246,0.4)" : "rgba(229,83,75,0.4)"
                       : "rgba(255,255,255,0.08)"}`,
                     color: settings.tradingMode === mode
-                      ? mode === "paper" ? "#00D4FF" : "#FF0080"
+                      ? mode === "paper" ? "#4C8DF6" : "#E5534B"
                       : "#64748B",
                   }}
                 >
@@ -1910,7 +1910,7 @@ export default function SettingsPage() {
 
       {/* ── Section 3: Notifications ── */}
       <GlassCard variant="purple" delay={0.15}>
-        <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ ...sectionHeaderStyle, background: "rgba(123,47,255,0.06)", borderBottomColor: "rgba(123,47,255,0.1)" }}>
+        <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ ...sectionHeaderStyle, background: "rgba(163,113,247,0.06)", borderBottomColor: "rgba(163,113,247,0.1)" }}>
           <div className="flex items-center gap-2">
             <Bell className="w-4 h-4 text-neon-purple" aria-hidden="true" />
             <SectionLabel>Benachrichtigungen</SectionLabel>
@@ -1960,8 +1960,8 @@ export default function SettingsPage() {
               onClick={() => handleEmailPref(!marketingEmails)}
               className="relative flex-shrink-0 w-11 h-6 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50"
               style={{
-                background: marketingEmails ? "rgba(0,212,255,0.4)" : "rgba(255,255,255,0.08)",
-                border: marketingEmails ? "1px solid rgba(0,212,255,0.6)" : "1px solid rgba(255,255,255,0.12)",
+                background: marketingEmails ? "rgba(76,141,246,0.4)" : "rgba(255,255,255,0.08)",
+                border: marketingEmails ? "1px solid rgba(76,141,246,0.6)" : "1px solid rgba(255,255,255,0.12)",
               }}
             >
               <span
@@ -1981,7 +1981,7 @@ export default function SettingsPage() {
 
       {/* ── Section 5: Bank Connections (FinTS) ── */}
       <GlassCard variant="green" delay={0.17}>
-        <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ ...sectionHeaderStyle, background: "rgba(0,255,136,0.06)", borderBottomColor: "rgba(0,255,136,0.1)" }}>
+        <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ ...sectionHeaderStyle, background: "rgba(63,185,80,0.06)", borderBottomColor: "rgba(63,185,80,0.1)" }}>
           <div className="flex items-center gap-2">
             <Building className="w-4 h-4 text-neon-green" aria-hidden="true" />
             <SectionLabel>Bankverbindung (FinTS / HBCI)</SectionLabel>
@@ -2096,10 +2096,10 @@ export default function SettingsPage() {
           aria-label="Einstellungen speichern"
           className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all"
           style={{
-            background: saved ? "rgba(0,255,136,0.15)" : "linear-gradient(135deg, rgba(0,212,255,0.2), rgba(123,47,255,0.15))",
-            border: saved ? "1px solid rgba(0,255,136,0.4)" : "1px solid rgba(0,212,255,0.35)",
-            color: saved ? "#00FF88" : "#00D4FF",
-            boxShadow: saved ? "0 0 20px rgba(0,255,136,0.2)" : "0 0 20px rgba(0,212,255,0.15)",
+            background: saved ? "rgba(63,185,80,0.15)" : "linear-gradient(135deg, rgba(76,141,246,0.2), rgba(163,113,247,0.15))",
+            border: saved ? "1px solid rgba(63,185,80,0.4)" : "1px solid rgba(76,141,246,0.35)",
+            color: saved ? "#3FB950" : "#4C8DF6",
+            boxShadow: saved ? "0 0 20px rgba(63,185,80,0.2)" : "0 0 20px rgba(76,141,246,0.15)",
           }}
         >
           {saved ? (

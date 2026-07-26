@@ -69,25 +69,25 @@ function ElliottDiagramSVG() {
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ maxHeight: 160 }}>
       {/* Impulse lines */}
-      {line(pts[0], pts[1], "#00D4FF")}
-      {line(pts[1], pts[2], "#FF0080")}
-      {line(pts[2], pts[3], "#00D4FF")}
-      {line(pts[3], pts[4], "#FF0080")}
-      {line(pts[4], pts[5], "#00D4FF")}
+      {line(pts[0], pts[1], "#4C8DF6")}
+      {line(pts[1], pts[2], "#E5534B")}
+      {line(pts[2], pts[3], "#4C8DF6")}
+      {line(pts[3], pts[4], "#E5534B")}
+      {line(pts[4], pts[5], "#4C8DF6")}
       {/* Corrective */}
-      {line(pts[5], pts.A, "#FFD700", "4 2")}
-      {line(pts.A, pts.B, "#FFD700", "4 2")}
-      {line(pts.B, pts.C, "#FFD700", "4 2")}
+      {line(pts[5], pts.A, "#D29922", "4 2")}
+      {line(pts.A, pts.B, "#D29922", "4 2")}
+      {line(pts.B, pts.C, "#D29922", "4 2")}
       {/* Dots */}
       {dot(pts[0], "0", "#64748B")}
-      {dot(pts[1], "1", "#00D4FF")}
-      {dot(pts[2], "2", "#FF0080")}
-      {dot(pts[3], "3", "#00D4FF")}
-      {dot(pts[4], "4", "#FF0080")}
-      {dot(pts[5], "5", "#00D4FF")}
-      {dot(pts.A, "A", "#FFD700")}
-      {dot(pts.B, "B", "#FFD700")}
-      {dot(pts.C, "C", "#FFD700")}
+      {dot(pts[1], "1", "#4C8DF6")}
+      {dot(pts[2], "2", "#E5534B")}
+      {dot(pts[3], "3", "#4C8DF6")}
+      {dot(pts[4], "4", "#E5534B")}
+      {dot(pts[5], "5", "#4C8DF6")}
+      {dot(pts.A, "A", "#D29922")}
+      {dot(pts.B, "B", "#D29922")}
+      {dot(pts.C, "C", "#D29922")}
       {/* Labels */}
       <text x={2} y={175} fontSize={9} fill="#475569">← Impulse (1-2-3-4-5)</text>
       <text x={300} y={175} fontSize={9} fill="#475569">Korrektiv (A-B-C) →</text>
@@ -101,12 +101,12 @@ function ElliottDiagramSVG() {
 
 function DirectionBadge({ dir }: { dir: string }) {
   if (dir === "bullish") return (
-    <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold" style={{ background: "rgba(0,255,136,0.12)", border: "1px solid rgba(0,255,136,0.3)", color: "#00FF88" }}>
+    <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold" style={{ background: "rgba(63,185,80,0.12)", border: "1px solid rgba(63,185,80,0.3)", color: "#3FB950" }}>
       <TrendingUp className="w-3.5 h-3.5" /> BULLISH
     </span>
   );
   if (dir === "bearish") return (
-    <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold" style={{ background: "rgba(255,0,128,0.12)", border: "1px solid rgba(255,0,128,0.3)", color: "#FF0080" }}>
+    <span className="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold" style={{ background: "rgba(229,83,75,0.12)", border: "1px solid rgba(229,83,75,0.3)", color: "#E5534B" }}>
       <TrendingDown className="w-3.5 h-3.5" /> BEARISH
     </span>
   );
@@ -123,7 +123,7 @@ function DirectionBadge({ dir }: { dir: string }) {
 
 function ConfidenceBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
-  const color = pct >= 70 ? "#00FF88" : pct >= 40 ? "#FFD700" : "#FF0080";
+  const color = pct >= 70 ? "#3FB950" : pct >= 40 ? "#D29922" : "#E5534B";
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
@@ -154,7 +154,7 @@ function WaveLabelsRow({ waves }: { waves: ElliottWavePoint[] }) {
       {waves.map((w) => {
         const isPeak = w.wave_type === "peak";
         const isCurrent = w.is_current;
-        const color = isCurrent ? "#FFD700" : isPeak ? "#00D4FF" : "#FF0080";
+        const color = isCurrent ? "#D29922" : isPeak ? "#4C8DF6" : "#E5534B";
         return (
           <motion.div
             key={w.label + w.date}
@@ -162,9 +162,9 @@ function WaveLabelsRow({ waves }: { waves: ElliottWavePoint[] }) {
             animate={{ scale: 1, opacity: 1 }}
             className="flex flex-col items-center px-3 py-2 rounded-xl"
             style={{
-              background: isCurrent ? "rgba(255,215,0,0.12)" : `${color}10`,
+              background: isCurrent ? "rgba(210,153,34,0.12)" : `${color}10`,
               border: `1px solid ${color}30`,
-              boxShadow: isCurrent ? "0 0 12px rgba(255,215,0,0.2)" : "none",
+              boxShadow: isCurrent ? "0 0 12px rgba(210,153,34,0.2)" : "none",
               minWidth: 64,
             }}
           >
@@ -176,7 +176,7 @@ function WaveLabelsRow({ waves }: { waves: ElliottWavePoint[] }) {
             </span>
             <span className="text-xs text-slate-600 mt-0.5">{w.date.slice(5)}</span>
             {isCurrent && (
-              <span className="text-xs font-bold mt-1" style={{ color: "#FFD700" }}>← JETZT</span>
+              <span className="text-xs font-bold mt-1" style={{ color: "#D29922" }}>← JETZT</span>
             )}
           </motion.div>
         );
@@ -200,8 +200,8 @@ function FibTable({ levels, currentPrice }: { levels: FibonacciLevel[]; currentP
             key={l.label + l.price}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
             style={{
-              background: isNear ? "rgba(255,215,0,0.06)" : "rgba(255,255,255,0.02)",
-              border: isNear ? "1px solid rgba(255,215,0,0.25)" : "1px solid transparent",
+              background: isNear ? "rgba(210,153,34,0.06)" : "rgba(255,255,255,0.02)",
+              border: isNear ? "1px solid rgba(210,153,34,0.25)" : "1px solid transparent",
             }}
           >
             <span className="font-mono text-xs w-12 text-slate-400">{l.label}</span>
@@ -209,7 +209,7 @@ function FibTable({ levels, currentPrice }: { levels: FibonacciLevel[]; currentP
             <span className="font-mono text-xs font-bold text-slate-200">
               ${l.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
-            {isNear && <span className="text-xs font-bold" style={{ color: "#FFD700" }}>≈</span>}
+            {isNear && <span className="text-xs font-bold" style={{ color: "#D29922" }}>≈</span>}
           </div>
         );
       })}
@@ -247,7 +247,7 @@ function WaveChart({ analysis }: { analysis: ElliottWaveAnalysis }) {
     const candleIdx = candles.findIndex((c) => c.date >= w.date);
     const barDate = candleIdx >= 0 ? candles[candleIdx].date.slice(5) : null;
     const isPeak = w.wave_type === "peak";
-    return { label: w.label, date: barDate, color: isPeak ? "#00D4FF" : "#FF0080" };
+    return { label: w.label, date: barDate, color: isPeak ? "#4C8DF6" : "#E5534B" };
   }).filter((a) => a.date);
 
   return (
@@ -271,7 +271,7 @@ function WaveChart({ analysis }: { analysis: ElliottWaveAnalysis }) {
         <Tooltip
           contentStyle={{
             background: "rgba(8,11,20,0.95)",
-            border: "1px solid rgba(0,212,255,0.2)",
+            border: "1px solid rgba(76,141,246,0.2)",
             borderRadius: 8,
             fontSize: 12,
           }}
@@ -283,9 +283,9 @@ function WaveChart({ analysis }: { analysis: ElliottWaveAnalysis }) {
           <ReferenceLine
             key={f.label}
             y={f.price}
-            stroke="rgba(255,215,0,0.3)"
+            stroke="rgba(210,153,34,0.3)"
             strokeDasharray="4 2"
-            label={{ value: f.label, position: "insideTopRight", fontSize: 9, fill: "#FFD700" }}
+            label={{ value: f.label, position: "insideTopRight", fontSize: 9, fill: "#D29922" }}
           />
         ))}
 
@@ -311,11 +311,11 @@ function WaveChart({ analysis }: { analysis: ElliottWaveAnalysis }) {
         <Area
           type="monotone"
           dataKey="close"
-          stroke="#00D4FF"
+          stroke="#4C8DF6"
           strokeWidth={1.5}
-          fill="rgba(0,212,255,0.06)"
+          fill="rgba(76,141,246,0.06)"
           dot={false}
-          activeDot={{ r: 3, fill: "#00D4FF" }}
+          activeDot={{ r: 3, fill: "#4C8DF6" }}
         />
 
         <Bar
@@ -381,8 +381,8 @@ export function ElliottWave() {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <div className="flex items-start justify-between mb-1">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(123,47,255,0.15)", border: "1px solid rgba(123,47,255,0.3)" }}>
-              <Waves className="w-4 h-4" style={{ color: "#7B2FFF" }} />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(163,113,247,0.15)", border: "1px solid rgba(163,113,247,0.3)" }}>
+              <Waves className="w-4 h-4" style={{ color: "#A371F7" }} />
             </div>
             <div>
               <h2 className="text-xl font-bold text-slate-100">Elliott-Wellen</h2>
@@ -407,7 +407,7 @@ export function ElliottWave() {
           <button
             onClick={() => setExplanationOpen(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all"
-            style={{ background: "rgba(123,47,255,0.1)", border: "1px solid rgba(123,47,255,0.3)", color: "#7B2FFF" }}
+            style={{ background: "rgba(163,113,247,0.1)", border: "1px solid rgba(163,113,247,0.3)", color: "#A371F7" }}
           >
             <Info className="w-3.5 h-3.5" />
             Theorie erklären
@@ -441,9 +441,9 @@ export function ElliottWave() {
                   onClick={() => setPeriod(p)}
                   className="px-3 py-2.5 rounded-xl text-xs font-bold transition-all"
                   style={{
-                    background: period === p ? "rgba(123,47,255,0.2)" : "rgba(255,255,255,0.04)",
-                    border: period === p ? "1px solid rgba(123,47,255,0.5)" : "1px solid rgba(255,255,255,0.08)",
-                    color: period === p ? "#7B2FFF" : "#64748B",
+                    background: period === p ? "rgba(163,113,247,0.2)" : "rgba(255,255,255,0.04)",
+                    border: period === p ? "1px solid rgba(163,113,247,0.5)" : "1px solid rgba(255,255,255,0.08)",
+                    color: period === p ? "#A371F7" : "#64748B",
                   }}
                 >
                   {p}
@@ -455,7 +455,7 @@ export function ElliottWave() {
             onClick={() => load(ticker, period)}
             disabled={loading || !ticker.trim()}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, rgba(123,47,255,0.2), rgba(0,212,255,0.1))", border: "1px solid rgba(123,47,255,0.4)", color: "#7B2FFF" }}
+            style={{ background: "linear-gradient(135deg, rgba(163,113,247,0.2), rgba(76,141,246,0.1))", border: "1px solid rgba(163,113,247,0.4)", color: "#A371F7" }}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
             Analysieren
@@ -478,7 +478,7 @@ export function ElliottWave() {
       {loading && !analysis && (
         <GlassCard className="flex items-center justify-center py-16">
           <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3" style={{ color: "#7B2FFF" }} />
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3" style={{ color: "#A371F7" }} />
             <p className="text-slate-400">Berechne Elliott-Wellen…</p>
           </div>
         </GlassCard>
@@ -489,10 +489,10 @@ export function ElliottWave() {
           {/* Summary row */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: "Aktuelle Welle", value: analysis.current_wave, color: "#FFD700" },
-              { label: "Sequenz", value: analysis.sequence_type === "impulse" ? "Impuls" : "Korrektur", color: "#7B2FFF" },
-              { label: "Stop-Loss", value: `$${analysis.stop_loss.toFixed(2)}`, color: "#FF0080" },
-              { label: "Nächstes Ziel", value: analysis.price_targets[0] ? `$${analysis.price_targets[0].toFixed(2)}` : "—", color: "#00FF88" },
+              { label: "Aktuelle Welle", value: analysis.current_wave, color: "#D29922" },
+              { label: "Sequenz", value: analysis.sequence_type === "impulse" ? "Impuls" : "Korrektur", color: "#A371F7" },
+              { label: "Stop-Loss", value: `$${analysis.stop_loss.toFixed(2)}`, color: "#E5534B" },
+              { label: "Nächstes Ziel", value: analysis.price_targets[0] ? `$${analysis.price_targets[0].toFixed(2)}` : "—", color: "#3FB950" },
             ].map(({ label, value, color }) => (
               <GlassCard key={label} padding="p-3" delay={0.05}>
                 <p className="text-xs text-slate-500 mb-1">{label}</p>
@@ -537,10 +537,10 @@ export function ElliottWave() {
                 {/* Targets */}
                 {analysis.price_targets.map((t, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <Target className="w-4 h-4 flex-shrink-0" style={{ color: "#00FF88" }} />
+                    <Target className="w-4 h-4 flex-shrink-0" style={{ color: "#3FB950" }} />
                     <div className="flex-1">
                       <p className="text-xs text-slate-500">Ziel {i + 1} ({i === 0 ? "161.8%" : "261.8%"} Extension)</p>
-                      <p className="font-mono font-bold text-sm" style={{ color: "#00FF88" }}>
+                      <p className="font-mono font-bold text-sm" style={{ color: "#3FB950" }}>
                         ${t.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                     </div>

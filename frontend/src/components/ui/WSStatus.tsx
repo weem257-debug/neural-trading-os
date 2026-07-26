@@ -179,27 +179,27 @@ export function WSStatus() {
     status === "connected"
       ? {
           width: 6, height: 6, borderRadius: "50%",
-          background: "#00D4FF",
-          boxShadow: "0 0 6px #00D4FF",
+          background: "#4C8DF6",
+          boxShadow: "0 0 6px #4C8DF6",
           animation: "glow-pulse-cyan 1.8s ease-in-out infinite",
         }
       : status === "connecting"
       ? {
           width: 6, height: 6, borderRadius: "50%",
-          background: "#FFD700",
-          boxShadow: "0 0 6px #FFD700",
+          background: "#D29922",
+          boxShadow: "0 0 6px #D29922",
           animation: "blink 0.8s step-start infinite",
         }
       : {
           width: 6, height: 6, borderRadius: "50%",
-          background: "#FF0080",
-          boxShadow: "0 0 4px #FF0080",
+          background: "#E5534B",
+          boxShadow: "0 0 4px #E5534B",
         };
 
   const labelColor =
-    status === "connected"   ? "#00D4FF"
-    : status === "connecting" ? "#FFD700"
-    : "#FF0080";
+    status === "connected"   ? "#4C8DF6"
+    : status === "connecting" ? "#D29922"
+    : "#E5534B";
 
   return (
     <div
@@ -238,7 +238,7 @@ export function WSStatus() {
           onClick={handleReconnect}
           title="WebSocket neu verbinden"
           className="p-0.5 rounded transition-all hover:opacity-80"
-          style={{ color: "#FF0080" }}
+          style={{ color: "#E5534B" }}
         >
           <RefreshCw className="w-3 h-3" />
         </button>

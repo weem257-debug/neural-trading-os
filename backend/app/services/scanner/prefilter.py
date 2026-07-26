@@ -49,6 +49,13 @@ class Candidate:
     # None means "no forecast available" — the signal path behaves exactly as
     # before (technical-only). Never used for ranking; surfaced to Stage 2.
     forecast: Optional[dict] = None
+    # The OHLCV frame this candidate was scored from, carried so the Kronos stage
+    # can forecast on the SAME data instead of downloading it again seconds later.
+    # That second batch doubled the Yahoo request volume whenever KRONOS_ENABLED
+    # was set and stretched how long a cycle held its advisory lock. Only the
+    # candidates that survive truncation keep a frame; repr=False keeps a whole
+    # DataFrame out of log lines and error messages.
+    ohlcv: Optional[object] = field(default=None, repr=False, compare=False)
 
 
 def _obv_trend(hist_df):
@@ -273,9 +280,19 @@ async def run_prefilter(symbols: list[str], top_n: Optional[int] = None) -> list
             cand = _score_symbol(frame)
             if cand is not None:
                 cand.symbol = symbol
+                cand.ohlcv = frame
                 candidates.append(cand)
 
     candidates.sort(key=lambda c: c.score, reverse=True)
     if top_n is not None:
         candidates = candidates[:top_n]
+    # Detach the surviving frames from their batch: a sub-frame of a chunk
+    # download is a view, so holding one would pin the whole 50-symbol frame in
+    # memory for the rest of the cycle. Copying leaves only the Top-N symbols.
+    for cand in candidates:
+        if cand.ohlcv is not None:
+            try:
+                cand.ohlcv = cand.ohlcv.copy()
+            except Exception:
+                cand.ohlcv = None  # never fail a scan over a caching detail
     return candidates

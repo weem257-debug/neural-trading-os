@@ -21,7 +21,7 @@ export default function RiskLoading() {
         className="rounded-2xl p-5"
         style={{
           background: "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
-          border: "1px solid rgba(255,0,128,0.1)",
+          border: "1px solid rgba(229,83,75,0.1)",
         }}
       >
         <SkeletonBlock height={10} width={100} className="mb-5" />
@@ -58,7 +58,7 @@ export default function RiskLoading() {
             className="rounded-2xl p-5"
             style={{
               background: "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
-              border: "1px solid rgba(0,212,255,0.1)",
+              border: "1px solid rgba(76,141,246,0.1)",
             }}
           >
             <SkeletonBlock height={10} width={120} className="mb-4" />

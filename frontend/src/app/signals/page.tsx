@@ -21,11 +21,11 @@ import { useAuthStore } from "@/store/authStore";
 
 /* ---- Direction config ---- */
 const dirConfig = {
-  STRONG_BUY:  { label: "Starker Kauf",    short: "S.BUY", color: "#00FF88", bg: "rgba(0,255,136,0.15)", border: "rgba(0,255,136,0.4)", glow: "rgba(0,255,136,0.3)" },
-  BUY:         { label: "Kaufen",          short: "BUY",   color: "#00DD77", bg: "rgba(0,255,136,0.08)", border: "rgba(0,255,136,0.2)", glow: "rgba(0,255,136,0.15)" },
-  HOLD:        { label: "Halten",          short: "HOLD",  color: "#FFD700", bg: "rgba(255,215,0,0.08)", border: "rgba(255,215,0,0.25)", glow: "rgba(255,215,0,0.15)" },
-  SELL:        { label: "Verkaufen",       short: "SELL",  color: "#FF6098", bg: "rgba(255,0,128,0.08)", border: "rgba(255,0,128,0.2)", glow: "rgba(255,0,128,0.15)" },
-  STRONG_SELL: { label: "Starker Verkauf", short: "S.SELL",color: "#FF0080", bg: "rgba(255,0,128,0.15)", border: "rgba(255,0,128,0.4)", glow: "rgba(255,0,128,0.3)" },
+  STRONG_BUY:  { label: "Starker Kauf",    short: "S.BUY", color: "#3FB950", bg: "rgba(63,185,80,0.15)", border: "rgba(63,185,80,0.4)", glow: "rgba(63,185,80,0.3)" },
+  BUY:         { label: "Kaufen",          short: "BUY",   color: "#3FB950", bg: "rgba(63,185,80,0.08)", border: "rgba(63,185,80,0.2)", glow: "rgba(63,185,80,0.15)" },
+  HOLD:        { label: "Halten",          short: "HOLD",  color: "#D29922", bg: "rgba(210,153,34,0.08)", border: "rgba(210,153,34,0.25)", glow: "rgba(210,153,34,0.15)" },
+  SELL:        { label: "Verkaufen",       short: "SELL",  color: "#E5534B", bg: "rgba(229,83,75,0.08)", border: "rgba(229,83,75,0.2)", glow: "rgba(229,83,75,0.15)" },
+  STRONG_SELL: { label: "Starker Verkauf", short: "S.SELL",color: "#E5534B", bg: "rgba(229,83,75,0.15)", border: "rgba(229,83,75,0.4)", glow: "rgba(229,83,75,0.3)" },
 };
 
 /* ---- Agent consensus gauge ---- */
@@ -68,7 +68,7 @@ function AgentGauge({ name, view, color }: { name: string; view: string; color: 
 /* ---- Confidence bar ---- */
 function ConfidenceBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
-  const color = pct >= 75 ? "#00FF88" : pct >= 50 ? "#FFD700" : "#FF0080";
+  const color = pct >= 75 ? "#3FB950" : pct >= 50 ? "#D29922" : "#E5534B";
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-xs">
@@ -113,7 +113,7 @@ function SignalCard({ signal, index }: { signal: TradingSignal; index: number })
     });
   }
   const agentNames = ["Fundamental", "Sentiment", "Technisch", "News", "Risiko"];
-  const agentColors = ["#00D4FF", "#00FF88", "#7B2FFF", "#FFD700", "#FF0080"];
+  const agentColors = ["#4C8DF6", "#3FB950", "#A371F7", "#D29922", "#E5534B"];
 
   async function executeOrder(side: "buy" | "sell", e: React.MouseEvent) {
     e.stopPropagation(); // prevent card expand toggle
@@ -200,7 +200,7 @@ function SignalCard({ signal, index }: { signal: TradingSignal; index: number })
               <button
                 onClick={copySignalLink}
                 className="p-1.5 rounded-lg transition-all"
-                style={{ color: copied ? "#00FF88" : "#475569" }}
+                style={{ color: copied ? "#3FB950" : "#475569" }}
                 aria-label="Link kopieren"
                 title="Signal-Link kopieren"
               >
@@ -309,10 +309,10 @@ function SignalCard({ signal, index }: { signal: TradingSignal; index: number })
                       disabled={executing}
                       className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
                       style={{
-                        background: "rgba(0,255,136,0.15)",
-                        border: "1px solid rgba(0,255,136,0.4)",
-                        color: "#00FF88",
-                        boxShadow: "0 0 15px rgba(0,255,136,0.2)",
+                        background: "rgba(63,185,80,0.15)",
+                        border: "1px solid rgba(63,185,80,0.4)",
+                        color: "#3FB950",
+                        boxShadow: "0 0 15px rgba(63,185,80,0.2)",
                       }}
                     >
                       {executing ? (
@@ -329,10 +329,10 @@ function SignalCard({ signal, index }: { signal: TradingSignal; index: number })
                       disabled={executing}
                       className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-60"
                       style={{
-                        background: "rgba(255,0,128,0.15)",
-                        border: "1px solid rgba(255,0,128,0.4)",
-                        color: "#FF0080",
-                        boxShadow: "0 0 15px rgba(255,0,128,0.2)",
+                        background: "rgba(229,83,75,0.15)",
+                        border: "1px solid rgba(229,83,75,0.4)",
+                        color: "#E5534B",
+                        boxShadow: "0 0 15px rgba(229,83,75,0.2)",
                       }}
                     >
                       {executing ? (
@@ -348,9 +348,9 @@ function SignalCard({ signal, index }: { signal: TradingSignal; index: number })
                       onClick={(e) => e.stopPropagation()}
                       className="flex-1 py-2.5 rounded-xl text-sm font-bold cursor-default"
                       style={{
-                        background: "rgba(255,215,0,0.08)",
-                        border: "1px solid rgba(255,215,0,0.25)",
-                        color: "#FFD700",
+                        background: "rgba(210,153,34,0.08)",
+                        border: "1px solid rgba(210,153,34,0.25)",
+                        color: "#D29922",
                       }}
                     >
                       <Minus className="w-4 h-4 inline mr-2" />
@@ -402,13 +402,13 @@ function PerformanceStrip({ perf, isPersonal = false }: { perf: SignalPerformanc
   if (perf.total_evaluated === 0) return null;
   const avgPct = (perf.avg_return * 100).toFixed(2);
   const winPct = (perf.win_rate * 100).toFixed(0);
-  const avgColor = perf.avg_return >= 0 ? "#00FF88" : "#FF0080";
+  const avgColor = perf.avg_return >= 0 ? "#3FB950" : "#E5534B";
   return (
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       className="flex items-center gap-4 px-4 py-2.5 rounded-xl text-xs overflow-x-auto"
-      style={{ background: isPersonal ? "rgba(0,212,255,0.04)" : "rgba(255,255,255,0.03)", border: `1px solid ${isPersonal ? "rgba(0,212,255,0.15)" : "rgba(255,255,255,0.06)"}` }}
+      style={{ background: isPersonal ? "rgba(76,141,246,0.04)" : "rgba(255,255,255,0.03)", border: `1px solid ${isPersonal ? "rgba(76,141,246,0.15)" : "rgba(255,255,255,0.06)"}` }}
     >
       <span className="text-slate-500 whitespace-nowrap">{isPersonal ? `Deine Performance (${perf.total_evaluated} bewertet)` : `KI-Performance (${perf.total_evaluated} bewertet)`}</span>
       <span className="flex items-center gap-1 whitespace-nowrap">
@@ -671,8 +671,8 @@ function SignalsPageInner() {
         href="/signals/marketplace"
         className="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group"
         style={{
-          background: "rgba(0,255,136,0.06)",
-          border: "1px solid rgba(0,255,136,0.18)",
+          background: "rgba(63,185,80,0.06)",
+          border: "1px solid rgba(63,185,80,0.18)",
         }}
       >
         <div className="flex items-center gap-2">
@@ -691,9 +691,9 @@ function SignalsPageInner() {
           <div className="flex items-center gap-3">
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "rgba(0,255,136,0.15)", border: "1px solid rgba(0,255,136,0.3)" }}
+              style={{ background: "rgba(63,185,80,0.15)", border: "1px solid rgba(63,185,80,0.3)" }}
             >
-              <Brain className="w-4 h-4" style={{ color: "#00FF88" }} />
+              <Brain className="w-4 h-4" style={{ color: "#3FB950" }} />
             </div>
             <h1 className="text-2xl font-bold text-slate-100">AI Signals</h1>
             <NeonBadge color="green">{signals.length} generated</NeonBadge>
@@ -713,8 +713,8 @@ function SignalsPageInner() {
               aria-label="Mehrere Ticker scannen"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
               style={{
-                background: "rgba(123,47,255,0.12)",
-                border: "1px solid rgba(123,47,255,0.35)",
+                background: "rgba(163,113,247,0.12)",
+                border: "1px solid rgba(163,113,247,0.35)",
                 color: "#A855F7",
               }}
             >
@@ -728,9 +728,9 @@ function SignalsPageInner() {
                 aria-label="Signale als CSV exportieren"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
                 style={{
-                  background: "rgba(0,255,136,0.08)",
-                  border: "1px solid rgba(0,255,136,0.25)",
-                  color: "#00FF88",
+                  background: "rgba(63,185,80,0.08)",
+                  border: "1px solid rgba(63,185,80,0.25)",
+                  color: "#3FB950",
                 }}
               >
                 <Download className="w-3.5 h-3.5" aria-hidden="true" />
@@ -762,12 +762,12 @@ function SignalsPageInner() {
               onClick={() => setTicker(t.ticker)}
               className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-mono font-semibold transition-all"
               style={{
-                background: "rgba(0,255,136,0.06)",
-                border: "1px solid rgba(0,255,136,0.15)",
+                background: "rgba(63,185,80,0.06)",
+                border: "1px solid rgba(63,185,80,0.15)",
                 color: "#64748b",
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#00FF88"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,255,136,0.4)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#64748b"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,255,136,0.15)"; }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#3FB950"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(63,185,80,0.4)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#64748b"; (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(63,185,80,0.15)"; }}
             >
               {t.ticker}
               {t.count > 1 && <span className="text-slate-700 font-normal">×{t.count}</span>}
@@ -792,12 +792,12 @@ function SignalsPageInner() {
                         style={{
                           width: usage.limit < 0 ? "100%" : `${Math.min(100, (usage.used / usage.limit) * 100)}%`,
                           background: usage.limit < 0
-                            ? "#00FF88"
+                            ? "#3FB950"
                             : usage.used / usage.limit >= 0.9
-                              ? "#FF0080"
+                              ? "#E5534B"
                               : usage.used / usage.limit >= 0.7
-                                ? "#FFD700"
-                                : "#00FF88",
+                                ? "#D29922"
+                                : "#3FB950",
                         }}
                       />
                     </div>
@@ -829,10 +829,10 @@ function SignalsPageInner() {
               className="w-full rounded-xl px-4 py-2.5 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none transition-all"
               style={{
                 background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(0,255,136,0.2)",
+                border: "1px solid rgba(63,185,80,0.2)",
               }}
-              onFocus={(e) => { e.target.style.borderColor = "rgba(0,255,136,0.5)"; e.target.style.boxShadow = "0 0 12px rgba(0,255,136,0.15)"; }}
-              onBlur={(e) => { e.target.style.borderColor = "rgba(0,255,136,0.2)"; e.target.style.boxShadow = "none"; }}
+              onFocus={(e) => { e.target.style.borderColor = "rgba(63,185,80,0.5)"; e.target.style.boxShadow = "0 0 12px rgba(63,185,80,0.15)"; }}
+              onBlur={(e) => { e.target.style.borderColor = "rgba(63,185,80,0.2)"; e.target.style.boxShadow = "none"; }}
             />
           </div>
 
@@ -848,9 +848,9 @@ function SignalsPageInner() {
                   onClick={() => setFastMode(v)}
                   className="px-4 py-2.5 rounded-xl text-xs font-semibold transition-all"
                   style={{
-                    background: fastMode === v ? "rgba(0,255,136,0.15)" : "rgba(255,255,255,0.04)",
-                    border: `1px solid ${fastMode === v ? "rgba(0,255,136,0.4)" : "rgba(255,255,255,0.08)"}`,
-                    color: fastMode === v ? "#00FF88" : "#64748B",
+                    background: fastMode === v ? "rgba(63,185,80,0.15)" : "rgba(255,255,255,0.04)",
+                    border: `1px solid ${fastMode === v ? "rgba(63,185,80,0.4)" : "rgba(255,255,255,0.08)"}`,
+                    color: fastMode === v ? "#3FB950" : "#64748B",
                   }}
                 >
                   {label}
@@ -869,11 +869,11 @@ function SignalsPageInner() {
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
               style={{
                 background: demoLoading
-                  ? "rgba(0,212,255,0.08)"
-                  : "rgba(0,212,255,0.12)",
-                border: "1px solid rgba(0,212,255,0.35)",
-                color: "#00D4FF",
-                boxShadow: demoLoading ? "none" : "0 0 14px rgba(0,212,255,0.15)",
+                  ? "rgba(76,141,246,0.08)"
+                  : "rgba(76,141,246,0.12)",
+                border: "1px solid rgba(76,141,246,0.35)",
+                color: "#4C8DF6",
+                boxShadow: demoLoading ? "none" : "0 0 14px rgba(76,141,246,0.15)",
               }}
             >
               {demoLoading ? (
@@ -890,11 +890,11 @@ function SignalsPageInner() {
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
               style={{
                 background: loading
-                  ? "rgba(0,255,136,0.1)"
-                  : "linear-gradient(135deg, rgba(0,255,136,0.25), rgba(0,212,255,0.15))",
-                border: "1px solid rgba(0,255,136,0.4)",
-                color: "#00FF88",
-                boxShadow: loading ? "none" : "0 0 20px rgba(0,255,136,0.2)",
+                  ? "rgba(63,185,80,0.1)"
+                  : "linear-gradient(135deg, rgba(63,185,80,0.25), rgba(76,141,246,0.15))",
+                border: "1px solid rgba(63,185,80,0.4)",
+                color: "#3FB950",
+                boxShadow: loading ? "none" : "0 0 20px rgba(63,185,80,0.2)",
               }}
             >
               {loading ? (
@@ -916,14 +916,14 @@ function SignalsPageInner() {
               <div
                 className="p-4 flex items-center justify-between gap-4"
                 style={{
-                  background: "linear-gradient(90deg, rgba(255,0,128,0.1) 0%, rgba(123,47,255,0.1) 100%)",
-                  border: "1px solid rgba(255,0,128,0.35)",
+                  background: "linear-gradient(90deg, rgba(229,83,75,0.1) 0%, rgba(163,113,247,0.1) 100%)",
+                  border: "1px solid rgba(229,83,75,0.35)",
                 }}
               >
                 <div className="flex items-center gap-3">
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(255,0,128,0.15)", border: "1px solid rgba(255,0,128,0.3)" }}
+                    style={{ background: "rgba(229,83,75,0.15)", border: "1px solid rgba(229,83,75,0.3)" }}
                   >
                     <Zap className="w-4 h-4 text-neon-pink" />
                   </div>
@@ -935,7 +935,7 @@ function SignalsPageInner() {
                 <Link
                   href="/billing?plan=basic"
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-opacity hover:opacity-80"
-                  style={{ background: "rgba(255,0,128,0.2)", border: "1px solid rgba(255,0,128,0.4)", color: "#FF0080" }}
+                  style={{ background: "rgba(229,83,75,0.2)", border: "1px solid rgba(229,83,75,0.4)", color: "#E5534B" }}
                 >
                   Jetzt upgraden <ArrowRight className="w-3 h-3" />
                 </Link>
@@ -943,7 +943,7 @@ function SignalsPageInner() {
             ) : (
               <div
                 className="p-3 flex items-center gap-2"
-                style={{ background: "rgba(255,0,128,0.1)", border: "1px solid rgba(255,0,128,0.3)" }}
+                style={{ background: "rgba(229,83,75,0.1)", border: "1px solid rgba(229,83,75,0.3)" }}
               >
                 <AlertTriangle className="w-4 h-4 text-neon-pink flex-shrink-0" />
                 <p className="text-sm text-neon-pink">{error}</p>
@@ -971,7 +971,7 @@ function SignalsPageInner() {
                   animate={{ opacity: [0, 1, 0.5, 1] }}
                   transition={{ delay: i * 0.3, duration: 1, repeat: Infinity }}
                   className="flex-1 py-1 rounded text-center text-xs"
-                  style={{ background: "rgba(0,255,136,0.08)", color: "#00FF88", border: "1px solid rgba(0,255,136,0.2)" }}
+                  style={{ background: "rgba(63,185,80,0.08)", color: "#3FB950", border: "1px solid rgba(63,185,80,0.2)" }}
                 >
                   {a}
                 </motion.div>
@@ -1002,10 +1002,10 @@ function SignalsPageInner() {
               className="w-full rounded-xl px-4 py-2 text-sm font-mono text-slate-300 placeholder-slate-600 outline-none transition-all"
               style={{
                 background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(0,212,255,0.2)",
+                border: "1px solid rgba(76,141,246,0.2)",
               }}
-              onFocus={(e) => { e.target.style.borderColor = "rgba(0,212,255,0.5)"; }}
-              onBlur={(e)  => { e.target.style.borderColor = "rgba(0,212,255,0.2)"; }}
+              onFocus={(e) => { e.target.style.borderColor = "rgba(76,141,246,0.5)"; }}
+              onBlur={(e)  => { e.target.style.borderColor = "rgba(76,141,246,0.2)"; }}
             />
           </div>
 
@@ -1014,10 +1014,10 @@ function SignalsPageInner() {
             {(["ALL", "BUY", "SELL", "HOLD"] as DirectionFilter[]).map((d) => {
               const active = dirFilter === d;
               const colMap: Record<DirectionFilter, string> = {
-                ALL:  "#00D4FF",
-                BUY:  "#00FF88",
-                SELL: "#FF0080",
-                HOLD: "#FFD700",
+                ALL:  "#4C8DF6",
+                BUY:  "#3FB950",
+                SELL: "#E5534B",
+                HOLD: "#D29922",
               };
               const col = colMap[d];
               return (
@@ -1061,17 +1061,17 @@ function SignalsPageInner() {
               className="h-px flex-1 rounded-full"
               style={{
                 background: newSignalPulse
-                  ? "linear-gradient(90deg, transparent, #00FF88, transparent)"
+                  ? "linear-gradient(90deg, transparent, #3FB950, transparent)"
                   : "linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)",
                 transition: "background 0.4s ease",
-                boxShadow: newSignalPulse ? "0 0 12px rgba(0,255,136,0.6)" : "none",
+                boxShadow: newSignalPulse ? "0 0 12px rgba(63,185,80,0.6)" : "none",
               }}
             />
             <span
               className="text-xs font-semibold px-2"
               style={{
-                color: newSignalPulse ? "#00FF88" : "#475569",
-                textShadow: newSignalPulse ? "0 0 10px rgba(0,255,136,0.8)" : "none",
+                color: newSignalPulse ? "#3FB950" : "#475569",
+                textShadow: newSignalPulse ? "0 0 10px rgba(63,185,80,0.8)" : "none",
                 transition: "color 0.3s ease, text-shadow 0.3s ease",
               }}
             >
@@ -1082,9 +1082,9 @@ function SignalsPageInner() {
               className="h-px flex-1 rounded-full"
               style={{
                 background: newSignalPulse
-                  ? "linear-gradient(90deg, transparent, #00FF88, transparent)"
+                  ? "linear-gradient(90deg, transparent, #3FB950, transparent)"
                   : "linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)",
-                boxShadow: newSignalPulse ? "0 0 12px rgba(0,255,136,0.6)" : "none",
+                boxShadow: newSignalPulse ? "0 0 12px rgba(63,185,80,0.6)" : "none",
                 transition: "background 0.4s ease",
               }}
             />
@@ -1096,9 +1096,9 @@ function SignalsPageInner() {
             <GlassCard className="text-center py-16">
               <div
                 className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                style={{ background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.15)" }}
+                style={{ background: "rgba(63,185,80,0.08)", border: "1px solid rgba(63,185,80,0.15)" }}
               >
-                <Brain className="w-8 h-8" style={{ color: "rgba(0,255,136,0.4)" }} />
+                <Brain className="w-8 h-8" style={{ color: "rgba(63,185,80,0.4)" }} />
               </div>
               <p className="text-slate-400 font-medium">Noch keine Signale. Klicke auf Demo-Signal zum Starten.</p>
               <p className="text-sm text-slate-600 mt-1">Ticker oben eingeben und auf Generieren oder Demo klicken</p>
@@ -1107,10 +1107,10 @@ function SignalsPageInner() {
                 disabled={demoLoading}
                 className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold mx-auto transition-all disabled:opacity-50"
                 style={{
-                  background: "rgba(0,212,255,0.12)",
-                  border: "1px solid rgba(0,212,255,0.35)",
-                  color: "#00D4FF",
-                  boxShadow: "0 0 14px rgba(0,212,255,0.15)",
+                  background: "rgba(76,141,246,0.12)",
+                  border: "1px solid rgba(76,141,246,0.35)",
+                  color: "#4C8DF6",
+                  boxShadow: "0 0 14px rgba(76,141,246,0.15)",
                 }}
               >
                 {demoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
@@ -1173,8 +1173,8 @@ function SignalsPageInner() {
               className="w-full max-w-md rounded-2xl p-6 space-y-5"
               style={{
                 background: "linear-gradient(135deg, rgba(15,15,25,0.98), rgba(20,20,35,0.98))",
-                border: "1px solid rgba(123,47,255,0.4)",
-                boxShadow: "0 0 40px rgba(123,47,255,0.2), 0 20px 60px rgba(0,0,0,0.6)",
+                border: "1px solid rgba(163,113,247,0.4)",
+                boxShadow: "0 0 40px rgba(163,113,247,0.2), 0 20px 60px rgba(0,0,0,0.6)",
               }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -1183,7 +1183,7 @@ function SignalsPageInner() {
                 <div className="flex items-center gap-3">
                   <div
                     className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{ background: "rgba(123,47,255,0.15)", border: "1px solid rgba(123,47,255,0.3)" }}
+                    style={{ background: "rgba(163,113,247,0.15)", border: "1px solid rgba(163,113,247,0.3)" }}
                   >
                     <ScanSearch className="w-4 h-4" style={{ color: "#A855F7" }} />
                   </div>
@@ -1210,8 +1210,8 @@ function SignalsPageInner() {
                       disabled={batchLoading}
                       className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all text-left"
                       style={{
-                        background: selected ? "rgba(123,47,255,0.12)" : "rgba(255,255,255,0.04)",
-                        border: `1px solid ${selected ? "rgba(123,47,255,0.4)" : "rgba(255,255,255,0.08)"}`,
+                        background: selected ? "rgba(163,113,247,0.12)" : "rgba(255,255,255,0.04)",
+                        border: `1px solid ${selected ? "rgba(163,113,247,0.4)" : "rgba(255,255,255,0.08)"}`,
                         color: selected ? "#A855F7" : "#64748B",
                       }}
                     >
@@ -1235,7 +1235,7 @@ function SignalsPageInner() {
                   <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                     <motion.div
                       className="h-full rounded-full"
-                      style={{ background: "linear-gradient(90deg, #7B2FFF, #A855F7)" }}
+                      style={{ background: "linear-gradient(90deg, #A371F7, #A855F7)" }}
                       initial={{ width: 0 }}
                       animate={{ width: `${(batchProgress.done / batchProgress.total) * 100}%` }}
                       transition={{ duration: 0.3 }}
@@ -1254,10 +1254,10 @@ function SignalsPageInner() {
                   disabled={batchLoading || batchSelected.length === 0}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
                   style={{
-                    background: batchLoading ? "rgba(123,47,255,0.1)" : "linear-gradient(135deg, rgba(123,47,255,0.25), rgba(168,85,247,0.15))",
-                    border: "1px solid rgba(123,47,255,0.4)",
+                    background: batchLoading ? "rgba(163,113,247,0.1)" : "linear-gradient(135deg, rgba(163,113,247,0.25), rgba(168,85,247,0.15))",
+                    border: "1px solid rgba(163,113,247,0.4)",
                     color: "#A855F7",
-                    boxShadow: batchLoading ? "none" : "0 0 20px rgba(123,47,255,0.2)",
+                    boxShadow: batchLoading ? "none" : "0 0 20px rgba(163,113,247,0.2)",
                   }}
                 >
                   {batchLoading

@@ -41,9 +41,9 @@ interface IndicatorConfig {
 }
 
 const INDICATORS: IndicatorConfig[] = [
-  { key: "sma20", label: "SMA20", color: "#00D4FF" },
-  { key: "sma50", label: "SMA50", color: "#7B2FFF" },
-  { key: "ema12", label: "EMA12", color: "#FFD700" },
+  { key: "sma20", label: "SMA20", color: "#4C8DF6" },
+  { key: "sma50", label: "SMA50", color: "#A371F7" },
+  { key: "ema12", label: "EMA12", color: "#D29922" },
 ];
 
 
@@ -109,6 +109,12 @@ export default function CandlestickChart({
   const [lastClose, setLastClose]       = useState<number | null>(null);
   const [lastChange, setLastChange]     = useState<number | null>(null);
   const [activeIndicators, setActiveIndicators] = useState<Set<IndicatorKey>>(new Set());
+  // Flipped once the async `lightweight-charts` import resolved AND the series
+  // objects exist. `loadCandles` bails out while the series refs are null, so
+  // without this gate the single fetch could fire before the dynamic import
+  // finished — nothing ever retriggered it and the chart stayed empty forever.
+  // That race is why charts "disappeared" on cold/slow bundle loads.
+  const [chartReady, setChartReady] = useState(false);
   // Store latest bars so indicator toggles can re-render without refetch
   const barsRef = useRef<OHLCVBar[]>([]);
 
@@ -137,6 +143,7 @@ export default function CandlestickChart({
   useEffect(() => {
     let chart: unknown;
     let mounted = true;
+    let resizeObserver: ResizeObserver | undefined;
 
     (async () => {
       const { createChart, ColorType, CrosshairMode } = await import("lightweight-charts");
@@ -147,7 +154,7 @@ export default function CandlestickChart({
         width:  containerRef.current.clientWidth,
         height: displayHeight,
         layout: {
-          background: { type: ColorType.Solid, color: "#080B14" },
+          background: { type: ColorType.Solid, color: "#0B0E14" },
           textColor: "#64748B",
         },
         grid: {
@@ -156,8 +163,8 @@ export default function CandlestickChart({
         },
         crosshair: {
           mode: CrosshairMode.Normal,
-          vertLine: { color: "#00D4FF40", labelBackgroundColor: "#0D1117" },
-          horzLine: { color: "#00D4FF40", labelBackgroundColor: "#0D1117" },
+          vertLine: { color: "#4C8DF640", labelBackgroundColor: "#10141C" },
+          horzLine: { color: "#4C8DF640", labelBackgroundColor: "#10141C" },
         },
         rightPriceScale: {
           borderColor: "rgba(255,255,255,0.08)",
@@ -173,17 +180,17 @@ export default function CandlestickChart({
 
       // @ts-expect-error lightweight-charts overloaded types
       const candleSeries = chart.addCandlestickSeries({
-        upColor:         "#00FF88",
-        downColor:       "#FF0080",
-        borderUpColor:   "#00D4FF",
-        borderDownColor: "#FF0080",
-        wickUpColor:     "#00FF8880",
-        wickDownColor:   "#FF008080",
+        upColor:         "#3FB950",
+        downColor:       "#E5534B",
+        borderUpColor:   "#4C8DF6",
+        borderDownColor: "#E5534B",
+        wickUpColor:     "#3FB95080",
+        wickDownColor:   "#E5534B80",
       });
 
       // @ts-expect-error lightweight-charts overloaded types
       const volSeries = chart.addHistogramSeries({
-        color:        "#00D4FF20",
+        color:        "#4C8DF620",
         priceFormat:  { type: "volume" },
         priceScaleId: "volume",
         scaleMargins: { top: 0.85, bottom: 0 },
@@ -192,19 +199,24 @@ export default function CandlestickChart({
       candleSeriesRef.current = candleSeries;
       volumeSeriesRef.current = volSeries;
       chartRef.current        = chart;
+      setChartReady(true);
 
-      const ro = new ResizeObserver((entries) => {
+      resizeObserver = new ResizeObserver((entries) => {
         const entry = entries[0];
         if (entry && chart) {
           // @ts-expect-error lightweight-charts
           chart.applyOptions({ width: entry.contentRect.width });
         }
       });
-      ro.observe(containerRef.current!);
+      resizeObserver.observe(containerRef.current!);
     })();
 
     return () => {
       mounted = false;
+      setChartReady(false);
+      // The observer outlived the chart before this — on every height change
+      // (mobile/desktop breakpoint) a dead observer stayed attached.
+      resizeObserver?.disconnect();
       if (chart) {
         // @ts-expect-error lightweight-charts
         chart.remove();
@@ -331,7 +343,7 @@ export default function CandlestickChart({
         const volumeData = bars.map((b) => ({
           time:  b.time as unknown as import("lightweight-charts").Time,
           value: b.volume,
-          color: b.close >= b.open ? "#00FF8825" : "#FF008025",
+          color: b.close >= b.open ? "#3FB95025" : "#E5534B25",
         }));
 
         // @ts-expect-error lightweight-charts
@@ -364,9 +376,10 @@ export default function CandlestickChart({
   );
 
   useEffect(() => {
-    const t = setTimeout(() => loadCandles(activeTicker), 200);
+    if (!chartReady) return;
+    const t = setTimeout(() => loadCandles(activeTicker), 50);
     return () => clearTimeout(t);
-  }, [activeTicker, loadCandles]);
+  }, [activeTicker, loadCandles, chartReady]);
 
   const positive = (lastChange ?? 0) >= 0;
 
@@ -374,8 +387,8 @@ export default function CandlestickChart({
     <div
       className="flex flex-col rounded-xl overflow-hidden"
       style={{
-        background: "#080B14",
-        border:     "1px solid rgba(0,212,255,0.15)",
+        background: "#0B0E14",
+        border:     "1px solid rgba(76,141,246,0.15)",
       }}
     >
       {/* Header */}
@@ -393,10 +406,10 @@ export default function CandlestickChart({
               style={
                 t === activeTicker
                   ? {
-                      background: "rgba(0,212,255,0.15)",
-                      border:     "1px solid rgba(0,212,255,0.4)",
-                      color:      "#00D4FF",
-                      boxShadow:  "0 0 10px rgba(0,212,255,0.2)",
+                      background: "rgba(76,141,246,0.15)",
+                      border:     "1px solid rgba(76,141,246,0.4)",
+                      color:      "#4C8DF6",
+                      boxShadow:  "0 0 10px rgba(76,141,246,0.2)",
                     }
                   : {
                       background: "rgba(255,255,255,0.04)",
@@ -453,8 +466,8 @@ export default function CandlestickChart({
                 <span
                   className="text-sm font-mono font-bold px-2 py-0.5 rounded"
                   style={{
-                    color:      positive ? "#00FF88" : "#FF0080",
-                    background: positive ? "rgba(0,255,136,0.1)" : "rgba(255,0,128,0.1)",
+                    color:      positive ? "#3FB950" : "#E5534B",
+                    background: positive ? "rgba(63,185,80,0.1)" : "rgba(229,83,75,0.1)",
                   }}
                 >
                   {positive ? "+" : ""}
@@ -488,7 +501,7 @@ export default function CandlestickChart({
             className="absolute inset-0 z-10 flex items-center justify-center"
             style={{ background: "rgba(8,11,20,0.7)" }}
           >
-            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#00D4FF" }} />
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#4C8DF6" }} />
           </div>
         )}
 
@@ -512,15 +525,15 @@ export default function CandlestickChart({
         style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}
       >
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-2 rounded-sm inline-block" style={{ background: "#00FF88" }} />
+          <span className="w-3 h-2 rounded-sm inline-block" style={{ background: "#3FB950" }} />
           Up candle
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-2 rounded-sm inline-block" style={{ background: "#FF0080" }} />
+          <span className="w-3 h-2 rounded-sm inline-block" style={{ background: "#E5534B" }} />
           Down candle
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-2 rounded-sm inline-block" style={{ background: "#00D4FF20" }} />
+          <span className="w-3 h-2 rounded-sm inline-block" style={{ background: "#4C8DF620" }} />
           Volume
         </span>
         {/* Active indicator legend */}

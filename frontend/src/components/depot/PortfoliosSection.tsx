@@ -71,8 +71,8 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 const COLOR_PRESETS = [
-  "#00D4FF", "#7B2FFF", "#00FF88", "#FF6B6B",
-  "#FFD700", "#FF8C00", "#00CED1", "#FF69B4",
+  "#4C8DF6", "#A371F7", "#3FB950", "#FF6B6B",
+  "#D29922", "#FF8C00", "#00CED1", "#FF69B4",
 ];
 
 
@@ -198,7 +198,7 @@ function PortfolioModal({
   const [type, setType] = useState(initial?.portfolio_type ?? "mixed");
   const [category, setCategory] = useState(initial?.category ?? "private");
   const [currency, setCurrency] = useState(initial?.currency ?? "EUR");
-  const [color, setColor] = useState(initial?.color ?? "#00D4FF");
+  const [color, setColor] = useState(initial?.color ?? "#4C8DF6");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -411,7 +411,7 @@ export function PortfoliosSection() {
         <button
           onClick={() => { setEditTarget(undefined); setShowModal(true); }}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-black transition-all hover:scale-105"
-          style={{ background: "linear-gradient(135deg, #00D4FF, #7B2FFF)" }}
+          style={{ background: "linear-gradient(135deg, #4C8DF6, #A371F7)" }}
         >
           <Plus className="w-4 h-4" /> Neues Portfolio
         </button>
@@ -461,9 +461,9 @@ export function PortfoliosSection() {
             exit={{ opacity: 0, y: 20 }}
             className="fixed bottom-6 right-6 flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium shadow-xl"
             style={{
-              background: toast.ok ? "rgba(0,255,136,0.1)" : "rgba(239,68,68,0.1)",
-              borderColor: toast.ok ? "rgba(0,255,136,0.3)" : "rgba(239,68,68,0.3)",
-              color: toast.ok ? "#00FF88" : "#ef4444",
+              background: toast.ok ? "rgba(63,185,80,0.1)" : "rgba(239,68,68,0.1)",
+              borderColor: toast.ok ? "rgba(63,185,80,0.3)" : "rgba(239,68,68,0.3)",
+              color: toast.ok ? "#3FB950" : "#ef4444",
             }}
           >
             <CheckCircle className="w-4 h-4" />

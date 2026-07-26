@@ -25,9 +25,9 @@ const SHIMMER_STYLE = `
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(0, 212, 255, 0.08) 40%,
-    rgba(0, 212, 255, 0.18) 50%,
-    rgba(0, 212, 255, 0.08) 60%,
+    rgba(76, 141, 246, 0.08) 40%,
+    rgba(76, 141, 246, 0.18) 50%,
+    rgba(76, 141, 246, 0.08) 60%,
     transparent 100%
   );
   animation: skeleton-shimmer 2s ease-in-out infinite;
@@ -62,8 +62,8 @@ export function SkeletonBlock({
       style={{
         height,
         width,
-        background: "rgba(0,212,255,0.04)",
-        border: "1px solid rgba(0,212,255,0.07)",
+        background: "rgba(76,141,246,0.04)",
+        border: "1px solid rgba(76,141,246,0.07)",
         ...style,
       }}
     />
@@ -81,7 +81,7 @@ export function SkeletonCard({ className = "" }: { className?: string }) {
         className={`rounded-2xl p-5 ${className}`}
         style={{
           background: "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
-          border: "1px solid rgba(0,212,255,0.1)",
+          border: "1px solid rgba(76,141,246,0.1)",
         }}
       >
         {/* Icon + label row */}
@@ -97,7 +97,7 @@ export function SkeletonCard({ className = "" }: { className?: string }) {
         <SkeletonBlock height={12} width="50%" />
 
         {/* Trend indicator */}
-        <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: "1px solid rgba(0,212,255,0.06)" }}>
+        <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: "1px solid rgba(76,141,246,0.06)" }}>
           <SkeletonBlock height={8} width={8} rounded="rounded-full" />
           <SkeletonBlock height={10} width="40%" />
         </div>
@@ -124,14 +124,14 @@ export function SkeletonTable({ rows = 5, columns = 6, className = "" }: Skeleto
       <div
         className={`rounded-2xl overflow-hidden ${className}`}
         style={{
-          border: "1px solid rgba(0,212,255,0.1)",
+          border: "1px solid rgba(76,141,246,0.1)",
           background: "rgba(8,11,20,0.6)",
         }}
       >
         {/* Table header */}
         <div
           className="flex items-center gap-4 px-5 py-3"
-          style={{ borderBottom: "1px solid rgba(0,212,255,0.08)", background: "rgba(0,212,255,0.03)" }}
+          style={{ borderBottom: "1px solid rgba(76,141,246,0.08)", background: "rgba(76,141,246,0.03)" }}
         >
           {Array.from({ length: columns }).map((_, i) => (
             <SkeletonBlock
@@ -144,7 +144,7 @@ export function SkeletonTable({ rows = 5, columns = 6, className = "" }: Skeleto
         </div>
 
         {/* Table rows */}
-        <div className="divide-y" style={{ borderColor: "rgba(0,212,255,0.05)" }}>
+        <div className="divide-y" style={{ borderColor: "rgba(76,141,246,0.05)" }}>
           {Array.from({ length: rows }).map((_, rowIdx) => (
             <div
               key={rowIdx}
@@ -189,7 +189,7 @@ export function SkeletonChart({ height = 240, className = "", showLegend = true 
         className={`rounded-2xl p-5 ${className}`}
         style={{
           background: "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
-          border: "1px solid rgba(0,212,255,0.1)",
+          border: "1px solid rgba(76,141,246,0.1)",
         }}
       >
         {/* Header row */}
@@ -212,8 +212,8 @@ export function SkeletonChart({ height = 240, className = "", showLegend = true 
           className="skeleton-shimmer relative overflow-hidden rounded-xl"
           style={{
             height,
-            background: "rgba(0,212,255,0.03)",
-            border: "1px solid rgba(0,212,255,0.07)",
+            background: "rgba(76,141,246,0.03)",
+            border: "1px solid rgba(76,141,246,0.07)",
           }}
         >
           {/* Fake y-axis lines */}
@@ -223,7 +223,7 @@ export function SkeletonChart({ height = 240, className = "", showLegend = true 
               className="absolute left-0 right-0 h-px"
               style={{
                 top: `${pct}%`,
-                background: "rgba(0,212,255,0.06)",
+                background: "rgba(76,141,246,0.06)",
               }}
             />
           ))}
@@ -238,7 +238,7 @@ export function SkeletonChart({ height = 240, className = "", showLegend = true 
                   className="flex-1 rounded-t-sm"
                   style={{
                     height: `${h}%`,
-                    background: "rgba(0,212,255,0.06)",
+                    background: "rgba(76,141,246,0.06)",
                     minWidth: 4,
                   }}
                 />

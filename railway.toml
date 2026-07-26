@@ -13,6 +13,15 @@
 #   APP_ENCRYPTION_KEYS_OLD— (optional) comma-separated old keys during rotation
 #   TRUST_PROXY            — set "true" on Railway so rate-limiting reads the
 #                            real client IP from X-Forwarded-For
+#   TRUSTED_PROXY_IPS      — (recommended) comma-separated IPs/CIDRs of the edge
+#                            proxy. Forwarding headers are then honoured ONLY
+#                            from those peers. Left empty, TRUST_PROXY=true
+#                            honours X-Real-IP from ANY peer, so whoever reaches
+#                            the container directly mints a fresh rate-limit
+#                            bucket per request. Railway publishes no stable edge
+#                            range — read the actual peer address from the logs
+#                            first. A WRONG list collapses every client onto one
+#                            bucket, so verify before relying on it.
 #   DEMO_USERNAME          — login username (default: admin)
 #   DEMO_PASSWORD          — leave default to DISABLE the demo account in prod,
 #                            or set a strong non-default value to keep it enabled.
@@ -48,7 +57,13 @@ source = "backend"
 dockerfilePath = "backend/Dockerfile"
 
 [services.deploy]
-startCommand = "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+# --no-proxy-headers: the app evaluates X-Real-IP / X-Forwarded-For itself
+# (app/core/rate_limits.py) and validates the socket peer against
+# TRUSTED_PROXY_IPS. If uvicorn also rewrote request.client.host from those
+# headers, that check would be validating a client-supplied value against
+# itself. Note this leaves request.base_url on http:// — the Telegram webhook
+# route already covers that with its X-Backend-Url override.
+startCommand = "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT --no-proxy-headers"
 healthcheckPath = "/api/health"
 restartPolicyType = "on_failure"
 

@@ -131,7 +131,7 @@ export function TradingViewWidget({ symbol, height = 420, minHeight = 400, class
         hide_legend: false,
         save_image: false,
         backgroundColor: "rgba(8, 11, 20, 1)",
-        gridColor: "rgba(0, 212, 255, 0.06)",
+        gridColor: "rgba(76, 141, 246, 0.06)",
         allow_symbol_change: true,
         support_host: "https://www.tradingview.com",
       });

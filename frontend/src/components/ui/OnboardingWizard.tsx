@@ -20,7 +20,7 @@ interface Step {
 const STEPS: Step[] = [
   {
     icon: Brain,
-    color: "#00D4FF",
+    color: "#4C8DF6",
     title: "Willkommen bei Neural Trading OS",
     description:
       "KI-gestützte Trading-Signale, Live-Broker-Integration und automatisches Portfolio-Tracking — alles in einem Dashboard.",
@@ -29,7 +29,7 @@ const STEPS: Step[] = [
   },
   {
     icon: Layers,
-    color: "#7B2FFF",
+    color: "#A371F7",
     title: "Depot verbinden",
     description:
       "Verbinde dein Comdirect-, Flatex- oder BitPanda-Depot, damit dein Portfolio automatisch synchronisiert wird.",
@@ -38,7 +38,7 @@ const STEPS: Step[] = [
   },
   {
     icon: Zap,
-    color: "#00FF88",
+    color: "#3FB950",
     title: "Erstes Signal generieren",
     description:
       "Gib einen Ticker ein und lass 9 KI-Agenten gleichzeitig analysieren — inkl. Elliott Wave, Sentiment und Risikoanalyse.",
@@ -47,7 +47,7 @@ const STEPS: Step[] = [
   },
   {
     icon: Send,
-    color: "#FF0080",
+    color: "#E5534B",
     title: "Telegram-Alerts aktivieren",
     description:
       "Erhalte Trading-Signale, Preis-Alerts und Portfolio-Updates direkt auf dein Handy via Telegram.",

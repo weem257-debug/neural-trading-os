@@ -1,7 +1,7 @@
 export default function AgbLoading() {
   return (
     <div className="max-w-2xl mx-auto py-10 px-4 space-y-6">
-      <div className="h-3 w-28 rounded animate-pulse" style={{ background: "rgba(0,212,255,0.12)" }} />
+      <div className="h-3 w-28 rounded animate-pulse" style={{ background: "rgba(76,141,246,0.12)" }} />
 
       <div className="space-y-2">
         <div className="h-7 w-64 rounded-xl animate-pulse" style={{ background: "rgba(255,255,255,0.08)" }} />

@@ -4,6 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
 
+/**
+ * NOT CURRENTLY RENDERED. The root layout dropped it during the palette rework
+ * (the radial-glow layers carry the background on their own now), so nothing
+ * imports this file and `@tsparticles/*` no longer reaches any bundle — the
+ * packages stay in package.json for the same reason this file stays here.
+ * Re-enabling it means re-adding one import in `app/layout.tsx`.
+ */
 export function ParticleBackground() {
   const [inited, setInited] = useState(false);
 
@@ -25,7 +32,7 @@ export function ParticleBackground() {
     fpsLimit: 60,
     particles: {
       number: { value: 60, density: { enable: true } },
-      color: { value: ["#00D4FF", "#7B2FFF", "#00FF88"] },
+      color: { value: ["#4C8DF6", "#A371F7", "#3FB950"] },
       shape: { type: "circle" },
       opacity: {
         value: { min: 0.05, max: 0.25 },
@@ -38,7 +45,7 @@ export function ParticleBackground() {
       links: {
         enable: true,
         distance: 160,
-        color: "#00D4FF",
+        color: "#4C8DF6",
         opacity: 0.08,
         width: 1,
       },

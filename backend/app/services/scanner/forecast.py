@@ -328,15 +328,33 @@ async def attach_forecasts(candidates: list, now=None) -> None:
     try:
         from app.services.scanner.prefilter import _download_chunk, _extract_symbol_frame
 
-        symbols = [c.symbol for c in candidates]
-        # One batch download for the Top-N (<= SCAN_TOP_N, small).
-        data = await asyncio.to_thread(_download_chunk, symbols)
-        multi = len(symbols) > 1
+        # Reuse the frames the prefilter already downloaded seconds ago. Fetching
+        # them a second time doubled the Yahoo request volume of every cycle that
+        # ran with Kronos on — for data that cannot have meaningfully changed in
+        # between — and held the cycle's advisory lock for the extra round-trip.
+        missing = [c.symbol for c in candidates if getattr(c, "ohlcv", None) is None]
+        data = None
+        multi = False
+        if missing:
+            # Fallback for callers that construct candidates without a frame (the
+            # single-symbol runner, tests): fetch only the gaps. A failure here
+            # must cost only those candidates — the ones that arrived with their
+            # frame can still be forecast, which is why this does not propagate.
+            try:
+                data = await asyncio.to_thread(_download_chunk, missing)
+                multi = len(missing) > 1
+            except Exception as exc:
+                logger.warning(
+                    "kronos_gap_download_failed",
+                    extra={"symbols": len(missing), "reason": str(exc)},
+                )
 
         prepared = []
         prepared_idx = []  # index into candidates
         for i, cand in enumerate(candidates):
-            frame = _extract_symbol_frame(data, cand.symbol, multi)
+            frame = getattr(cand, "ohlcv", None)
+            if frame is None:
+                frame = _extract_symbol_frame(data, cand.symbol, multi)
             triple = _ohlcv_to_kronos_inputs(
                 frame, settings.KRONOS_LOOKBACK, settings.KRONOS_PRED_LEN
             )

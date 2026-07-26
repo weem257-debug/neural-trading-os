@@ -45,18 +45,18 @@ function UnsubscribeContent() {
         className="w-full max-w-sm relative"
         style={{
           background: "rgba(8,11,20,0.85)",
-          border: "1px solid rgba(0,212,255,0.25)",
+          border: "1px solid rgba(76,141,246,0.25)",
           borderRadius: "1rem",
           backdropFilter: "blur(24px)",
           boxShadow:
-            "0 0 60px rgba(0,212,255,0.08), 0 25px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(0,212,255,0.1)",
+            "0 0 60px rgba(76,141,246,0.08), 0 25px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(76,141,246,0.1)",
         }}
       >
         <div
           className="absolute top-0 left-8 right-8 h-px rounded-full"
           style={{
             background:
-              "linear-gradient(90deg, transparent, rgba(0,212,255,0.6), transparent)",
+              "linear-gradient(90deg, transparent, rgba(76,141,246,0.6), transparent)",
           }}
         />
 
@@ -66,21 +66,21 @@ function UnsubscribeContent() {
               className="w-14 h-14 rounded-xl flex items-center justify-center mb-4"
               style={{
                 background:
-                  "linear-gradient(135deg, rgba(0,212,255,0.15), rgba(123,47,255,0.15))",
-                border: "1px solid rgba(0,212,255,0.35)",
-                boxShadow: "0 0 24px rgba(0,212,255,0.25)",
+                  "linear-gradient(135deg, rgba(76,141,246,0.15), rgba(163,113,247,0.15))",
+                border: "1px solid rgba(76,141,246,0.35)",
+                boxShadow: "0 0 24px rgba(76,141,246,0.25)",
               }}
             >
               <Cpu
                 className="w-7 h-7"
-                style={{ color: "#00D4FF", filter: "drop-shadow(0 0 8px rgba(0,212,255,0.8))" }}
+                style={{ color: "#4C8DF6", filter: "drop-shadow(0 0 8px rgba(76,141,246,0.8))" }}
               />
             </div>
             <h1
               className="text-xl font-black tracking-widest"
               style={{
-                color: "#00D4FF",
-                textShadow: "0 0 20px rgba(0,212,255,0.6), 0 0 40px rgba(0,212,255,0.3)",
+                color: "#4C8DF6",
+                textShadow: "0 0 20px rgba(76,141,246,0.6), 0 0 40px rgba(76,141,246,0.3)",
                 letterSpacing: "0.15em",
               }}
             >
@@ -101,7 +101,7 @@ function UnsubscribeContent() {
                   className="w-10 h-10 animate-spin"
                   fill="none"
                   viewBox="0 0 24 24"
-                  style={{ color: "rgba(0,212,255,0.6)" }}
+                  style={{ color: "rgba(76,141,246,0.6)" }}
                 >
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -115,11 +115,11 @@ function UnsubscribeContent() {
                 <div
                   className="w-16 h-16 rounded-full flex items-center justify-center"
                   style={{
-                    background: "rgba(0,255,136,0.1)",
-                    border: "1px solid rgba(0,255,136,0.3)",
+                    background: "rgba(63,185,80,0.1)",
+                    border: "1px solid rgba(63,185,80,0.3)",
                   }}
                 >
-                  <CheckCircle className="w-8 h-8" style={{ color: "#00FF88" }} />
+                  <CheckCircle className="w-8 h-8" style={{ color: "#3FB950" }} />
                 </div>
                 <div>
                   <p className="text-base font-bold text-slate-200 mb-1">Erfolgreich abgemeldet</p>
@@ -128,11 +128,11 @@ function UnsubscribeContent() {
                 <div
                   className="w-full p-3 rounded-lg text-xs text-slate-500 mt-2"
                   style={{
-                    background: "rgba(0,212,255,0.04)",
-                    border: "1px solid rgba(0,212,255,0.1)",
+                    background: "rgba(76,141,246,0.04)",
+                    border: "1px solid rgba(76,141,246,0.1)",
                   }}
                 >
-                  <Mail className="w-3.5 h-3.5 inline mr-1.5" style={{ color: "rgba(0,212,255,0.5)" }} />
+                  <Mail className="w-3.5 h-3.5 inline mr-1.5" style={{ color: "rgba(76,141,246,0.5)" }} />
                   Du erhältst weiterhin transaktionale E-Mails (z.B. Sicherheitshinweise, Rechnungen).
                 </div>
               </>
@@ -159,7 +159,7 @@ function UnsubscribeContent() {
             <a
               href={isAuthenticated ? "/dashboard" : "/landing"}
               className="mt-4 text-xs hover:underline transition-colors"
-              style={{ color: "rgba(0,212,255,0.5)" }}
+              style={{ color: "rgba(76,141,246,0.5)" }}
             >
               {isAuthenticated ? "← Zum Dashboard" : "← Zur Startseite"}
             </a>

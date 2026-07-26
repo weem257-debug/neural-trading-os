@@ -693,16 +693,49 @@ async def _bump_token_version(username: str) -> None:
         _logger.warning("token_version_bump_failed username=%s", username, exc_info=True)
 
 
+# The refresh cookie is only ever read by POST /api/auth/refresh, so it is
+# scoped to the auth router instead of the whole origin: with Path=/ the browser
+# attached the long-lived refresh token to EVERY request (chart polls, WS
+# handshake, static assets), widening its exposure for no functional gain. The
+# value is the path as the browser sees it — app prefix ("/api") + router
+# prefix ("/auth").
+REFRESH_COOKIE_PATH = "/api/auth"
+# Sessions minted before the scoping change carry a Path=/ cookie. A Set-Cookie
+# only deletes an exact (name, path) match, so logout has to clear the legacy
+# path too, or the stale token lingers in the browser until it expires.
+_LEGACY_REFRESH_COOKIE_PATH = "/"
+
+
+def _expire_legacy_refresh_cookie(response: Response) -> None:
+    """
+    Delete a pre-scoping ``Path=/`` refresh cookie.
+
+    Both cookies carry the SAME name, so a browser holding the legacy one would
+    send two ``refresh_token`` values and ``request.cookies.get()`` picks one
+    unpredictably. If it picks the superseded value, rotation reads it as a
+    replayed token and revokes the whole family — killing a legitimate session.
+    Every code path that mints a scoped cookie therefore expires the legacy one
+    in the same response.
+    """
+    secure, samesite_val = _cookie_policy()
+    response.set_cookie(
+        key=settings.REFRESH_COOKIE_NAME, value="", max_age=0,
+        path=_LEGACY_REFRESH_COOKIE_PATH,
+        httponly=True, secure=secure, samesite=samesite_val,
+    )
+
+
 async def _issue_refresh_cookie(response: Response, username: str) -> None:
     """F-14: mint a new refresh-token family and set the httpOnly refresh cookie."""
     from app.core import refresh_tokens as _rt
     raw = await _rt.issue(username)
     secure, samesite_val = _cookie_policy()
+    _expire_legacy_refresh_cookie(response)
     response.set_cookie(
         key=settings.REFRESH_COOKIE_NAME,
         value=raw,
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-        path="/",
+        path=REFRESH_COOKIE_PATH,
         httponly=True,
         secure=secure,
         samesite=samesite_val,
@@ -711,10 +744,11 @@ async def _issue_refresh_cookie(response: Response, username: str) -> None:
 
 def _clear_refresh_cookie(response: Response) -> None:
     secure, samesite_val = _cookie_policy()
-    response.set_cookie(
-        key=settings.REFRESH_COOKIE_NAME, value="", max_age=0, path="/",
-        httponly=True, secure=secure, samesite=samesite_val,
-    )
+    for cookie_path in (REFRESH_COOKIE_PATH, _LEGACY_REFRESH_COOKIE_PATH):
+        response.set_cookie(
+            key=settings.REFRESH_COOKIE_NAME, value="", max_age=0, path=cookie_path,
+            httponly=True, secure=secure, samesite=samesite_val,
+        )
 
 
 async def _verify_ws_token(token: str) -> Optional[str]:
@@ -1258,9 +1292,11 @@ async def refresh_token(
         if rotated is not None:
             new_raw, _uname = rotated
             secure, samesite_val = _cookie_policy()
+            _expire_legacy_refresh_cookie(response)
             response.set_cookie(
                 key=settings.REFRESH_COOKIE_NAME, value=new_raw,
-                max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400, path="/",
+                max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
+                path=REFRESH_COOKIE_PATH,
                 httponly=True, secure=secure, samesite=samesite_val,
             )
         else:

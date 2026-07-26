@@ -48,15 +48,15 @@ const MOCK_SENTIMENT: SentimentSummary[] = [
 /* ---- Sentiment score badge ---- */
 function SentimentBadge({ score }: { score: number }) {
   if (score > 0.1) return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: "rgba(0,255,136,0.12)", border: "1px solid rgba(0,255,136,0.3)" }}>
-      <TrendingUp className="w-3.5 h-3.5" style={{ color: "#00FF88" }} />
-      <span className="font-mono font-bold text-sm" style={{ color: "#00FF88" }}>+{(score * 100).toFixed(0)}</span>
+    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: "rgba(63,185,80,0.12)", border: "1px solid rgba(63,185,80,0.3)" }}>
+      <TrendingUp className="w-3.5 h-3.5" style={{ color: "#3FB950" }} />
+      <span className="font-mono font-bold text-sm" style={{ color: "#3FB950" }}>+{(score * 100).toFixed(0)}</span>
     </div>
   );
   if (score < -0.1) return (
-    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: "rgba(255,0,128,0.12)", border: "1px solid rgba(255,0,128,0.3)" }}>
-      <TrendingDown className="w-3.5 h-3.5" style={{ color: "#FF0080" }} />
-      <span className="font-mono font-bold text-sm" style={{ color: "#FF0080" }}>{(score * 100).toFixed(0)}</span>
+    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: "rgba(229,83,75,0.12)", border: "1px solid rgba(229,83,75,0.3)" }}>
+      <TrendingDown className="w-3.5 h-3.5" style={{ color: "#E5534B" }} />
+      <span className="font-mono font-bold text-sm" style={{ color: "#E5534B" }}>{(score * 100).toFixed(0)}</span>
     </div>
   );
   return (
@@ -71,9 +71,9 @@ function SentimentBadge({ score }: { score: number }) {
 function HeatTile({ ticker, score }: { ticker: string; score: number }) {
   const intensity = Math.abs(score);
   const positive = score >= 0;
-  const color = positive ? `rgba(0,255,136,${0.1 + intensity * 0.5})` : `rgba(255,0,128,${0.1 + intensity * 0.5})`;
-  const borderColor = positive ? `rgba(0,255,136,${0.2 + intensity * 0.4})` : `rgba(255,0,128,${0.2 + intensity * 0.4})`;
-  const textColor = positive ? "#00FF88" : "#FF0080";
+  const color = positive ? `rgba(63,185,80,${0.1 + intensity * 0.5})` : `rgba(229,83,75,${0.1 + intensity * 0.5})`;
+  const borderColor = positive ? `rgba(63,185,80,${0.2 + intensity * 0.4})` : `rgba(229,83,75,${0.2 + intensity * 0.4})`;
+  const textColor = positive ? "#3FB950" : "#E5534B";
 
   return (
     <motion.div
@@ -95,7 +95,7 @@ function HeatTile({ ticker, score }: { ticker: string; score: number }) {
 function NewsCard({ item, index }: { item: SentimentSummary["news_items"][0]; index: number }) {
   const positive = item.sentiment === "positive";
   const negative = item.sentiment === "negative";
-  const color = positive ? "#00FF88" : negative ? "#FF0080" : "#64748B";
+  const color = positive ? "#3FB950" : negative ? "#E5534B" : "#64748B";
   const Icon = positive ? CheckCircle : negative ? AlertTriangle : Minus;
 
   return (
@@ -142,7 +142,7 @@ function SentimentBar({ positive, negative, neutral, total }: {
           initial={{ width: 0 }}
           animate={{ width: `${(positive / total) * 100}%` }}
           transition={{ duration: 0.8 }}
-          style={{ background: "#00FF88", boxShadow: "0 0 6px rgba(0,255,136,0.4)" }}
+          style={{ background: "#3FB950", boxShadow: "0 0 6px rgba(63,185,80,0.4)" }}
         />
         <motion.div
           initial={{ width: 0 }}
@@ -154,13 +154,13 @@ function SentimentBar({ positive, negative, neutral, total }: {
           initial={{ width: 0 }}
           animate={{ width: `${(negative / total) * 100}%` }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          style={{ background: "#FF0080", boxShadow: "0 0 6px rgba(255,0,128,0.4)" }}
+          style={{ background: "#E5534B", boxShadow: "0 0 6px rgba(229,83,75,0.4)" }}
         />
       </div>
       <div className="flex gap-4 text-xs">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#00FF88" }} /><span className="text-slate-500">{positive} bullish</span></span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#3FB950" }} /><span className="text-slate-500">{positive} bullish</span></span>
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block bg-slate-600" /><span className="text-slate-500">{neutral} neutral</span></span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#FF0080" }} /><span className="text-slate-500">{negative} bearish</span></span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full inline-block" style={{ background: "#E5534B" }} /><span className="text-slate-500">{negative} bearish</span></span>
       </div>
     </div>
   );
@@ -241,9 +241,9 @@ export default function SentimentPage() {
         <div className="flex items-center gap-3 mb-1">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(255,215,0,0.15)", border: "1px solid rgba(255,215,0,0.3)" }}
+            style={{ background: "rgba(210,153,34,0.15)", border: "1px solid rgba(210,153,34,0.3)" }}
           >
-            <Newspaper className="w-4 h-4" style={{ color: "#FFD700" }} />
+            <Newspaper className="w-4 h-4" style={{ color: "#D29922" }} />
           </div>
           <h1 className="text-2xl font-bold text-slate-100">News-Sentiment</h1>
           <NeonBadge color="yellow">AI-Powered</NeonBadge>
@@ -280,7 +280,7 @@ export default function SentimentPage() {
             className="flex-1 rounded-xl px-4 py-2.5 text-sm font-mono text-slate-200 placeholder-slate-600 outline-none"
             style={{
               background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(123,47,255,0.3)",
+              border: "1px solid rgba(163,113,247,0.3)",
             }}
           />
           <button
@@ -288,10 +288,10 @@ export default function SentimentPage() {
             disabled={loading}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
             style={{
-              background: "linear-gradient(135deg, rgba(123,47,255,0.25), rgba(0,212,255,0.15))",
-              border: "1px solid rgba(123,47,255,0.4)",
-              color: "#7B2FFF",
-              boxShadow: "0 0 20px rgba(123,47,255,0.2)",
+              background: "linear-gradient(135deg, rgba(163,113,247,0.25), rgba(76,141,246,0.15))",
+              border: "1px solid rgba(163,113,247,0.4)",
+              color: "#A371F7",
+              boxShadow: "0 0 20px rgba(163,113,247,0.2)",
             }}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Newspaper className="w-4 h-4" />}
@@ -316,9 +316,9 @@ export default function SentimentPage() {
           ))}
         </div>
         <div className="flex items-center justify-center gap-6 mt-4 text-xs text-slate-500">
-          <span className="flex items-center gap-2"><span className="w-10 h-1.5 rounded-full inline-block" style={{ background: "rgba(255,0,128,0.6)" }} />Bearish</span>
+          <span className="flex items-center gap-2"><span className="w-10 h-1.5 rounded-full inline-block" style={{ background: "rgba(229,83,75,0.6)" }} />Bearish</span>
           <span className="flex items-center gap-2"><span className="w-10 h-1.5 rounded-full inline-block bg-slate-700" />Neutral</span>
-          <span className="flex items-center gap-2"><span className="w-10 h-1.5 rounded-full inline-block" style={{ background: "rgba(0,255,136,0.6)" }} />Bullish</span>
+          <span className="flex items-center gap-2"><span className="w-10 h-1.5 rounded-full inline-block" style={{ background: "rgba(63,185,80,0.6)" }} />Bullish</span>
         </div>
       </GlassCard>
 
@@ -335,8 +335,8 @@ export default function SentimentPage() {
                 <div
                   className="w-10 h-10 rounded-xl font-bold text-sm flex items-center justify-center"
                   style={{
-                    background: r.overall_sentiment === "positive" ? "rgba(0,255,136,0.15)" : r.overall_sentiment === "negative" ? "rgba(255,0,128,0.15)" : "rgba(100,116,139,0.15)",
-                    color: r.overall_sentiment === "positive" ? "#00FF88" : r.overall_sentiment === "negative" ? "#FF0080" : "#64748B",
+                    background: r.overall_sentiment === "positive" ? "rgba(63,185,80,0.15)" : r.overall_sentiment === "negative" ? "rgba(229,83,75,0.15)" : "rgba(100,116,139,0.15)",
+                    color: r.overall_sentiment === "positive" ? "#3FB950" : r.overall_sentiment === "negative" ? "#E5534B" : "#64748B",
                   }}
                 >
                   {r.ticker.slice(0, 3)}

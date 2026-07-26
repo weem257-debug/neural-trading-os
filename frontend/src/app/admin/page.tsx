@@ -34,8 +34,8 @@ const TIER_ORDER: Tier[] = ["free", "basic", "pro", "institutional"];
 
 const TIER_COLORS: Record<Tier, { bg: string; border: string; text: string }> = {
   free:          { bg: "rgba(100,116,139,0.1)",   border: "rgba(100,116,139,0.3)",   text: "#94a3b8" },
-  basic:         { bg: "rgba(0,212,255,0.1)",      border: "rgba(0,212,255,0.3)",      text: "#00D4FF" },
-  pro:           { bg: "rgba(123,47,255,0.12)",    border: "rgba(123,47,255,0.4)",     text: "#A78BFA" },
+  basic:         { bg: "rgba(76,141,246,0.1)",      border: "rgba(76,141,246,0.3)",      text: "#4C8DF6" },
+  pro:           { bg: "rgba(163,113,247,0.12)",    border: "rgba(163,113,247,0.4)",     text: "#A78BFA" },
   institutional: { bg: "rgba(255,170,0,0.1)",      border: "rgba(255,170,0,0.35)",     text: "#FFAA00" },
 };
 
@@ -315,9 +315,9 @@ export default function AdminPage() {
           initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
           className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shadow-xl"
           style={{
-            background: toast.ok ? "rgba(0,255,136,0.15)" : "rgba(255,0,128,0.15)",
-            border: `1px solid ${toast.ok ? "rgba(0,255,136,0.4)" : "rgba(255,0,128,0.4)"}`,
-            color: toast.ok ? "#00FF88" : "#FF0080",
+            background: toast.ok ? "rgba(63,185,80,0.15)" : "rgba(229,83,75,0.15)",
+            border: `1px solid ${toast.ok ? "rgba(63,185,80,0.4)" : "rgba(229,83,75,0.4)"}`,
+            color: toast.ok ? "#3FB950" : "#E5534B",
           }}
         >
           {toast.ok ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
@@ -347,7 +347,7 @@ export default function AdminPage() {
               </button>
               <div className="absolute right-0 top-full mt-1 z-20 hidden group-hover:block group-focus-within:block">
                 <div className="rounded-xl overflow-hidden shadow-xl min-w-max"
-                  style={{ background: "#0d1117", border: "1px solid rgba(245,158,11,0.25)" }}>
+                  style={{ background: "#10141C", border: "1px solid rgba(245,158,11,0.25)" }}>
                   <button
                     onClick={() => exportCsv(false)}
                     className="flex items-center gap-2 w-full px-4 py-2.5 text-xs font-medium text-left hover:bg-white/5 transition-colors"
@@ -382,7 +382,7 @@ export default function AdminPage() {
               disabled={bulkReengageSending}
               title="Re-Engagement-E-Mail an inaktive Free-Nutzer (>7 Tage kein Signal)"
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
-              style={{ background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.18)", color: "#00FF88" }}
+              style={{ background: "rgba(63,185,80,0.06)", border: "1px solid rgba(63,185,80,0.18)", color: "#3FB950" }}
             >
               {bulkReengageSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
               Inaktive reaktivieren
@@ -392,7 +392,7 @@ export default function AdminPage() {
               disabled={weeklyDigestSending}
               title="Personalisierten Wochenrückblick an alle aktiven Nutzer senden (1× pro Woche)"
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
-              style={{ background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.18)", color: "#00D4FF" }}
+              style={{ background: "rgba(76,141,246,0.06)", border: "1px solid rgba(76,141,246,0.18)", color: "#4C8DF6" }}
             >
               {weeklyDigestSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BarChart2 className="w-3.5 h-3.5" />}
               Wochendigest
@@ -412,7 +412,7 @@ export default function AdminPage() {
               disabled={activationFollowupSending}
               title="Aktivierungs-Follow-up an Nutzer senden, die sich 24-48h registriert haben, aber noch kein Signal generiert haben (1× pro Nutzer)"
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
-              style={{ background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.18)", color: "#00FF88" }}
+              style={{ background: "rgba(63,185,80,0.06)", border: "1px solid rgba(63,185,80,0.18)", color: "#3FB950" }}
             >
               {activationFollowupSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
               Aktivierung
@@ -422,7 +422,7 @@ export default function AdminPage() {
               disabled={dailySignalEmailSending}
               title="Tägliche Signal-Benachrichtigungs-E-Mail an alle aktiven Nutzer senden"
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-40"
-              style={{ background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.18)", color: "#00D4FF" }}
+              style={{ background: "rgba(76,141,246,0.06)", border: "1px solid rgba(76,141,246,0.18)", color: "#4C8DF6" }}
             >
               {dailySignalEmailSending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
               Signal-Mail
@@ -441,7 +441,7 @@ export default function AdminPage() {
               onClick={() => { fetchUsers(); fetchGrowth(); }}
               disabled={loading}
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
-              style={{ background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.2)", color: "#00D4FF" }}
+              style={{ background: "rgba(76,141,246,0.08)", border: "1px solid rgba(76,141,246,0.2)", color: "#4C8DF6" }}
             >
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
               Aktualisieren
@@ -453,8 +453,8 @@ export default function AdminPage() {
       {/* Revenue + User Stats */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 mb-1">
         <GlassCard delay={0.04}>
-          <p className="text-xs mb-1" style={{ color: "#00FF88" }}>MRR (geschätzt)</p>
-          <p className="text-2xl font-bold" style={{ color: "#00FF88" }}>€{mrr}</p>
+          <p className="text-xs mb-1" style={{ color: "#3FB950" }}>MRR (geschätzt)</p>
+          <p className="text-2xl font-bold" style={{ color: "#3FB950" }}>€{mrr}</p>
           <p className="text-xs text-slate-600">ARR ~€{mrr * 12} · {activeCount} aktiv</p>
         </GlassCard>
         <GlassCard delay={0.05}>
@@ -487,13 +487,13 @@ export default function AdminPage() {
       {/* DAU + Conversion Rate + ARPU + Referrals */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <GlassCard delay={0.095}>
-          <p className="text-xs mb-1" style={{ color: "#00D4FF" }}>Aktiv heute (DAU)</p>
-          <p className="text-2xl font-bold" style={{ color: dauCount > 0 ? "#00D4FF" : "#64748b" }}>{dauCount}</p>
+          <p className="text-xs mb-1" style={{ color: "#4C8DF6" }}>Aktiv heute (DAU)</p>
+          <p className="text-2xl font-bold" style={{ color: dauCount > 0 ? "#4C8DF6" : "#64748b" }}>{dauCount}</p>
           <p className="text-xs text-slate-600">{users.length > 0 ? ((dauCount / users.length) * 100).toFixed(0) : 0}% aller Nutzer · Signale heute &gt;0</p>
         </GlassCard>
         <GlassCard delay={0.1}>
-          <p className="text-xs mb-1" style={{ color: "#00FF88" }}>Konversionsrate</p>
-          <p className="text-2xl font-bold" style={{ color: paidCount > 0 ? "#00FF88" : "#64748b" }}>{conversionRate}%</p>
+          <p className="text-xs mb-1" style={{ color: "#3FB950" }}>Konversionsrate</p>
+          <p className="text-2xl font-bold" style={{ color: paidCount > 0 ? "#3FB950" : "#64748b" }}>{conversionRate}%</p>
           <p className="text-xs text-slate-600">{paidCount} bezahlte · {users.length} gesamt</p>
         </GlassCard>
         <GlassCard delay={0.105}>
@@ -524,14 +524,14 @@ export default function AdminPage() {
       {/* Growth Chart */}
       {growth && growth.days.some(d => d.signups > 0 || d.signals > 0) && (
         <GlassCard delay={0.09}>
-          <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ background: "rgba(0,212,255,0.04)", borderBottom: "1px solid rgba(0,212,255,0.08)" }}>
+          <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ background: "rgba(76,141,246,0.04)", borderBottom: "1px solid rgba(76,141,246,0.08)" }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BarChart2 className="w-4 h-4 text-cyan-400" />
                 <SectionLabel>Wachstum — Letzte 7 Tage</SectionLabel>
               </div>
               <div className="flex items-center gap-4 text-xs text-slate-500">
-                <span><span className="font-bold" style={{ color: "#00D4FF" }}>{growth.total_signups_7d}</span> Registrierungen</span>
+                <span><span className="font-bold" style={{ color: "#4C8DF6" }}>{growth.total_signups_7d}</span> Registrierungen</span>
                 <span><span className="font-bold" style={{ color: "#A78BFA" }}>{growth.total_signals_7d}</span> Signale</span>
               </div>
             </div>
@@ -544,13 +544,13 @@ export default function AdminPage() {
                 <BarChart data={growth.days} barSize={14}>
                   <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} tick={{ fontSize: 9, fill: "#475569" }} axisLine={false} tickLine={false} />
                   <Tooltip
-                    contentStyle={{ background: "#0d1117", border: "1px solid rgba(0,212,255,0.2)", borderRadius: "8px", fontSize: "11px" }}
+                    contentStyle={{ background: "#10141C", border: "1px solid rgba(76,141,246,0.2)", borderRadius: "8px", fontSize: "11px" }}
                     labelFormatter={(d: string) => new Date(d).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })}
                     formatter={(v: number) => [v, "Registrierungen"]}
                   />
                   <Bar dataKey="signups" radius={[3, 3, 0, 0]}>
                     {growth.days.map((_, i) => (
-                      <Cell key={i} fill={i === growth.days.length - 1 ? "#00D4FF" : "rgba(0,212,255,0.35)"} />
+                      <Cell key={i} fill={i === growth.days.length - 1 ? "#4C8DF6" : "rgba(76,141,246,0.35)"} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -563,13 +563,13 @@ export default function AdminPage() {
                 <BarChart data={growth.days} barSize={14}>
                   <XAxis dataKey="date" tickFormatter={(d: string) => d.slice(5)} tick={{ fontSize: 9, fill: "#475569" }} axisLine={false} tickLine={false} />
                   <Tooltip
-                    contentStyle={{ background: "#0d1117", border: "1px solid rgba(123,47,255,0.2)", borderRadius: "8px", fontSize: "11px" }}
+                    contentStyle={{ background: "#10141C", border: "1px solid rgba(163,113,247,0.2)", borderRadius: "8px", fontSize: "11px" }}
                     labelFormatter={(d: string) => new Date(d).toLocaleDateString("de-DE", { day: "2-digit", month: "short" })}
                     formatter={(v: number) => [v, "Signale"]}
                   />
                   <Bar dataKey="signals" radius={[3, 3, 0, 0]}>
                     {growth.days.map((_, i) => (
-                      <Cell key={i} fill={i === growth.days.length - 1 ? "#A78BFA" : "rgba(123,47,255,0.4)"} />
+                      <Cell key={i} fill={i === growth.days.length - 1 ? "#A78BFA" : "rgba(163,113,247,0.4)"} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -593,7 +593,7 @@ export default function AdminPage() {
             onChange={(e) => setSmtpTestEmail(e.target.value)}
             placeholder="test@example.com"
             className="flex-1 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 outline-none"
-            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,212,255,0.2)" }}
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(76,141,246,0.2)" }}
           />
           <button
             onClick={async () => {
@@ -613,7 +613,7 @@ export default function AdminPage() {
             }}
             disabled={smtpTesting || !smtpTestEmail.trim()}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40"
-            style={{ background: "rgba(0,212,255,0.1)", border: "1px solid rgba(0,212,255,0.3)", color: "#00D4FF" }}
+            style={{ background: "rgba(76,141,246,0.1)", border: "1px solid rgba(76,141,246,0.3)", color: "#4C8DF6" }}
           >
             {smtpTesting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Mail className="w-3 h-3" />}
             Testen
@@ -623,7 +623,7 @@ export default function AdminPage() {
 
       {/* User table */}
       <GlassCard delay={0.1}>
-        <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ background: "rgba(0,212,255,0.04)", borderBottom: "1px solid rgba(0,212,255,0.08)" }}>
+        <div className="-m-4 mb-4 px-4 py-3 rounded-t-xl" style={{ background: "rgba(76,141,246,0.04)", borderBottom: "1px solid rgba(76,141,246,0.08)" }}>
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-cyan-400" />
@@ -732,7 +732,7 @@ export default function AdminPage() {
                             </span>
                           )}
                           {(u.referral_count ?? 0) > 0 && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88", border: "1px solid rgba(0,255,136,0.25)" }}
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "rgba(63,185,80,0.1)", color: "#3FB950", border: "1px solid rgba(63,185,80,0.25)" }}
                               title={`${u.referral_count} Nutzer via Referral eingeladen`}>
                               🔗 {u.referral_count}
                             </span>
@@ -794,9 +794,9 @@ export default function AdminPage() {
                         <span
                           className="text-xs px-2 py-0.5 rounded-full font-semibold"
                           style={{
-                            background: u.is_active ? "rgba(0,255,136,0.08)" : "rgba(239,68,68,0.08)",
-                            color: u.is_active ? "#00FF88" : "#f87171",
-                            border: `1px solid ${u.is_active ? "rgba(0,255,136,0.2)" : "rgba(239,68,68,0.2)"}`,
+                            background: u.is_active ? "rgba(63,185,80,0.08)" : "rgba(239,68,68,0.08)",
+                            color: u.is_active ? "#3FB950" : "#f87171",
+                            border: `1px solid ${u.is_active ? "rgba(63,185,80,0.2)" : "rgba(239,68,68,0.2)"}`,
                           }}
                         >
                           {u.is_active ? "Aktiv" : "Gesperrt"}
@@ -810,9 +810,9 @@ export default function AdminPage() {
                             title={u.role === "admin" ? "Admin-Konto kann nicht gesperrt werden" : undefined}
                             className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             style={{
-                              background: u.is_active ? "rgba(239,68,68,0.06)" : "rgba(0,255,136,0.06)",
+                              background: u.is_active ? "rgba(239,68,68,0.06)" : "rgba(63,185,80,0.06)",
                               color: u.is_active ? "#f87171" : "#4ade80",
-                              border: `1px solid ${u.is_active ? "rgba(239,68,68,0.2)" : "rgba(0,255,136,0.2)"}`,
+                              border: `1px solid ${u.is_active ? "rgba(239,68,68,0.2)" : "rgba(63,185,80,0.2)"}`,
                             }}
                           >
                             {isUpdatingActive
@@ -830,9 +830,9 @@ export default function AdminPage() {
                               title={emailSentSet.has(u.username) ? "Heute bereits gesendet" : "Upgrade-E-Mail senden"}
                               className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                               style={{
-                                background: emailSentSet.has(u.username) ? "rgba(0,255,136,0.06)" : "rgba(123,47,255,0.08)",
+                                background: emailSentSet.has(u.username) ? "rgba(63,185,80,0.06)" : "rgba(163,113,247,0.08)",
                                 color: emailSentSet.has(u.username) ? "#4ade80" : "#A78BFA",
-                                border: `1px solid ${emailSentSet.has(u.username) ? "rgba(0,255,136,0.2)" : "rgba(123,47,255,0.25)"}`,
+                                border: `1px solid ${emailSentSet.has(u.username) ? "rgba(63,185,80,0.2)" : "rgba(163,113,247,0.25)"}`,
                               }}
                             >
                               {sendingEmail === u.username
@@ -851,9 +851,9 @@ export default function AdminPage() {
                               title={reengage_sent_set.has(u.username) ? "Reaktivierung heute bereits gesendet" : "Re-Engagement-E-Mail senden"}
                               className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                               style={{
-                                background: reengage_sent_set.has(u.username) ? "rgba(0,255,136,0.06)" : "rgba(255,107,107,0.08)",
+                                background: reengage_sent_set.has(u.username) ? "rgba(63,185,80,0.06)" : "rgba(255,107,107,0.08)",
                                 color: reengage_sent_set.has(u.username) ? "#4ade80" : "#FF6B6B",
-                                border: `1px solid ${reengage_sent_set.has(u.username) ? "rgba(0,255,136,0.2)" : "rgba(255,107,107,0.25)"}`,
+                                border: `1px solid ${reengage_sent_set.has(u.username) ? "rgba(63,185,80,0.2)" : "rgba(255,107,107,0.25)"}`,
                               }}
                             >
                               {sendingReengage === u.username

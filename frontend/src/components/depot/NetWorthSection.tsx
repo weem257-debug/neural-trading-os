@@ -95,7 +95,7 @@ function pct(n: number, sign = true) {
 
 const BROKER_COLORS: Record<string, string> = {
   bitpanda: "#FF6B35",
-  comdirect: "#FFD700",
+  comdirect: "#D29922",
   degiro: "#FF4B6E",
   flatex: "#4ECDC4",
   trade_republic: "#00E676",
@@ -367,7 +367,7 @@ function BankConnectionsPanel({ onBalanceChange }: { onBalanceChange: () => void
                   type="submit"
                   disabled={addLoading}
                   className="flex-1 py-2 rounded-lg text-sm font-semibold text-black transition-opacity disabled:opacity-50"
-                  style={{ background: "#00FF88" }}
+                  style={{ background: "#3FB950" }}
                 >
                   {addLoading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : "Verbindung speichern"}
                 </button>
@@ -477,7 +477,7 @@ export function NetWorthSection() {
         results.push({
           label: "Aktien & Krypto",
           value: d.total_value,
-          color: "#00D4FF",
+          color: "#4C8DF6",
           icon: TrendingUp,
           sub: d.day_pnl_pct !== undefined ? `Heute: ${pct(d.day_pnl_pct)}` : undefined,
         });
@@ -492,7 +492,7 @@ export function NetWorthSection() {
         results.push({
           label: "P2P Kredite",
           value: p2pTotal,
-          color: "#7B2FFF",
+          color: "#A371F7",
           icon: Landmark,
           sub: `+ ${fmt(d.total_interest)} Zinsen verdient`,
         });
@@ -507,7 +507,7 @@ export function NetWorthSection() {
         results.push({
           label: "Bankkonten",
           value: bankTotal,
-          color: "#00FF88",
+          color: "#3FB950",
           icon: Building,
           sub: `${connections.filter((c) => c.last_balance !== null).length} Konten verknüpft`,
         });
@@ -610,7 +610,7 @@ export function NetWorthSection() {
             initial={{ opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             className="rounded-2xl border border-neon-green/20 p-6 mb-6 text-center"
-            style={{ background: "linear-gradient(135deg, rgba(0,255,136,0.05), transparent)" }}
+            style={{ background: "linear-gradient(135deg, rgba(63,185,80,0.05), transparent)" }}
           >
             <p className="text-sm text-slate-500 mb-1">Gesamtvermögen</p>
             <p className="text-4xl font-black text-white">{fmt(total)}</p>

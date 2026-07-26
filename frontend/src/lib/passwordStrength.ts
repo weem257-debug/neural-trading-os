@@ -13,6 +13,6 @@ export function getPasswordStrength(pw: string): PasswordStrength {
   if (/[^A-Za-z0-9]/.test(pw)) score++;
   if (score === 1) return { score: 1, label: "Schwach", color: "#ef4444" };
   if (score === 2) return { score: 2, label: "Mittel", color: "#f59e0b" };
-  if (score === 3) return { score: 3, label: "Gut", color: "#00D4FF" };
-  return { score: 4, label: "Stark", color: "#00FF88" };
+  if (score === 3) return { score: 3, label: "Gut", color: "#4C8DF6" };
+  return { score: 4, label: "Stark", color: "#3FB950" };
 }
