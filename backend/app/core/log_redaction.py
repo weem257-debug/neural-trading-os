@@ -79,6 +79,21 @@ def _redact(value: Any, depth: int = 0) -> Any:
     return value
 
 
+def redact_text(value: str) -> str:
+    """
+    Scrub secrets from an already-rendered log line.
+
+    Counterpart to :func:`redact_processor` for the stdlib ``logging`` path:
+    almost every module in this app logs via ``logging.getLogger(...)``, whose
+    records never reach a structlog processor. Applied by the root handler's
+    formatter, this catches Bearer tokens / JWTs / cookie pairs in the message
+    AND in the rendered traceback.
+    """
+    if not isinstance(value, str):
+        return value
+    return _redact_str(value)
+
+
 def redact_processor(_logger: Any, _method: str, event_dict: dict) -> dict:
     """structlog processor: scrub sensitive keys/values from the event dict."""
     out: dict = {}

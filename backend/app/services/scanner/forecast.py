@@ -32,6 +32,13 @@ _predictor = None
 _predictor_lock = threading.Lock()
 _LOAD_FAILED = False
 
+# Serializes actual inference. ``asyncio.wait_for`` can only stop *awaiting* the
+# worker thread — it cannot kill it, so a run that overruns
+# KRONOS_TIMEOUT_SECONDS keeps burning the torch threads in the background. This
+# lock stops such an abandoned run from overlapping the next cycle's call into
+# the same process-wide predictor.
+_inference_lock = threading.Lock()
+
 
 async def warm_up() -> bool:
     """
@@ -250,23 +257,25 @@ def _run_batch_forecast(predictor, prepared: list) -> list:
     worker thread. Returns a list of signal dicts aligned with ``prepared`` (each
     item is (symbol, last_close, df, x_ts, y_ts)); entries that fail are None.
     """
-    import numpy as np
-
     df_list = [p[2] for p in prepared]
     x_list = [p[3] for p in prepared]
     y_list = [p[4] for p in prepared]
 
     sample_count = max(1, int(settings.KRONOS_SAMPLE_COUNT))
-    preds = predictor.predict_batch(
-        df_list=df_list,
-        x_timestamp_list=x_list,
-        y_timestamp_list=y_list,
-        pred_len=settings.KRONOS_PRED_LEN,
-        T=settings.KRONOS_TEMPERATURE,
-        top_p=settings.KRONOS_TOP_P,
-        sample_count=sample_count,
-        verbose=False,
-    )
+    # Serialized: a previous run abandoned by the wait_for timeout may still be
+    # executing here, and two concurrent batches on one predictor would both
+    # oversubscribe the CPU and race on the model's internal state.
+    with _inference_lock:
+        preds = predictor.predict_batch(
+            df_list=df_list,
+            x_timestamp_list=x_list,
+            y_timestamp_list=y_list,
+            pred_len=settings.KRONOS_PRED_LEN,
+            T=settings.KRONOS_TEMPERATURE,
+            top_p=settings.KRONOS_TOP_P,
+            sample_count=sample_count,
+            verbose=False,
+        )
 
     signals = []
     for (symbol, last_close, hist_df, _x, _y), pred_df in zip(prepared, preds):

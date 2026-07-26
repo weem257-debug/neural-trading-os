@@ -21,8 +21,12 @@ logger = logging.getLogger(__name__)
 # Conservative per-call token budget used for the PRE-call estimate. The prompt
 # is a compact indicator snapshot; real usage is typically well under this, so
 # the estimate errs toward over-reserving budget (never under).
+# _EST_OUTPUT_TOKENS MUST stay >= the ``max_tokens`` the call is issued with —
+# with a lower value a response that runs to the output limit costs more than
+# ``can_spend`` reserved for it, breaking the "never under-reserve" guarantee.
 _EST_INPUT_TOKENS = 1200
-_EST_OUTPUT_TOKENS = 500
+_MAX_OUTPUT_TOKENS = 600
+_EST_OUTPUT_TOKENS = _MAX_OUTPUT_TOKENS
 
 
 def _scan_model() -> str:
@@ -69,11 +73,46 @@ def _build_prompt(candidate) -> str:
     return "\n".join(lines)
 
 
+def _zero_usage() -> dict:
+    """Usage dict for a call that was never billed (request itself failed)."""
+    return {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+    }
+
+
+def _coerce_price(value) -> Optional[float]:
+    """
+    Coerce an LLM-supplied price field to a float, or None.
+
+    The model is asked for ``float_or_null`` but does not always comply
+    ("n/a", "~180", ""). These land in ``Numeric(20, 8)`` columns, where a
+    non-numeric value raises at flush time and aborts the whole scan cycle.
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        return None
+    return num if num == num and num not in (float("inf"), float("-inf")) else None
+
+
+def _coerce_confidence(value) -> float:
+    """LLM confidence -> float in [0, 1]; neutral 0.5 when unusable."""
+    num = _coerce_price(value)
+    if num is None:
+        return 0.5
+    return min(1.0, max(0.0, num))
+
+
 def _usage_from_response(resp) -> dict:
     """Extract token usage from an Anthropic response, robust to missing fields."""
     usage = getattr(resp, "usage", None)
     if usage is None:
-        return {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
+        return _zero_usage()
     return {
         "input_tokens": int(getattr(usage, "input_tokens", 0) or 0),
         "output_tokens": int(getattr(usage, "output_tokens", 0) or 0),
@@ -114,15 +153,26 @@ async def deep_analyze(candidate) -> tuple[Optional[dict], dict]:
         "Return ONLY valid JSON, no markdown, no explanation outside the JSON."
     )
 
+    # Phase 1 — the billed API call. Only a failure HERE means nothing was spent.
     try:
         client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         resp = await client.messages.create(
             model=model,
-            max_tokens=600,
+            max_tokens=_MAX_OUTPUT_TOKENS,
             system=system_prompt,
             messages=[{"role": "user", "content": user_msg}],
         )
-        usage = _usage_from_response(resp)
+    except Exception as e:
+        logger.error("scan_deep_analyze_call_failed", extra={"symbol": candidate.symbol, "reason": str(e)})
+        return None, _zero_usage()
+
+    # From here on the call HAS been billed. ``usage`` is captured first and
+    # returned even when parsing fails — otherwise the real cost would be
+    # dropped from the ledger and the daily cap could be silently overrun.
+    usage = _usage_from_response(resp)
+
+    # Phase 2 — parsing. Never let a malformed response discard the usage.
+    try:
         raw = resp.content[0].text.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
@@ -131,14 +181,16 @@ async def deep_analyze(candidate) -> tuple[Optional[dict], dict]:
         data = json.loads(raw)
         result = {
             "direction": str(data.get("direction", candidate.direction)).upper(),
-            "confidence": float(data.get("confidence", 0.5)),
-            "price_target": data.get("price_target"),
-            "stop_loss": data.get("stop_loss"),
+            # Non-numeric confidence ("high") must not throw away an otherwise
+            # usable signal — fall back to the neutral default and clamp.
+            "confidence": _coerce_confidence(data.get("confidence")),
+            "price_target": _coerce_price(data.get("price_target")),
+            "stop_loss": _coerce_price(data.get("stop_loss")),
             "time_horizon": data.get("time_horizon"),
             "reasoning": str(data.get("reasoning", ""))[:1000],
             "model": model,
         }
         return result, usage
     except Exception as e:
-        logger.error("scan_deep_analyze_failed", extra={"symbol": candidate.symbol, "reason": str(e)})
-        return None, {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0, "cache_write_tokens": 0}
+        logger.error("scan_deep_analyze_parse_failed", extra={"symbol": candidate.symbol, "reason": str(e)})
+        return None, usage
