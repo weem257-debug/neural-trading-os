@@ -16,11 +16,11 @@ from starlette.requests import Request
 from fastapi.testclient import TestClient
 
 
-def _req(headers: dict) -> Request:
+def _req(headers: dict, peer: str = "10.0.0.1") -> Request:
     raw = [(k.lower().encode(), v.encode()) for k, v in headers.items()]
     scope = {
         "type": "http", "method": "POST", "path": "/", "query_string": b"",
-        "headers": raw, "client": ("10.0.0.1", 1234),
+        "headers": raw, "client": (peer, 1234),
     }
     return Request(scope)
 
@@ -57,6 +57,83 @@ class TestClientIpKey:
         assert rl.client_ip_key(_req({
             "x-real-ip": "1.2.3.4", "x-forwarded-for": "5.6.7.8",
         })) == "10.0.0.1"
+
+
+class TestTrustedProxyAllowList:
+    """
+    TRUSTED_PROXY_IPS: honour forwarding headers only from the edge.
+
+    Without the allow-list, whoever reaches the process directly (bypassing the
+    edge proxy) can set X-Real-IP per request and mint a fresh rate-limit bucket
+    each time — exactly the bypass client_ip_key exists to prevent.
+    """
+
+    def test_headers_honoured_from_allow_listed_peer(self, monkeypatch):
+        import app.core.rate_limits as rl
+        monkeypatch.setattr(rl, "_TRUST_PROXY", True)
+        monkeypatch.setattr(
+            rl, "_TRUSTED_PROXY_NETS", rl._parse_trusted_networks("198.51.100.0/24")
+        )
+        key = rl.client_ip_key(
+            _req({"x-real-ip": "203.0.113.9"}, peer="198.51.100.7")
+        )
+        assert key == "203.0.113.9"
+
+    def test_headers_ignored_from_unlisted_peer(self, monkeypatch):
+        import app.core.rate_limits as rl
+        monkeypatch.setattr(rl, "_TRUST_PROXY", True)
+        monkeypatch.setattr(
+            rl, "_TRUSTED_PROXY_NETS", rl._parse_trusted_networks("198.51.100.0/24")
+        )
+        # Direct hit on the process from an address the edge does not own: the
+        # header must NOT decide the bucket.
+        key = rl.client_ip_key(_req({"x-real-ip": "203.0.113.9"}, peer="10.0.0.1"))
+        assert key == "10.0.0.1"
+
+    def test_unlisted_peer_cannot_mint_fresh_buckets(self, monkeypatch):
+        import app.core.rate_limits as rl
+        monkeypatch.setattr(rl, "_TRUST_PROXY", True)
+        monkeypatch.setattr(
+            rl, "_TRUSTED_PROXY_NETS", rl._parse_trusted_networks("198.51.100.0/24")
+        )
+        keys = {
+            rl.client_ip_key(_req({"x-real-ip": f"203.0.113.{i}"}, peer="10.0.0.1"))
+            for i in range(1, 6)
+        }
+        assert keys == {"10.0.0.1"}, "rotating X-Real-IP still escaped the bucket"
+
+    def test_empty_allow_list_preserves_previous_behaviour(self, monkeypatch):
+        """No allow-list configured → unchanged semantics, so an existing
+        deployment does not lose its per-client buckets on upgrade."""
+        import app.core.rate_limits as rl
+        monkeypatch.setattr(rl, "_TRUST_PROXY", True)
+        monkeypatch.setattr(rl, "_TRUSTED_PROXY_NETS", ())
+        key = rl.client_ip_key(_req({"x-real-ip": "203.0.113.9"}, peer="10.0.0.1"))
+        assert key == "203.0.113.9"
+
+    def test_single_address_entry_and_ipv6(self, monkeypatch):
+        import app.core.rate_limits as rl
+        monkeypatch.setattr(rl, "_TRUST_PROXY", True)
+        monkeypatch.setattr(
+            rl, "_TRUSTED_PROXY_NETS",
+            rl._parse_trusted_networks("198.51.100.7, 2001:db8::/32"),
+        )
+        assert rl.client_ip_key(
+            _req({"x-real-ip": "203.0.113.9"}, peer="198.51.100.7")
+        ) == "203.0.113.9"
+        assert rl.client_ip_key(
+            _req({"x-real-ip": "203.0.113.9"}, peer="2001:db8::1")
+        ) == "203.0.113.9"
+        assert rl.client_ip_key(
+            _req({"x-real-ip": "203.0.113.9"}, peer="198.51.100.8")
+        ) == "198.51.100.8"
+
+    def test_invalid_entries_are_skipped_not_fatal(self):
+        """A typo must not abort boot — it simply grants no trust."""
+        import app.core.rate_limits as rl
+        nets = rl._parse_trusted_networks("not-an-ip, 198.51.100.0/24, ")
+        assert len(nets) == 1
+        assert str(nets[0]) == "198.51.100.0/24"
 
 
 @pytest.fixture(scope="module")

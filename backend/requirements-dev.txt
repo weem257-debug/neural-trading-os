@@ -1,0 +1,32 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Development / CI dependencies — test runner and type checker.
+#
+# These are DELIBERATELY NOT in requirements.txt: that file is what the
+# production Dockerfile installs, and shipping a test framework into the runtime
+# image adds attack surface and CVE exposure for code that never runs there
+# (pytest PYSEC-2026-1845 was reported against the prod image for exactly this
+# reason). Keeping them separate also means a dev-only advisory can no longer
+# force a production redeploy.
+#
+# Install for local work and in CI (pulls the runtime deps in as well):
+#   pip install -r requirements-dev.txt
+#
+# Optional Kronos forecasting extras live in requirements-kronos.txt.
+# ─────────────────────────────────────────────────────────────────────────────
+
+-r requirements.txt
+
+# ── Testing ──────────────────────────────────────────────────────────────────
+# pytest 8.3.0 carried PYSEC-2026-1845 (fixed in 9.0.3). These are the versions
+# the suite is actually validated against. pytest 9 requires pytest-asyncio >=
+# 1.x; the `asyncio_mode` and `asyncio_default_fixture_loop_scope` settings in
+# pytest.ini work on both lines.
+pytest==9.1.0
+pytest-asyncio==1.4.0
+# httpx is declared in requirements.txt (runtime HTTP client) and doubles as the
+# transport behind fastapi.testclient.TestClient — no separate pin needed.
+
+# ── Type checking ────────────────────────────────────────────────────────────
+# Currently non-blocking in CI; see the type-check-backend job in
+# .github/workflows/ci.yml for the ratchet plan.
+mypy==1.11.0

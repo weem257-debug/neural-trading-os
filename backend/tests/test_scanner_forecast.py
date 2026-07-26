@@ -122,6 +122,73 @@ class TestGracefulDegradation:
         assert _run(fc.warm_up()) is False
 
 
+class TestReusesPrefilterFrames:
+    """
+    The forecast stage must not re-download what the prefilter just fetched.
+
+    Both stages pulled the same daily OHLCV from Yahoo seconds apart, doubling the
+    request volume of every cycle running with KRONOS_ENABLED and holding the
+    scan's advisory lock across the extra round-trip. The prefilter now hands its
+    frame to the candidate and the forecast stage fetches only genuine gaps.
+    """
+
+    def _stub_kronos(self, monkeypatch):
+        monkeypatch.setattr(fc.settings, "KRONOS_ENABLED", True)
+        monkeypatch.setattr(fc.settings, "KRONOS_LOOKBACK", 30)
+        monkeypatch.setattr(fc.settings, "KRONOS_PRED_LEN", 5)
+        monkeypatch.setattr(fc, "_load_predictor", lambda: object())
+        monkeypatch.setattr(fc, "_run_batch_forecast", lambda _p, prepared: [
+            {"direction": "BUY", "expected_return": 0.02, "score": 0.6}
+            for _ in prepared
+        ])
+
+    def test_no_download_when_every_candidate_carries_its_frame(self, monkeypatch):
+        self._stub_kronos(monkeypatch)
+        calls = []
+
+        def _download(symbols):
+            calls.append(list(symbols))
+            return _yf_frame(list(range(300, 360)))
+
+        monkeypatch.setattr(
+            "app.services.scanner.prefilter._download_chunk", _download
+        )
+
+        cands = [
+            Candidate(symbol="AAPL", score=80.0, direction="BUY",
+                      ohlcv=_yf_frame(list(range(100, 160)))),
+            Candidate(symbol="MSFT", score=75.0, direction="BUY",
+                      ohlcv=_yf_frame(list(range(200, 260)))),
+        ]
+        _run(fc.attach_forecasts(cands))
+
+        assert calls == [], "forecast stage re-downloaded data it was handed"
+        assert all(c.forecast is not None for c in cands)
+
+    def test_only_missing_frames_are_fetched(self, monkeypatch):
+        self._stub_kronos(monkeypatch)
+        calls = []
+
+        def _download(symbols):
+            calls.append(list(symbols))
+            return _yf_frame(list(range(300, 360)))
+
+        monkeypatch.setattr(
+            "app.services.scanner.prefilter._download_chunk", _download
+        )
+
+        # NVDA has no frame (e.g. built by the single-symbol runner), so the
+        # fallback must cover exactly that symbol — and no other.
+        cands = [
+            Candidate(symbol="AAPL", score=80.0, direction="BUY",
+                      ohlcv=_yf_frame(list(range(100, 160)))),
+            Candidate(symbol="NVDA", score=70.0, direction="BUY"),
+        ]
+        _run(fc.attach_forecasts(cands))
+
+        assert calls == [["NVDA"]], f"expected only the gap to be fetched: {calls}"
+
+
 class TestPromptIntegration:
     def test_forecast_block_appears_in_prompt(self):
         from app.services.scanner.deep_analysis import _build_prompt

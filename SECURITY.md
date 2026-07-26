@@ -28,7 +28,7 @@ at which level.
 | Session revocation | no | yes (token_version) | done, live |
 | CORS/CSRF | partial | yes (exact allow-list + Origin/Referer) | done, live |
 | Broker secrets at rest | no | yes (Fernet/MultiFernet) | verified |
-| SSRF | no | guard utility ready (no active surface) | prepared |
+| SSRF | partial | webhook targets validated **and IP-pinned** on delivery; standalone guard utility ready | active (webhooks) / prepared (rest — see §5b) |
 | CI/CD supply chain | no | pip-audit + gitleaks + dependabot live | partial |
 | Backup/restore/IR | no | this runbook | documented |
 | Refresh-token families | no | token_version live; family rotation spec below | partial |
@@ -152,23 +152,50 @@ also runs on the stdlib root handler, which all 47 other modules write through.
 A password-reset token was logged in cleartext whenever `SMTP_HOST` was unset;
 that is now restricted to non-hardened environments.
 
-Known and **deliberately not changed** — each needs a decision, not a patch:
+## 5b. Follow-up pass (2026-07-26, later the same day)
 
-- **Proxy-IP trust has no proxy allow-list.** With `TRUST_PROXY=true`,
-  `X-Real-IP` is trusted verbatim without checking that `request.client.host`
-  is the Railway edge proxy. Anything able to reach the app process directly
-  (a second ingress, internal networking, a re-platform) can mint a fresh
-  rate-limit bucket per request. Proper fix: run uvicorn with
-  `--proxy-headers --forwarded-allow-ips=<edge>` or add an explicit allow-list.
-  Not shipped because Railway publishes no stable edge-IP range and a wrong
-  list would break rate limiting outright.
-- **Refresh-token cookie is scoped `Path=/`** rather than `/api/auth`. Wider
-  blast radius than necessary; rotation is still flag-gated
-  (`REFRESH_ROTATION_ENABLED`), so the exposure is currently theoretical.
-- **SSRF guard has a DNS-rebinding TOCTOU gap.** `assert_url_allowed()`
-  resolves once and returns the original URL; the HTTP client re-resolves when
-  connecting. Whoever wires the first caller MUST connect to the
-  already-resolved IP (pin it / pass a fixed resolver), not to the hostname.
-- **Kronos re-downloads OHLCV** for the Top-N inside the scan cycle even though
-  the prefilter just fetched it — this doubles Yahoo request volume when
-  `KRONOS_ENABLED=true` and lengthens how long the advisory lock is held.
+Four of the residual items above were carried out. What remains of each is stated
+with it.
+
+- **Refresh-token cookie is now scoped to `/api/auth`** (was `Path=/`, i.e. sent
+  with every request to the origin). Both cookies share a name, so a browser
+  still holding the old one would present two values and `request.cookies.get()`
+  would pick unpredictably — a superseded value reads as a replayed token and
+  revokes the family. Every mint therefore expires the legacy `Path=/` cookie in
+  the same response, and logout deletes both paths. Covered by
+  `backend/tests/test_refresh_cookie_scope.py`.
+- **Outbound webhooks connect to the vetted address.** `validate_webhook_url`
+  returns the IPs it cleared and delivery pins one: literal IP in the URL,
+  original authority in `Host`, original hostname in `sni_hostname` so TLS is
+  still verified against the name. Covered by
+  `backend/tests/test_webhook_dns_pinning.py`.
+  *Remaining:* the **FinTS** handshake (`app/services/fints/client.py`) validates
+  its endpoint through the same guard but hands the hostname to the `fints`
+  library, which opens its own connection — that path keeps the TOCTOU gap and
+  cannot be pinned without patching the library. `app/core/ssrf_guard.py` still
+  has no caller; whoever wires one up must pin the resolved IP the same way.
+- **Test dependencies no longer ship in the production image.** `pytest`,
+  `pytest-asyncio` and `mypy` moved to `backend/requirements-dev.txt`
+  (`-r requirements.txt` plus the test tooling); the Dockerfile installs the
+  runtime file only. CI installs the dev file and `dependency-audit` audits it, so
+  a test-only advisory stays visible without forcing a production redeploy.
+- **Kronos reuses the prefilter's OHLCV.** Candidates carry the frame they were
+  scored from and the forecast stage fetches only genuine gaps (single-symbol
+  runner, tests). This halves Yahoo request volume with `KRONOS_ENABLED=true` and
+  shortens how long a cycle holds its advisory lock; frames are released before
+  the Sonnet loop. Covered by
+  `backend/tests/test_scanner_forecast.py::TestReusesPrefilterFrames`.
+
+Known and **still open** — needs a decision, not a patch:
+
+- **Proxy-IP trust is opt-in, not enforced.** `TRUSTED_PROXY_IPS` now gates whose
+  forwarding headers are honoured: set it to the edge's range and `X-Real-IP` is
+  accepted only from there. Left **empty — which is the default — behaviour is
+  unchanged**, and anything able to reach the process directly can still mint a
+  fresh rate-limit bucket per request. It is not enabled by default because
+  Railway publishes no stable edge-IP range and a wrong list collapses every
+  client into a single bucket, breaking rate limiting outright. To close it: read
+  the peer address from the logs, set `TRUSTED_PROXY_IPS`, then verify buckets
+  still separate. Both start commands pass `--no-proxy-headers`, so
+  `request.client.host` is the real socket peer rather than a value derived from
+  the very headers being checked.

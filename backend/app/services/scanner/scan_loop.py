@@ -141,6 +141,12 @@ async def run_scan_cycle(
             except Exception as e:  # defensive: forecasting must never break a cycle
                 logger.warning("scan_cycle_forecast_failed", extra={"reason": str(e)})
 
+        # The prefilter carries OHLCV frames purely so the forecast stage does not
+        # re-download them; nothing downstream reads them. Release them before the
+        # Sonnet loop, which can run for minutes per cycle.
+        for candidate in candidates:
+            candidate.ohlcv = None
+
         recent = await _recent_symbols(settings.SCAN_DEDUP_WINDOW_HOURS)
 
         # 4. Per-candidate: dedup -> cap gate -> Sonnet -> record -> persist -> deliver.
