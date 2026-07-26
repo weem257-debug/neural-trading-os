@@ -84,7 +84,7 @@ function WatchlistBar({
         <SectionLabel>Watchlist</SectionLabel>
         <span
           className="text-xs px-2 py-0.5 rounded font-mono"
-          style={{ background: "rgba(0,212,255,0.1)", color: "#00D4FF", border: "1px solid rgba(0,212,255,0.25)" }}
+          style={{ background: "rgba(76,141,246,0.1)", color: "#4C8DF6", border: "1px solid rgba(76,141,246,0.25)" }}
         >
           {symbols.length}/{MAX_SYMBOLS}
         </span>
@@ -117,10 +117,10 @@ function WatchlistBar({
                   aria-label={`${s} auswählen`}
                   className="flex items-center gap-1.5 pl-3 pr-7 py-1.5 rounded-xl text-xs font-bold font-mono transition-all"
                   style={{
-                    background: active ? "rgba(0,212,255,0.18)" : "rgba(255,255,255,0.04)",
-                    border: active ? "1px solid rgba(0,212,255,0.5)" : "1px solid rgba(255,255,255,0.08)",
-                    color: active ? "#00D4FF" : "#94a3b8",
-                    boxShadow: active ? "0 0 10px rgba(0,212,255,0.15)" : "none",
+                    background: active ? "rgba(76,141,246,0.18)" : "rgba(255,255,255,0.04)",
+                    border: active ? "1px solid rgba(76,141,246,0.5)" : "1px solid rgba(255,255,255,0.08)",
+                    color: active ? "#4C8DF6" : "#94a3b8",
+                    boxShadow: active ? "0 0 10px rgba(76,141,246,0.15)" : "none",
                   }}
                 >
                   {s}
@@ -129,7 +129,7 @@ function WatchlistBar({
                   onClick={() => onRemove(s)}
                   aria-label={`${s} aus Watchlist entfernen`}
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ color: "#FF0080" }}
+                  style={{ color: "#E5534B" }}
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -152,13 +152,13 @@ function WatchlistBar({
               placeholder="z.B. NVDA, ETH-USD"
               maxLength={12}
               className="w-36 rounded-xl px-3 py-1.5 text-xs font-mono text-slate-200 placeholder-slate-600 outline-none"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,212,255,0.3)" }}
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(76,141,246,0.3)" }}
             />
             <button
               onClick={handleAdd}
               disabled={symbols.length >= MAX_SYMBOLS}
               className="px-2.5 py-1.5 rounded-xl text-xs font-bold disabled:opacity-40"
-              style={{ background: "rgba(0,212,255,0.15)", border: "1px solid rgba(0,212,255,0.4)", color: "#00D4FF" }}
+              style={{ background: "rgba(76,141,246,0.15)", border: "1px solid rgba(76,141,246,0.4)", color: "#4C8DF6" }}
             >
               Add
             </button>
@@ -239,7 +239,7 @@ function MarketBrowser({
     <GlassCard padding="p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <Globe className="w-3.5 h-3.5" style={{ color: "#7B2FFF" }} />
+          <Globe className="w-3.5 h-3.5" style={{ color: "#A371F7" }} />
           <SectionLabel>Märkte</SectionLabel>
         </div>
         <span className="text-xs text-slate-600">Markt wählen → Symbol analysieren</span>
@@ -256,10 +256,10 @@ function MarketBrowser({
               aria-current={active ? "true" : undefined}
               className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
               style={{
-                background: active ? "rgba(123,47,255,0.18)" : "rgba(255,255,255,0.04)",
-                border: active ? "1px solid rgba(123,47,255,0.5)" : "1px solid rgba(255,255,255,0.08)",
+                background: active ? "rgba(163,113,247,0.18)" : "rgba(255,255,255,0.04)",
+                border: active ? "1px solid rgba(163,113,247,0.5)" : "1px solid rgba(255,255,255,0.08)",
                 color: active ? "#B794FF" : "#94a3b8",
-                boxShadow: active ? "0 0 10px rgba(123,47,255,0.15)" : "none",
+                boxShadow: active ? "0 0 10px rgba(163,113,247,0.15)" : "none",
               }}
             >
               {m.label}
@@ -281,9 +281,9 @@ function MarketBrowser({
                 aria-label={`${s.name} (${s.symbol}) analysieren`}
                 className={`flex items-center gap-1.5 pl-3 py-1.5 rounded-xl text-xs transition-all ${inWatchlist ? "pr-3" : "pr-7"}`}
                 style={{
-                  background: active ? "rgba(0,212,255,0.18)" : "rgba(255,255,255,0.04)",
-                  border: active ? "1px solid rgba(0,212,255,0.5)" : "1px solid rgba(255,255,255,0.08)",
-                  color: active ? "#00D4FF" : "#94a3b8",
+                  background: active ? "rgba(76,141,246,0.18)" : "rgba(255,255,255,0.04)",
+                  border: active ? "1px solid rgba(76,141,246,0.5)" : "1px solid rgba(255,255,255,0.08)",
+                  color: active ? "#4C8DF6" : "#94a3b8",
                 }}
               >
                 <span className="font-bold font-mono">{s.symbol}</span>
@@ -295,7 +295,7 @@ function MarketBrowser({
                   aria-label={`${s.symbol} zur Watchlist hinzufügen`}
                   title="Zur Watchlist hinzufügen"
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ color: "#00FF88" }}
+                  style={{ color: "#3FB950" }}
                 >
                   <Plus className="w-3 h-3" />
                 </button>
@@ -314,7 +314,7 @@ function MarketBrowser({
 function PriceHeaderCard({ analysis }: { analysis: LiveMarketAnalysis }) {
   const { price } = analysis;
   const positive = price.change_pct >= 0;
-  const color = positive ? "#00FF88" : "#FF0080";
+  const color = positive ? "#3FB950" : "#E5534B";
 
   return (
     <GlassCard delay={0.05}>
@@ -355,10 +355,10 @@ function PriceHeaderCard({ analysis }: { analysis: LiveMarketAnalysis }) {
 // Regime badge
 // ---------------------------------------------------------------------------
 const REGIME_META: Record<MarketRegime, { label: string; color: string; icon: React.ElementType }> = {
-  trending_up: { label: "AUFWÄRTSTREND", color: "#00FF88", icon: TrendingUp },
-  trending_down: { label: "ABWÄRTSTREND", color: "#FF0080", icon: TrendingDown },
-  ranging: { label: "SEITWÄRTS", color: "#00D4FF", icon: Minus },
-  volatile: { label: "VOLATIL", color: "#FFD700", icon: Activity },
+  trending_up: { label: "AUFWÄRTSTREND", color: "#3FB950", icon: TrendingUp },
+  trending_down: { label: "ABWÄRTSTREND", color: "#E5534B", icon: TrendingDown },
+  ranging: { label: "SEITWÄRTS", color: "#4C8DF6", icon: Minus },
+  volatile: { label: "VOLATIL", color: "#D29922", icon: Activity },
 };
 
 function RegimeBadge({ regime }: { regime: MarketRegime }) {
@@ -378,8 +378,8 @@ function RegimeBadge({ regime }: { regime: MarketRegime }) {
 // Signal card — bias color-coded + score + reasons
 // ---------------------------------------------------------------------------
 const BIAS_META: Record<MarketSignalBias, { label: string; color: string; icon: React.ElementType }> = {
-  bullish: { label: "BULLISH", color: "#00FF88", icon: TrendingUp },
-  bearish: { label: "BEARISH", color: "#FF0080", icon: TrendingDown },
+  bullish: { label: "BULLISH", color: "#3FB950", icon: TrendingUp },
+  bearish: { label: "BEARISH", color: "#E5534B", icon: TrendingDown },
   neutral: { label: "NEUTRAL", color: "#94a3b8", icon: Minus },
 };
 
@@ -436,7 +436,7 @@ function SignalCard({ analysis }: { analysis: LiveMarketAnalysis }) {
 // Indicator tiles
 // ---------------------------------------------------------------------------
 function IndicatorTile({
-  icon: Icon, label, value, sub, color = "#00D4FF", delay = 0,
+  icon: Icon, label, value, sub, color = "#4C8DF6", delay = 0,
 }: {
   icon: React.ElementType; label: string; value: string; sub?: string; color?: string; delay?: number;
 }) {
@@ -463,9 +463,9 @@ function IndicatorTile({
 function IndicatorGrid({ analysis }: { analysis: LiveMarketAnalysis }) {
   const { indicators } = analysis;
   const rsi = indicators.rsi_14;
-  const rsiColor = rsi >= 70 ? "#FF0080" : rsi <= 30 ? "#00FF88" : "#00D4FF";
-  const macdColor = indicators.macd.hist >= 0 ? "#00FF88" : "#FF0080";
-  const bbColor = indicators.bollinger.pct_b >= 1 ? "#FF0080" : indicators.bollinger.pct_b <= 0 ? "#00FF88" : "#7B2FFF";
+  const rsiColor = rsi >= 70 ? "#E5534B" : rsi <= 30 ? "#3FB950" : "#4C8DF6";
+  const macdColor = indicators.macd.hist >= 0 ? "#3FB950" : "#E5534B";
+  const bbColor = indicators.bollinger.pct_b >= 1 ? "#E5534B" : indicators.bollinger.pct_b <= 0 ? "#3FB950" : "#A371F7";
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -486,10 +486,10 @@ function IndicatorGrid({ analysis }: { analysis: LiveMarketAnalysis }) {
         color={bbColor}
         delay={0.11}
       />
-      <IndicatorTile icon={BarChart3} label="ATR (14)" value={fmtNum(indicators.atr_14, 2)} sub="Volatilität" color="#FFD700" delay={0.14} />
-      <IndicatorTile icon={TrendingUp} label="SMA 20" value={fmtPrice(indicators.sma_20)} color="#00D4FF" delay={0.17} />
-      <IndicatorTile icon={TrendingUp} label="SMA 50" value={fmtPrice(indicators.sma_50)} color="#7B2FFF" delay={0.2} />
-      <IndicatorTile icon={TrendingUp} label="SMA 200" value={fmtPrice(indicators.sma_200)} color="#FF0080" delay={0.23} />
+      <IndicatorTile icon={BarChart3} label="ATR (14)" value={fmtNum(indicators.atr_14, 2)} sub="Volatilität" color="#D29922" delay={0.14} />
+      <IndicatorTile icon={TrendingUp} label="SMA 20" value={fmtPrice(indicators.sma_20)} color="#4C8DF6" delay={0.17} />
+      <IndicatorTile icon={TrendingUp} label="SMA 50" value={fmtPrice(indicators.sma_50)} color="#A371F7" delay={0.2} />
+      <IndicatorTile icon={TrendingUp} label="SMA 200" value={fmtPrice(indicators.sma_200)} color="#E5534B" delay={0.23} />
       <IndicatorTile icon={BarChart3} label="Ø Volumen (20)" value={fmtVolume(indicators.volume_avg_20)} color="#94a3b8" delay={0.26} />
     </div>
   );
@@ -539,9 +539,9 @@ type AnalysisError = { kind: "not_found" | "network" | "other"; message: string 
 
 function AnalysisErrorCard({ error, onRetry }: { error: AnalysisError; onRetry: () => void }) {
   const meta = {
-    not_found: { icon: SearchX, title: "Symbol nicht gefunden", color: "#FF0080" },
-    network: { icon: WifiOff, title: "Netzwerkfehler", color: "#FFD700" },
-    other: { icon: AlertTriangle, title: "Analyse fehlgeschlagen", color: "#FFD700" },
+    not_found: { icon: SearchX, title: "Symbol nicht gefunden", color: "#E5534B" },
+    network: { icon: WifiOff, title: "Netzwerkfehler", color: "#D29922" },
+    other: { icon: AlertTriangle, title: "Analyse fehlgeschlagen", color: "#D29922" },
   }[error.kind];
   const Icon = meta.icon;
 
@@ -558,7 +558,7 @@ function AnalysisErrorCard({ error, onRetry }: { error: AnalysisError; onRetry: 
       <button
         onClick={onRetry}
         className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all"
-        style={{ background: "rgba(0,212,255,0.12)", border: "1px solid rgba(0,212,255,0.35)", color: "#00D4FF" }}
+        style={{ background: "rgba(76,141,246,0.12)", border: "1px solid rgba(76,141,246,0.35)", color: "#4C8DF6" }}
       >
         <RefreshCw className="w-3.5 h-3.5" /> Erneut versuchen
       </button>
@@ -674,9 +674,9 @@ export default function LiveAnalysisPage() {
         <div className="flex items-center gap-3 mb-1">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(0,212,255,0.15)", border: "1px solid rgba(0,212,255,0.3)" }}
+            style={{ background: "rgba(76,141,246,0.15)", border: "1px solid rgba(76,141,246,0.3)" }}
           >
-            <Radio className="w-4 h-4" style={{ color: "#00D4FF" }} />
+            <Radio className="w-4 h-4" style={{ color: "#4C8DF6" }} />
           </div>
           <h1 className="text-2xl font-bold text-slate-100">Live-Markt-Analyse</h1>
           {activeSymbol && <NeonBadge color="cyan">{activeSymbol}</NeonBadge>}
@@ -698,7 +698,7 @@ export default function LiveAnalysisPage() {
       <Collapsible
         title="Chart (TradingView)"
         subtitle={activeSymbol ? `Kursoptik für ${activeSymbol}` : "Symbol in der Watchlist wählen"}
-        icon={<LineChartIcon className="w-3.5 h-3.5" style={{ color: "#00D4FF" }} />}
+        icon={<LineChartIcon className="w-3.5 h-3.5" style={{ color: "#4C8DF6" }} />}
         defaultOpen
       >
         {activeSymbol ? (
@@ -712,7 +712,7 @@ export default function LiveAnalysisPage() {
       <Collapsible
         title="Live-Regime & Signale"
         subtitle="Watchlist, Marktbrowser, Indikatoren und KI-Signal in Echtzeit"
-        icon={<Radio className="w-3.5 h-3.5" style={{ color: "#00D4FF" }} />}
+        icon={<Radio className="w-3.5 h-3.5" style={{ color: "#4C8DF6" }} />}
         defaultOpen
       >
         <div className="space-y-5">
@@ -785,7 +785,7 @@ export default function LiveAnalysisPage() {
       <Collapsible
         title="Elliott-Wellen-Analyse"
         subtitle="Automatische Wellenanalyse mit Fibonacci-Validierung"
-        icon={<WavesIcon className="w-3.5 h-3.5" style={{ color: "#7B2FFF" }} />}
+        icon={<WavesIcon className="w-3.5 h-3.5" style={{ color: "#A371F7" }} />}
       >
         <ElliottWave />
       </Collapsible>
@@ -794,7 +794,7 @@ export default function LiveAnalysisPage() {
       <Collapsible
         title="Aktien-Report"
         subtitle="Mehrere Ticker gleichzeitig auswerten — KI-Verdict, Konfidenz, Signal-Komponenten"
-        icon={<LineChartIcon className="w-3.5 h-3.5" style={{ color: "#00FF88" }} />}
+        icon={<LineChartIcon className="w-3.5 h-3.5" style={{ color: "#3FB950" }} />}
       >
         <StockReport />
       </Collapsible>

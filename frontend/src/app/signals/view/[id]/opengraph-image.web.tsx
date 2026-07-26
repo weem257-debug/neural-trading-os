@@ -10,7 +10,7 @@ export const contentType = "image/png";
 
 const DIR: Record<string, { label: string; color: string }> = {
   BUY:         { label: "KAUFEN",       color: "#22c55e" },
-  STRONG_BUY:  { label: "STARK KAUFEN", color: "#00ff88" },
+  STRONG_BUY:  { label: "STARK KAUFEN", color: "#3FB950" },
   SELL:        { label: "VERKAUFEN",    color: "#ef4444" },
   STRONG_SELL: { label: "STARK VERK.",  color: "#ff2222" },
   HOLD:        { label: "HALTEN",       color: "#f59e0b" },
@@ -52,7 +52,7 @@ export default async function Image({ params }: { params: { id: string } }) {
           flexDirection: "column",
           width: "1200px",
           height: "630px",
-          background: "#080b14",
+          background: "#0B0E14",
           padding: "52px 64px",
           fontFamily: "system-ui, sans-serif",
           overflow: "hidden",
@@ -68,7 +68,7 @@ export default async function Image({ params }: { params: { id: string } }) {
             width: "560px",
             height: "560px",
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(0,212,255,0.09) 0%, transparent 70%)",
+            background: "radial-gradient(circle, rgba(76,141,246,0.09) 0%, transparent 70%)",
             display: "flex",
           }}
         />
@@ -80,12 +80,12 @@ export default async function Image({ params }: { params: { id: string } }) {
               width: "10px",
               height: "10px",
               borderRadius: "50%",
-              background: "#00D4FF",
-              boxShadow: "0 0 14px rgba(0,212,255,0.8)",
+              background: "#4C8DF6",
+              boxShadow: "0 0 14px rgba(76,141,246,0.8)",
               display: "flex",
             }}
           />
-          <span style={{ color: "#00D4FF", fontSize: "22px", fontWeight: 700 }}>Neural Trading OS</span>
+          <span style={{ color: "#4C8DF6", fontSize: "22px", fontWeight: 700 }}>Neural Trading OS</span>
           <span style={{ color: "#1e293b", fontSize: "22px", marginLeft: "4px" }}>·</span>
           <span style={{ color: "#475569", fontSize: "20px", marginLeft: "4px" }}>KI-Handelssignal</span>
         </div>
@@ -184,8 +184,8 @@ export default async function Image({ params }: { params: { id: string } }) {
               <div
                 style={{
                   display: "flex",
-                  background: "rgba(0,212,255,0.05)",
-                  border: "1px solid rgba(0,212,255,0.14)",
+                  background: "rgba(76,141,246,0.05)",
+                  border: "1px solid rgba(76,141,246,0.14)",
                   borderRadius: "12px",
                   padding: "16px 20px",
                 }}

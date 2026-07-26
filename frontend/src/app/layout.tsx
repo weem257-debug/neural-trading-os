@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { TickerBar } from "@/components/ui/TickerBar";
-import { ParticleBackground } from "@/components/ui/ParticleBackground";
 import { ErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { ShortcutsProvider } from "@/components/ui/ShortcutsProvider";
 import { Notifications } from "@/components/ui/Notifications";
@@ -81,20 +80,17 @@ export default function RootLayout({
     <html lang="de" className="dark">
       <body className="bg-base text-slate-200 min-h-[100dvh]">
         {/* Neural grid background */}
-        <div className="fixed inset-0 bg-neural-grid opacity-60 pointer-events-none z-0" />
+        <div className="fixed inset-0 bg-neural-grid opacity-40 pointer-events-none z-0" />
 
         {/* Radial glow accents */}
         <div
           className="fixed inset-0 pointer-events-none z-0"
           style={{
             background:
-              "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,212,255,0.08) 0%, transparent 60%), " +
-              "radial-gradient(ellipse 60% 40% at 90% 90%, rgba(123,47,255,0.06) 0%, transparent 50%)",
+              "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(76,141,246,0.08) 0%, transparent 60%), " +
+              "radial-gradient(ellipse 60% 40% at 90% 90%, rgba(163,113,247,0.06) 0%, transparent 50%)",
           }}
         />
-
-        {/* Particle background (client component) */}
-        <ParticleBackground />
 
         {/* Global keyboard shortcuts + modal */}
         <ShortcutsProvider />

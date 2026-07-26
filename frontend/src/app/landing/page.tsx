@@ -71,7 +71,7 @@ function ParticleCanvas() {
         if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 212, 255, ${p.alpha})`;
+        ctx.fillStyle = `rgba(76, 141, 246, ${p.alpha})`;
         ctx.fill();
       });
       animId = requestAnimationFrame(draw);
@@ -185,7 +185,7 @@ const pricingTiers = [
     cta: "Pro starten",
     highlight: true,
     border: "border-cyan-500",
-    glow: "shadow-[0_0_40px_rgba(0,212,255,0.25)]",
+    glow: "shadow-[0_0_40px_rgba(76,141,246,0.25)]",
   },
   {
     name: "Institutional",
@@ -291,7 +291,7 @@ function LandingDemoPreview() {
     fetchDemo(t);
   };
 
-  const dirColor = signal?.direction === "BUY" ? "#00FF88" : signal?.direction === "SELL" ? "#FF0080" : "#00D4FF";
+  const dirColor = signal?.direction === "BUY" ? "#3FB950" : signal?.direction === "SELL" ? "#E5534B" : "#4C8DF6";
   const confPct = signal ? Math.round(signal.confidence * 100) : 0;
 
   return (
@@ -300,7 +300,7 @@ function LandingDemoPreview() {
         {/* Header */}
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4"
-            style={{ background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.2)", color: "#00D4FF" }}>
+            style={{ background: "rgba(76,141,246,0.08)", border: "1px solid rgba(76,141,246,0.2)", color: "#4C8DF6" }}>
             <Sparkles className="w-3 h-3" />
             Live-Vorschau
           </div>
@@ -318,9 +318,9 @@ function LandingDemoPreview() {
               onClick={() => handleTicker(t)}
               className="px-4 py-1.5 rounded-full text-xs font-bold transition-all"
               style={{
-                background: ticker === t ? "rgba(0,212,255,0.15)" : "rgba(255,255,255,0.04)",
-                border: `1px solid ${ticker === t ? "rgba(0,212,255,0.5)" : "rgba(255,255,255,0.08)"}`,
-                color: ticker === t ? "#00D4FF" : "#64748b",
+                background: ticker === t ? "rgba(76,141,246,0.15)" : "rgba(255,255,255,0.04)",
+                border: `1px solid ${ticker === t ? "rgba(76,141,246,0.5)" : "rgba(255,255,255,0.08)"}`,
+                color: ticker === t ? "#4C8DF6" : "#64748b",
               }}
             >
               {t}
@@ -335,7 +335,7 @@ function LandingDemoPreview() {
           {loading && (
             <div className="flex items-center justify-center py-16">
               <div className="flex flex-col items-center gap-3">
-                <Loader2 className="w-8 h-8 animate-spin" style={{ color: "#00D4FF" }} />
+                <Loader2 className="w-8 h-8 animate-spin" style={{ color: "#4C8DF6" }} />
                 <span className="text-xs text-slate-500">KI-Agenten analysieren {ticker}…</span>
               </div>
             </div>
@@ -380,17 +380,17 @@ function LandingDemoPreview() {
               {(signal.price_target || signal.stop_loss) && (
                 <div className="grid grid-cols-2 gap-3 mb-5">
                   {signal.price_target && (
-                    <div className="rounded-xl p-3" style={{ background: "rgba(0,255,136,0.05)", border: "1px solid rgba(0,255,136,0.12)" }}>
+                    <div className="rounded-xl p-3" style={{ background: "rgba(63,185,80,0.05)", border: "1px solid rgba(63,185,80,0.12)" }}>
                       <div className="text-xs text-slate-500 mb-1">Kursziel</div>
-                      <div className="text-sm font-mono font-bold" style={{ color: "#00FF88" }}>
+                      <div className="text-sm font-mono font-bold" style={{ color: "#3FB950" }}>
                         ${signal.price_target.toFixed(2)}
                       </div>
                     </div>
                   )}
                   {signal.stop_loss && (
-                    <div className="rounded-xl p-3" style={{ background: "rgba(255,0,128,0.05)", border: "1px solid rgba(255,0,128,0.12)" }}>
+                    <div className="rounded-xl p-3" style={{ background: "rgba(229,83,75,0.05)", border: "1px solid rgba(229,83,75,0.12)" }}>
                       <div className="text-xs text-slate-500 mb-1">Stop-Loss</div>
-                      <div className="text-sm font-mono font-bold" style={{ color: "#FF0080" }}>
+                      <div className="text-sm font-mono font-bold" style={{ color: "#E5534B" }}>
                         ${signal.stop_loss.toFixed(2)}
                       </div>
                     </div>
@@ -418,7 +418,7 @@ function LandingDemoPreview() {
                 </span>
                 <Link href={signalHref}
                   className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl transition-all"
-                  style={{ background: "rgba(0,212,255,0.1)", border: "1px solid rgba(0,212,255,0.3)", color: "#00D4FF" }}>
+                  style={{ background: "rgba(76,141,246,0.1)", border: "1px solid rgba(76,141,246,0.3)", color: "#4C8DF6" }}>
                   Eigenes Signal <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
@@ -435,7 +435,7 @@ function LandingDemoPreview() {
         {/* Sub-CTA */}
         <p className="text-center text-xs text-slate-600 mt-5">
           Das war eine Mock-Simulation. Echte Signale nutzen{" "}
-          <span style={{ color: "#00D4FF" }}>Claude Sonnet + 9 spezialisierte KI-Agenten</span>.
+          <span style={{ color: "#4C8DF6" }}>Claude Sonnet + 9 spezialisierte KI-Agenten</span>.
         </p>
       </div>
     </section>
@@ -590,8 +590,8 @@ export default function LandingPage() {
         className="fixed inset-0 pointer-events-none z-0"
         style={{
           background:
-            "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,212,255,0.07) 0%, transparent 60%), " +
-            "radial-gradient(ellipse 60% 40% at 90% 90%, rgba(123,47,255,0.05) 0%, transparent 50%)",
+            "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(76,141,246,0.07) 0%, transparent 60%), " +
+            "radial-gradient(ellipse 60% 40% at 90% 90%, rgba(163,113,247,0.05) 0%, transparent 50%)",
         }}
       />
 
@@ -665,7 +665,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
               href={isAuthenticated ? "/dashboard" : "/register"}
-              className="group flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-lg hover:from-cyan-400 hover:to-blue-500 transition-all shadow-[0_0_30px_rgba(0,212,255,0.3)] hover:shadow-[0_0_50px_rgba(0,212,255,0.5)]"
+              className="group flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-lg hover:from-cyan-400 hover:to-blue-500 transition-all shadow-[0_0_30px_rgba(76,141,246,0.3)] hover:shadow-[0_0_50px_rgba(76,141,246,0.5)]"
             >
               {isAuthenticated ? "Dashboard öffnen" : "Kostenlos starten"}
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
@@ -713,7 +713,7 @@ export default function LandingPage() {
             ))}
             {signalTotal !== null && signalTotal > 0 && (
               <div>
-                <div className="text-3xl font-black text-neon-green" style={{ color: "#00FF88" }}>
+                <div className="text-3xl font-black text-neon-green" style={{ color: "#3FB950" }}>
                   {signalTotal >= 1000 ? `${Math.floor(signalTotal / 100) * 100}+` : signalTotal >= 100 ? `${Math.floor(signalTotal / 10) * 10}+` : `${signalTotal}+`}
                 </div>
                 <div className="text-sm text-slate-500 mt-1">Signale generiert</div>
@@ -721,7 +721,7 @@ export default function LandingPage() {
             )}
             {winRate !== null && (
               <div>
-                <div className="text-3xl font-black" style={{ color: "#00FF88" }}>
+                <div className="text-3xl font-black" style={{ color: "#3FB950" }}>
                   {Math.round(winRate * 100)}%
                 </div>
                 <div className="text-sm text-slate-500 mt-1">Trefferquote</div>
@@ -729,7 +729,7 @@ export default function LandingPage() {
             )}
             {avgReturn !== null && (
               <div>
-                <div className="text-3xl font-black" style={{ color: avgReturn >= 0 ? "#00FF88" : "#ef4444" }}>
+                <div className="text-3xl font-black" style={{ color: avgReturn >= 0 ? "#3FB950" : "#ef4444" }}>
                   {avgReturn >= 0 ? "+" : ""}{(avgReturn * 100).toFixed(1)}%
                 </div>
                 <div className="text-sm text-slate-500 mt-1">Ø Rendite</div>
@@ -737,7 +737,7 @@ export default function LandingPage() {
             )}
             {count !== null && count > 0 && (
               <div>
-                <div className="text-3xl font-black" style={{ color: "#00D4FF" }}>
+                <div className="text-3xl font-black" style={{ color: "#4C8DF6" }}>
                   {count >= 100 ? `${count}+` : count >= 10 ? `${Math.floor(count / 10) * 10}+` : "10+"}
                 </div>
                 <div className="text-sm text-slate-500 mt-1">Early Adopters</div>
@@ -758,12 +758,12 @@ export default function LandingPage() {
             {/* Connector line (desktop only) */}
             <div
               className="hidden md:block absolute top-10 left-[calc(16.66%+1.5rem)] right-[calc(16.66%+1.5rem)] h-px"
-              style={{ background: "linear-gradient(90deg, transparent, rgba(0,212,255,0.3), rgba(0,212,255,0.3), transparent)" }}
+              style={{ background: "linear-gradient(90deg, transparent, rgba(76,141,246,0.3), rgba(76,141,246,0.3), transparent)" }}
             />
             {[
               {
                 step: "01",
-                color: "#00D4FF",
+                color: "#4C8DF6",
                 title: "Ticker eingeben",
                 desc: "Tippe einen Börsen-Ticker ein — AAPL, NVDA, BTC oder beliebig andere. Oder nutze den Batch-Scan für bis zu 10 Titel gleichzeitig.",
                 icon: (
@@ -774,7 +774,7 @@ export default function LandingPage() {
               },
               {
                 step: "02",
-                color: "#00FF88",
+                color: "#3FB950",
                 title: "KI analysiert",
                 desc: "5 spezialisierte KI-Agenten prüfen gleichzeitig Fundamentaldaten, Sentiment, Charttechnik, aktuelle News und Risikolage.",
                 icon: (
@@ -785,7 +785,7 @@ export default function LandingPage() {
               },
               {
                 step: "03",
-                color: "#7B2FFF",
+                color: "#A371F7",
                 title: "Signal erhalten",
                 desc: "Ein klares BUY/SELL-Signal mit Konfidenz-Score, Kursziel und Stop-Loss — im Dashboard oder per Telegram-Benachrichtigung.",
                 icon: (
@@ -870,8 +870,8 @@ export default function LandingPage() {
             <div
               className="rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6"
               style={{
-                background: "rgba(0,255,136,0.04)",
-                border: "1px solid rgba(0,255,136,0.15)",
+                background: "rgba(63,185,80,0.04)",
+                border: "1px solid rgba(63,185,80,0.15)",
               }}
             >
               <div>
@@ -887,7 +887,7 @@ export default function LandingPage() {
                 <div className="flex gap-6 mt-4">
                   {winRate !== null && (
                     <div>
-                      <p className="text-2xl font-black" style={{ color: "#00FF88" }}>
+                      <p className="text-2xl font-black" style={{ color: "#3FB950" }}>
                         {Math.round(winRate * 100)}%
                       </p>
                       <p className="text-xs text-slate-500">Trefferquote</p>
@@ -895,7 +895,7 @@ export default function LandingPage() {
                   )}
                   {avgReturn !== null && (
                     <div>
-                      <p className="text-2xl font-black" style={{ color: avgReturn >= 0 ? "#00FF88" : "#ef4444" }}>
+                      <p className="text-2xl font-black" style={{ color: avgReturn >= 0 ? "#3FB950" : "#ef4444" }}>
                         {avgReturn >= 0 ? "+" : ""}{(avgReturn * 100).toFixed(1)}%
                       </p>
                       <p className="text-xs text-slate-500">Ø Rendite</p>
@@ -907,9 +907,9 @@ export default function LandingPage() {
                 href="/performance"
                 className="shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all"
                 style={{
-                  background: "rgba(0,255,136,0.12)",
-                  border: "1px solid rgba(0,255,136,0.3)",
-                  color: "#00FF88",
+                  background: "rgba(63,185,80,0.12)",
+                  border: "1px solid rgba(63,185,80,0.3)",
+                  color: "#3FB950",
                 }}
               >
                 <TrendingUp className="w-4 h-4" />
@@ -989,7 +989,7 @@ export default function LandingPage() {
                     w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2
                     ${
                       tier.highlight
-                        ? "bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_20px_rgba(0,212,255,0.4)]"
+                        ? "bg-cyan-500 text-black hover:bg-cyan-400 shadow-[0_0_20px_rgba(76,141,246,0.4)]"
                         : "border border-slate-600 text-white hover:border-slate-400"
                     }
                   `}
@@ -1016,7 +1016,7 @@ export default function LandingPage() {
                   <th className="text-left px-5 py-4 text-slate-400 font-semibold w-2/5">Feature</th>
                   {[
                     { name: "Free", color: "#94a3b8" },
-                    { name: "Basic", color: "#00D4FF" },
+                    { name: "Basic", color: "#4C8DF6" },
                     { name: "Pro", color: "#A78BFA" },
                     { name: "Institutional", color: "#FFAA00" },
                   ].map(({ name, color }) => (
@@ -1049,7 +1049,7 @@ export default function LandingPage() {
                     {[free, basic, pro, inst].map((val, colIdx) => {
                       const isCheck = val === "✓";
                       const isDash = val === "—";
-                      const colors = ["#94a3b8", "#00D4FF", "#A78BFA", "#FFAA00"];
+                      const colors = ["#94a3b8", "#4C8DF6", "#A78BFA", "#FFAA00"];
                       return (
                         <td key={colIdx} className="text-center px-4 py-3.5">
                           {isCheck ? (
@@ -1072,9 +1072,9 @@ export default function LandingPage() {
               href="/register"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all"
               style={{
-                background: "rgba(0,212,255,0.12)",
-                border: "1px solid rgba(0,212,255,0.35)",
-                color: "#00D4FF",
+                background: "rgba(76,141,246,0.12)",
+                border: "1px solid rgba(76,141,246,0.35)",
+                color: "#4C8DF6",
               }}
             >
               Kostenlos starten — kein Upgrade nötig →
@@ -1097,7 +1097,7 @@ export default function LandingPage() {
                   name: "Markus T.",
                   role: "Privatanleger · seit 8 Jahren",
                   initials: "MT",
-                  color: "#00D4FF",
+                  color: "#4C8DF6",
                   stars: 5,
                   quote: "Der Batch-Scan ist ein Game-Changer. Ich scanne morgens 8 Titel in 60 Sekunden und habe eine klare Entscheidungsgrundlage. Das Free-Kontingent reicht für meine 3 täglichen Setups vollkommen aus.",
                 },
@@ -1105,7 +1105,7 @@ export default function LandingPage() {
                   name: "Sandra K.",
                   role: "Swing-Traderin · Vollzeit",
                   initials: "SK",
-                  color: "#00FF88",
+                  color: "#3FB950",
                   stars: 5,
                   quote: "Die KI-Begründung hinter jedem Signal macht den Unterschied. Ich verstehe warum — nicht nur was. Elliott-Wave-Erkennung und Sentiment in einem Dashboard, dafür hatte ich früher drei Tools.",
                 },
@@ -1113,7 +1113,7 @@ export default function LandingPage() {
                   name: "Florian B.",
                   role: "Berufseinsteiger · ETF & Aktien",
                   initials: "FB",
-                  color: "#7B2FFF",
+                  color: "#A371F7",
                   stars: 5,
                   quote: "Als Anfänger war ich skeptisch, aber die Signalhistorie und die Konfidenz-Scores helfen mir echte Muster zu erkennen. Telegram-Alerts laufen zuverlässig — Upgrade auf Basic war sofort die richtige Entscheidung.",
                 },

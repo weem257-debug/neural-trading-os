@@ -73,9 +73,9 @@ function OrderBook({ ticker }: { ticker: string }) {
           <div key={row.price} className="relative flex items-center justify-between text-xs py-1 px-2 rounded overflow-hidden">
             <div
               className="absolute left-0 top-0 bottom-0"
-              style={{ width: `${(row.total / maxTotal) * 100}%`, background: "rgba(255,0,128,0.08)" }}
+              style={{ width: `${(row.total / maxTotal) * 100}%`, background: "rgba(229,83,75,0.08)" }}
             />
-            <span className="font-mono font-bold relative" style={{ color: "#FF0080" }}>${row.price.toFixed(2)}</span>
+            <span className="font-mono font-bold relative" style={{ color: "#E5534B" }}>${row.price.toFixed(2)}</span>
             <span className="font-mono text-slate-400 relative">{row.size.toLocaleString()}</span>
             <span className="font-mono text-slate-600 relative">{row.total.toLocaleString()}</span>
           </div>
@@ -85,7 +85,7 @@ function OrderBook({ ticker }: { ticker: string }) {
       {/* Last price / spread line */}
       <div className="flex items-center gap-2 py-2 px-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <Activity className="w-3.5 h-3.5 text-neon-green" />
-        <span className="text-sm font-bold font-mono" style={{ color: "#00FF88" }}>${priceStr}</span>
+        <span className="text-sm font-bold font-mono" style={{ color: "#3FB950" }}>${priceStr}</span>
         <NeonBadge color="green">{liveEntry ? "LIVE" : "DEMO"}</NeonBadge>
       </div>
 
@@ -95,9 +95,9 @@ function OrderBook({ ticker }: { ticker: string }) {
           <div key={row.price} className="relative flex items-center justify-between text-xs py-1 px-2 rounded overflow-hidden">
             <div
               className="absolute left-0 top-0 bottom-0"
-              style={{ width: `${(row.total / maxTotal) * 100}%`, background: "rgba(0,255,136,0.08)" }}
+              style={{ width: `${(row.total / maxTotal) * 100}%`, background: "rgba(63,185,80,0.08)" }}
             />
-            <span className="font-mono font-bold relative" style={{ color: "#00FF88" }}>${row.price.toFixed(2)}</span>
+            <span className="font-mono font-bold relative" style={{ color: "#3FB950" }}>${row.price.toFixed(2)}</span>
             <span className="font-mono text-slate-400 relative">{row.size.toLocaleString()}</span>
             <span className="font-mono text-slate-600 relative">{row.total.toLocaleString()}</span>
           </div>
@@ -130,8 +130,8 @@ function QuantitySlider({ value, onChange, max = 100 }: { value: number; onChang
           onChange={(e) => onChange(parseFloat(e.target.value))}
           className="w-full h-2 rounded-full appearance-none cursor-pointer"
           style={{
-            background: `linear-gradient(90deg, #00D4FF ${pct}%, rgba(255,255,255,0.08) ${pct}%)`,
-            accentColor: "#00D4FF",
+            background: `linear-gradient(90deg, #4C8DF6 ${pct}%, rgba(255,255,255,0.08) ${pct}%)`,
+            accentColor: "#4C8DF6",
           }}
         />
       </div>
@@ -142,9 +142,9 @@ function QuantitySlider({ value, onChange, max = 100 }: { value: number; onChang
             onClick={() => onChange(Math.round(max * f * 10000) / 10000)}
             className="flex-1 py-1 rounded-lg text-xs font-semibold transition-all"
             style={{
-              background: pct / 100 === f ? "rgba(0,212,255,0.15)" : "rgba(255,255,255,0.04)",
-              border: pct / 100 === f ? "1px solid rgba(0,212,255,0.4)" : "1px solid rgba(255,255,255,0.08)",
-              color: pct / 100 === f ? "#00D4FF" : "#64748B",
+              background: pct / 100 === f ? "rgba(76,141,246,0.15)" : "rgba(255,255,255,0.04)",
+              border: pct / 100 === f ? "1px solid rgba(76,141,246,0.4)" : "1px solid rgba(255,255,255,0.08)",
+              color: pct / 100 === f ? "#4C8DF6" : "#64748B",
             }}
           >
             {(f * 100).toFixed(0)}%
@@ -230,8 +230,8 @@ export default function ExecutionPage() {
   }
 
   const isLive = mode.mode === "live";
-  const buyColor = "#00FF88";
-  const sellColor = "#FF0080";
+  const buyColor = "#3FB950";
+  const sellColor = "#E5534B";
   const activeColor = form.side === "buy" ? buyColor : sellColor;
 
   return (
@@ -261,18 +261,18 @@ export default function ExecutionPage() {
         animate={{ opacity: 1, y: 0 }}
         className="rounded-xl p-4 flex items-center gap-3"
         style={{
-          background: isLive ? "rgba(255,0,128,0.08)" : "rgba(0,212,255,0.08)",
-          border: `1px solid ${isLive ? "rgba(255,0,128,0.35)" : "rgba(0,212,255,0.35)"}`,
-          boxShadow: `0 0 20px ${isLive ? "rgba(255,0,128,0.1)" : "rgba(0,212,255,0.1)"}`,
+          background: isLive ? "rgba(229,83,75,0.08)" : "rgba(76,141,246,0.08)",
+          border: `1px solid ${isLive ? "rgba(229,83,75,0.35)" : "rgba(76,141,246,0.35)"}`,
+          boxShadow: `0 0 20px ${isLive ? "rgba(229,83,75,0.1)" : "rgba(76,141,246,0.1)"}`,
         }}
       >
         {isLive ? (
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: "#FF0080" }} />
+          <AlertTriangle className="w-5 h-5 flex-shrink-0" style={{ color: "#E5534B" }} />
         ) : (
-          <Shield className="w-5 h-5 flex-shrink-0" style={{ color: "#00D4FF" }} />
+          <Shield className="w-5 h-5 flex-shrink-0" style={{ color: "#4C8DF6" }} />
         )}
         <div>
-          <p className="font-bold text-sm" style={{ color: isLive ? "#FF0080" : "#00D4FF" }}>
+          <p className="font-bold text-sm" style={{ color: isLive ? "#E5534B" : "#4C8DF6" }}>
             {isLive ? "LIVE TRADING — Echtes Kapital im Einsatz" : "Paper Trading Modus — Simulation aktiv"}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -283,7 +283,7 @@ export default function ExecutionPage() {
         </div>
         {isLive && (
           <div className="ml-auto text-xs font-bold px-3 py-1.5 rounded-lg animate-pulse"
-            style={{ background: "rgba(255,0,128,0.15)", color: "#FF0080", border: "1px solid rgba(255,0,128,0.4)" }}>
+            style={{ background: "rgba(229,83,75,0.15)", color: "#E5534B", border: "1px solid rgba(229,83,75,0.4)" }}>
             SIMULATION OFF
           </div>
         )}
@@ -351,8 +351,8 @@ export default function ExecutionPage() {
                       border: "1px solid rgba(255,255,255,0.08)",
                     }}
                   >
-                    <option value="market" style={{ background: "#0D1117" }}>Market</option>
-                    <option value="limit"  style={{ background: "#0D1117" }}>Limit</option>
+                    <option value="market" style={{ background: "#10141C" }}>Market</option>
+                    <option value="limit"  style={{ background: "#10141C" }}>Limit</option>
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
                 </div>
@@ -437,9 +437,9 @@ export default function ExecutionPage() {
             <AnimatePresence>
               {lastOrder && (() => {
                 const rejected = lastOrder.status === "rejected";
-                const color = rejected ? "#FF0080" : "#00FF88";
-                const bg   = rejected ? "rgba(255,0,128,0.1)"  : "rgba(0,255,136,0.1)";
-                const bdr  = rejected ? "rgba(255,0,128,0.3)"  : "rgba(0,255,136,0.3)";
+                const color = rejected ? "#E5534B" : "#3FB950";
+                const bg   = rejected ? "rgba(229,83,75,0.1)"  : "rgba(63,185,80,0.1)";
+                const bdr  = rejected ? "rgba(229,83,75,0.3)"  : "rgba(63,185,80,0.3)";
                 const Icon = rejected ? AlertTriangle : CheckCircle;
                 return (
                   <motion.div
@@ -471,10 +471,10 @@ export default function ExecutionPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   className="mt-3 p-3 rounded-xl flex items-center gap-2"
-                  style={{ background: "rgba(255,0,128,0.1)", border: "1px solid rgba(255,0,128,0.3)" }}
+                  style={{ background: "rgba(229,83,75,0.1)", border: "1px solid rgba(229,83,75,0.3)" }}
                 >
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: "#FF0080" }} />
-                  <p className="text-sm" style={{ color: "#FF0080" }}>{error}</p>
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" style={{ color: "#E5534B" }} />
+                  <p className="text-sm" style={{ color: "#E5534B" }}>{error}</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -497,7 +497,7 @@ export default function ExecutionPage() {
             ) : (
               <div className="space-y-2">
                 {recentOrders.slice(0, 10).map((o) => {
-                  const c = o.side === "buy" ? "#00FF88" : "#FF0080";
+                  const c = o.side === "buy" ? "#3FB950" : "#E5534B";
                   const ts = "timestamp" in o ? o.timestamp : o.created_at;
                   const timeLabel = ts ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
                   return (
@@ -527,14 +527,14 @@ export default function ExecutionPage() {
                         <span className="text-xs font-bold px-2 py-0.5 rounded"
                           style={{
                             background: o.status === "filled"
-                              ? "rgba(0,255,136,0.1)"
+                              ? "rgba(63,185,80,0.1)"
                               : o.status === "rejected"
-                                ? "rgba(255,0,128,0.1)"
+                                ? "rgba(229,83,75,0.1)"
                                 : "rgba(100,116,139,0.1)",
                             color: o.status === "filled"
-                              ? "#00FF88"
+                              ? "#3FB950"
                               : o.status === "rejected"
-                                ? "#FF0080"
+                                ? "#E5534B"
                                 : "#64748B",
                           }}
                         >
@@ -568,14 +568,14 @@ export default function ExecutionPage() {
               className="rounded-2xl p-6 max-w-sm w-full mx-4"
               style={{
                 background: "rgba(8,11,20,0.98)",
-                border: `1px solid ${isLive ? "rgba(255,0,128,0.5)" : "rgba(0,212,255,0.4)"}`,
-                boxShadow: `0 0 40px ${isLive ? "rgba(255,0,128,0.2)" : "rgba(0,212,255,0.15)"}`,
+                border: `1px solid ${isLive ? "rgba(229,83,75,0.5)" : "rgba(76,141,246,0.4)"}`,
+                boxShadow: `0 0 40px ${isLive ? "rgba(229,83,75,0.2)" : "rgba(76,141,246,0.15)"}`,
               }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 mb-4">
-                <AlertTriangle className="w-6 h-6" style={{ color: isLive ? "#FF0080" : "#00D4FF" }} />
-                <h3 className="text-lg font-bold" style={{ color: isLive ? "#FF0080" : "#00D4FF" }}>
+                <AlertTriangle className="w-6 h-6" style={{ color: isLive ? "#E5534B" : "#4C8DF6" }} />
+                <h3 className="text-lg font-bold" style={{ color: isLive ? "#E5534B" : "#4C8DF6" }}>
                   {isLive ? "Live Order bestätigen" : "Order bestätigen"}
                 </h3>
               </div>
@@ -584,13 +584,13 @@ export default function ExecutionPage() {
               <div
                 className="rounded-xl p-4 mb-4"
                 style={{
-                  background: isLive ? "rgba(255,0,128,0.06)" : "rgba(0,212,255,0.06)",
-                  border: `1px solid ${isLive ? "rgba(255,0,128,0.2)" : "rgba(0,212,255,0.2)"}`,
+                  background: isLive ? "rgba(229,83,75,0.06)" : "rgba(76,141,246,0.06)",
+                  border: `1px solid ${isLive ? "rgba(229,83,75,0.2)" : "rgba(76,141,246,0.2)"}`,
                 }}
               >
                 <p className="text-sm font-bold text-slate-200 font-mono">
                   {form.side === "buy" ? "Kaufen" : "Verkaufen"} {form.quantity}x{" "}
-                  <span style={{ color: isLive ? "#FF0080" : "#00D4FF" }}>{form.ticker.toUpperCase()}</span>
+                  <span style={{ color: isLive ? "#E5534B" : "#4C8DF6" }}>{form.ticker.toUpperCase()}</span>
                   {form.order_type === "limit" && form.limit_price
                     ? ` @ $${parseFloat(form.limit_price).toFixed(2)}`
                     : " @ Marktpreis"}
@@ -620,9 +620,9 @@ export default function ExecutionPage() {
                   onClick={handleOrder}
                   className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all"
                   style={{
-                    background: isLive ? "rgba(255,0,128,0.2)" : "rgba(0,212,255,0.2)",
-                    border: `1px solid ${isLive ? "rgba(255,0,128,0.5)" : "rgba(0,212,255,0.4)"}`,
-                    color: isLive ? "#FF0080" : "#00D4FF",
+                    background: isLive ? "rgba(229,83,75,0.2)" : "rgba(76,141,246,0.2)",
+                    border: `1px solid ${isLive ? "rgba(229,83,75,0.5)" : "rgba(76,141,246,0.4)"}`,
+                    color: isLive ? "#E5534B" : "#4C8DF6",
                   }}
                 >
                   Bestätigen

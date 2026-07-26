@@ -16,7 +16,7 @@ export default async function TwitterImage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #080b14 0%, #0d1117 100%)",
+          background: "linear-gradient(135deg, #0B0E14 0%, #10141C 100%)",
           position: "relative",
           overflow: "hidden",
         }}
@@ -26,7 +26,7 @@ export default async function TwitterImage() {
             position: "absolute",
             inset: 0,
             backgroundImage:
-              "linear-gradient(rgba(0,212,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.05) 1px, transparent 1px)",
+              "linear-gradient(rgba(76,141,246,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(76,141,246,0.05) 1px, transparent 1px)",
             backgroundSize: "50px 50px",
           }}
         />
@@ -38,7 +38,7 @@ export default async function TwitterImage() {
             transform: "translateX(-50%)",
             width: "800px",
             height: "350px",
-            background: "radial-gradient(ellipse, rgba(0,212,255,0.1) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse, rgba(76,141,246,0.1) 0%, transparent 70%)",
             borderRadius: "50%",
           }}
         />
@@ -46,7 +46,7 @@ export default async function TwitterImage() {
         <div style={{ fontSize: "64px", fontWeight: 800, color: "#f1f5f9", letterSpacing: "-2px", marginBottom: "12px" }}>
           Neural Trading OS
         </div>
-        <div style={{ fontSize: "22px", color: "#00D4FF", marginBottom: "32px" }}>
+        <div style={{ fontSize: "22px", color: "#4C8DF6", marginBottom: "32px" }}>
           Live Claude Sonnet 4.6 · 9 AI Engines · €19/mo Signals
         </div>
         <div style={{ display: "flex", gap: "16px" }}>
@@ -54,8 +54,8 @@ export default async function TwitterImage() {
             <div
               key={e}
               style={{
-                background: "rgba(0,212,255,0.08)",
-                border: "1px solid rgba(0,212,255,0.2)",
+                background: "rgba(76,141,246,0.08)",
+                border: "1px solid rgba(76,141,246,0.2)",
                 borderRadius: "8px",
                 padding: "8px 14px",
                 color: "#64748b",

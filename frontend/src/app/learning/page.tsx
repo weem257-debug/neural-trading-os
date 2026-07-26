@@ -83,9 +83,9 @@ interface LearningJob {
 // ---------------------------------------------------------------------------
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: "#FFD700",
-  running: "#00D4FF",
-  done: "#00FF88",
+  pending: "#D29922",
+  running: "#4C8DF6",
+  done: "#3FB950",
   failed: "#FF6B6B",
 };
 
@@ -167,8 +167,8 @@ function YoutubeInsightCard({ insight }: { insight: YoutubeInsight }) {
             <span
               className="text-xs px-2 py-0.5 rounded-full ml-auto"
               style={{
-                background: `rgba(0,212,255,${insight.confidence_score * 0.2})`,
-                color: insight.confidence_score >= 0.7 ? "#00D4FF" : "#64748b",
+                background: `rgba(76,141,246,${insight.confidence_score * 0.2})`,
+                color: insight.confidence_score >= 0.7 ? "#4C8DF6" : "#64748b",
               }}
             >
               {(insight.confidence_score * 100).toFixed(0)}% Konfidenz
@@ -207,7 +207,7 @@ function YoutubeInsightCard({ insight }: { insight: YoutubeInsight }) {
 
 function TradeLearningCard({ learning }: { learning: TradeLearning }) {
   const winColor = learning.win_rate !== null
-    ? learning.win_rate >= 0.6 ? "#00FF88" : learning.win_rate >= 0.4 ? "#FFD700" : "#FF6B6B"
+    ? learning.win_rate >= 0.6 ? "#3FB950" : learning.win_rate >= 0.4 ? "#D29922" : "#FF6B6B"
     : "#64748b";
 
   return (
@@ -225,7 +225,7 @@ function TradeLearningCard({ learning }: { learning: TradeLearning }) {
         </div>
         <span
           className="text-xs font-semibold"
-          style={{ color: learning.direction.includes("BUY") ? "#00FF88" : learning.direction.includes("SELL") ? "#FF6B6B" : "#FFD700" }}
+          style={{ color: learning.direction.includes("BUY") ? "#3FB950" : learning.direction.includes("SELL") ? "#FF6B6B" : "#D29922" }}
         >
           {learning.direction}
         </span>
@@ -237,7 +237,7 @@ function TradeLearningCard({ learning }: { learning: TradeLearning }) {
           )}
           <span className="text-slate-600">n={learning.sample_count}</span>
           {learning.avg_return_pct !== null && (
-            <span style={{ color: learning.avg_return_pct >= 0 ? "#00FF88" : "#FF6B6B" }}>
+            <span style={{ color: learning.avg_return_pct >= 0 ? "#3FB950" : "#FF6B6B" }}>
               {learning.avg_return_pct >= 0 ? "+" : ""}{learning.avg_return_pct.toFixed(2)}%
             </span>
           )}
@@ -286,7 +286,7 @@ function AddVideoPanel({ onAdded }: { onAdded: () => void }) {
         type="submit"
         disabled={loading || !url.trim()}
         className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-black disabled:opacity-50 transition-all"
-        style={{ background: "linear-gradient(135deg, #00D4FF, #7B2FFF)" }}
+        style={{ background: "linear-gradient(135deg, #4C8DF6, #A371F7)" }}
       >
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
         Analysieren
@@ -380,7 +380,7 @@ export default function LearningPage() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all flex-1 justify-center"
             style={
               tab === key
-                ? { background: "rgba(123,47,255,0.2)", color: "#7B2FFF", border: "1px solid rgba(123,47,255,0.3)" }
+                ? { background: "rgba(163,113,247,0.2)", color: "#A371F7", border: "1px solid rgba(163,113,247,0.3)" }
                 : { color: "#64748b" }
             }
           >
@@ -402,12 +402,12 @@ export default function LearningPage() {
               {/* Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <StatCard label="YouTube Insights" value={stats?.youtube_insights_total ?? 0} color="#FF4444" icon={Youtube} />
-                <StatCard label="Trade-Learnings" value={stats?.trade_learnings_total ?? 0} color="#00FF88" icon={TrendingUp} />
-                <StatCard label="Lern-Jobs" value={stats?.learning_jobs_total ?? 0} color="#7B2FFF" icon={Brain} />
+                <StatCard label="Trade-Learnings" value={stats?.trade_learnings_total ?? 0} color="#3FB950" icon={TrendingUp} />
+                <StatCard label="Lern-Jobs" value={stats?.learning_jobs_total ?? 0} color="#A371F7" icon={Brain} />
               </div>
 
               {/* How it works */}
-              <div className="rounded-2xl border border-neon-purple/20 p-5" style={{ background: "linear-gradient(135deg, rgba(123,47,255,0.05), transparent)" }}>
+              <div className="rounded-2xl border border-neon-purple/20 p-5" style={{ background: "linear-gradient(135deg, rgba(163,113,247,0.05), transparent)" }}>
                 <h2 className="font-bold text-white text-sm mb-4 flex items-center gap-2">
                   <Lightbulb className="w-4 h-4 text-neon-purple" /> Wie der Lernprozess funktioniert
                 </h2>
@@ -437,10 +437,10 @@ export default function LearningPage() {
                     {stats.top_performing_patterns.map((p, i) => (
                       <div key={i} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-800/60 bg-slate-900/30 text-xs">
                         <span className="font-mono font-bold text-white">{p.ticker}</span>
-                        <span style={{ color: p.direction.includes("BUY") ? "#00FF88" : "#FF6B6B" }}>{{ STRONG_BUY: "S.Kauf", BUY: "Kauf", HOLD: "Halt", SELL: "Verk.", STRONG_SELL: "S.Verk." }[p.direction] ?? p.direction}</span>
+                        <span style={{ color: p.direction.includes("BUY") ? "#3FB950" : "#FF6B6B" }}>{{ STRONG_BUY: "S.Kauf", BUY: "Kauf", HOLD: "Halt", SELL: "Verk.", STRONG_SELL: "S.Verk." }[p.direction] ?? p.direction}</span>
                         <span className="text-neon-green">{(p.win_rate * 100).toFixed(0)}% Treffer</span>
                         <span className="text-slate-500">n={p.sample_count}</span>
-                        <span style={{ color: p.avg_return_pct >= 0 ? "#00FF88" : "#FF6B6B" }} className="ml-auto">
+                        <span style={{ color: p.avg_return_pct >= 0 ? "#3FB950" : "#FF6B6B" }} className="ml-auto">
                           Ø {p.avg_return_pct >= 0 ? "+" : ""}{p.avg_return_pct.toFixed(2)}%
                         </span>
                       </div>
@@ -613,7 +613,7 @@ function KiKontextTab() {
             onClick={fetchContext}
             disabled={loading || !ticker.trim()}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold text-black transition-opacity disabled:opacity-50"
-            style={{ background: "linear-gradient(135deg, #7B2FFF, #9B4FFF)" }}
+            style={{ background: "linear-gradient(135deg, #A371F7, #9B4FFF)" }}
           >
             {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
             Kontext abrufen
@@ -687,7 +687,7 @@ interface InsightStat {
 
 function ConfidenceBar({ value }: { value: number }) {
   const pct = Math.round(value * 100);
-  const color = pct >= 80 ? "#00FF88" : pct >= 60 ? "#00D4FF" : pct >= 40 ? "#FFD700" : "#FF6B6B";
+  const color = pct >= 80 ? "#3FB950" : pct >= 60 ? "#4C8DF6" : pct >= 40 ? "#D29922" : "#FF6B6B";
   return (
     <div className="flex items-center gap-2 min-w-[90px]">
       <div className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden">
@@ -726,7 +726,7 @@ function SignalQualityTab() {
       {/* Header banner */}
       <div
         className="rounded-2xl border border-neon-purple/25 p-5"
-        style={{ background: "linear-gradient(135deg, rgba(123,47,255,0.07), rgba(0,212,255,0.04))" }}
+        style={{ background: "linear-gradient(135deg, rgba(163,113,247,0.07), rgba(76,141,246,0.04))" }}
       >
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -757,7 +757,7 @@ function SignalQualityTab() {
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
             style={
               sortBy === key
-                ? { background: "rgba(123,47,255,0.2)", color: "#7B2FFF", border: "1px solid rgba(123,47,255,0.3)" }
+                ? { background: "rgba(163,113,247,0.2)", color: "#A371F7", border: "1px solid rgba(163,113,247,0.3)" }
                 : { color: "#64748b", border: "1px solid transparent" }
             }
           >
@@ -834,7 +834,7 @@ function SignalQualityTab() {
                     {item.strategy && (
                       <span
                         className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
-                        style={{ background: "rgba(123,47,255,0.15)", color: "#9B4FFF" }}
+                        style={{ background: "rgba(163,113,247,0.15)", color: "#9B4FFF" }}
                       >
                         {item.strategy}
                       </span>
@@ -854,11 +854,11 @@ function SignalQualityTab() {
                   {/* Win-Rate (from TradeLearning or validation ratio) */}
                   <div className="text-xs font-mono">
                     {item.win_rate != null ? (
-                      <span style={{ color: item.win_rate >= 0.5 ? "#00FF88" : "#FF6B6B" }}>
+                      <span style={{ color: item.win_rate >= 0.5 ? "#3FB950" : "#FF6B6B" }}>
                         {(item.win_rate * 100).toFixed(0)}%
                       </span>
                     ) : ratio != null ? (
-                      <span style={{ color: ratio >= 0.5 ? "#00D4FF" : "#FFD700" }}>
+                      <span style={{ color: ratio >= 0.5 ? "#4C8DF6" : "#D29922" }}>
                         ~{(ratio * 100).toFixed(0)}%
                       </span>
                     ) : (

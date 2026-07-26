@@ -30,7 +30,7 @@ interface TradingSignal {
 
 const DIR_CONFIG: Record<SignalDirection, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
   BUY:         { label: "KAUFEN",       color: "#22c55e", bg: "rgba(34,197,94,0.12)",  icon: <TrendingUp className="w-5 h-5" /> },
-  STRONG_BUY:  { label: "STARK KAUFEN", color: "#00ff88", bg: "rgba(0,255,136,0.12)",  icon: <TrendingUp className="w-5 h-5" /> },
+  STRONG_BUY:  { label: "STARK KAUFEN", color: "#3FB950", bg: "rgba(63,185,80,0.12)",  icon: <TrendingUp className="w-5 h-5" /> },
   SELL:        { label: "VERKAUFEN",    color: "#ef4444", bg: "rgba(239,68,68,0.12)",  icon: <TrendingDown className="w-5 h-5" /> },
   STRONG_SELL: { label: "STARK VERK.",  color: "#ff2222", bg: "rgba(255,34,34,0.12)",  icon: <TrendingDown className="w-5 h-5" /> },
   HOLD:        { label: "HALTEN",       color: "#f59e0b", bg: "rgba(245,158,11,0.12)", icon: <Minus className="w-5 h-5" /> },
@@ -109,7 +109,7 @@ export default async function SignalViewPage({ params }: { params: { id: string 
 
   if (!signal) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-4" style={{ background: "#080b14", color: "#e2e8f0" }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-6 px-4" style={{ background: "#0B0E14", color: "#e2e8f0" }}>
         <p className="text-slate-500 text-sm">Signal nicht gefunden oder abgelaufen.</p>
         <Link href="/register" className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center gap-1">
           Eigenes Signal generieren <ArrowRight className="w-4 h-4" />
@@ -143,13 +143,13 @@ export default async function SignalViewPage({ params }: { params: { id: string 
   };
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "#080b14", color: "#e2e8f0" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "#0B0E14", color: "#e2e8f0" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       {/* Header */}
       <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
-          <Zap className="w-5 h-5" style={{ color: "#00D4FF" }} />
-          <span className="text-sm font-semibold" style={{ color: "#00D4FF" }}>Neural Trading OS</span>
+          <Zap className="w-5 h-5" style={{ color: "#4C8DF6" }} />
+          <span className="text-sm font-semibold" style={{ color: "#4C8DF6" }}>Neural Trading OS</span>
         </Link>
         <span className="text-xs text-slate-500">KI-Signal · {date}</span>
       </div>
@@ -220,7 +220,7 @@ export default async function SignalViewPage({ params }: { params: { id: string 
 
           {/* Reasoning */}
           {signal.reasoning && (
-            <div className="mb-6 p-3 rounded-lg" style={{ background: "rgba(0,212,255,0.04)", border: "1px solid rgba(0,212,255,0.1)" }}>
+            <div className="mb-6 p-3 rounded-lg" style={{ background: "rgba(76,141,246,0.04)", border: "1px solid rgba(76,141,246,0.1)" }}>
               <p className="text-xs text-slate-500 mb-1.5">KI-Begründung</p>
               <p className="text-sm text-slate-300 leading-relaxed">{signal.reasoning}</p>
             </div>
@@ -234,7 +234,7 @@ export default async function SignalViewPage({ params }: { params: { id: string 
                 {Object.entries(signal.agents_consensus).map(([agent, vote]) => {
                   const isPos = vote.includes("BUY");
                   const isNeg = vote.includes("SELL");
-                  const dotColor = isPos ? "#00FF88" : isNeg ? "#FF0080" : "#FFD700";
+                  const dotColor = isPos ? "#3FB950" : isNeg ? "#E5534B" : "#D29922";
                   return (
                     <span key={agent} className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                       <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: dotColor }} />
@@ -260,7 +260,7 @@ export default async function SignalViewPage({ params }: { params: { id: string 
             <Link
               href={`${appUrl}/register`}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg font-semibold text-sm transition-all hover:opacity-90"
-              style={{ background: "#00D4FF", color: "#080b14" }}
+              style={{ background: "#4C8DF6", color: "#0B0E14" }}
             >
               <Zap className="w-4 h-4" />
               Eigenes Signal generieren
@@ -281,7 +281,7 @@ export default async function SignalViewPage({ params }: { params: { id: string 
       <div className="border-t border-white/5 px-4 py-4 text-center">
         <p className="text-xs text-slate-600">
           Generiert von{" "}
-          <Link href={appUrl || "/"} className="hover:text-slate-400" style={{ color: "#00D4FF" }}>
+          <Link href={appUrl || "/"} className="hover:text-slate-400" style={{ color: "#4C8DF6" }}>
             Neural Trading OS
           </Link>
           {" · "}

@@ -29,21 +29,21 @@ const EXPLAIN_PRICE_ALERTS: ExplanationContent = {
     <svg viewBox="0 0 320 120" className="w-full" style={{ maxHeight: 120 }}>
       <defs>
         <linearGradient id="al-price" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#00D4FF" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="#00D4FF" stopOpacity="0.4" />
+          <stop offset="0%" stopColor="#4C8DF6" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="#4C8DF6" stopOpacity="0.4" />
         </linearGradient>
       </defs>
       {/* Threshold line */}
-      <line x1="0" y1="50" x2="320" y2="50" stroke="#FFD700" strokeWidth="1.5" strokeDasharray="6 4" />
-      <text x="6" y="44" fontSize="9" fill="#FFD700" fontFamily="monospace">THRESHOLD $200</text>
+      <line x1="0" y1="50" x2="320" y2="50" stroke="#D29922" strokeWidth="1.5" strokeDasharray="6 4" />
+      <text x="6" y="44" fontSize="9" fill="#D29922" fontFamily="monospace">THRESHOLD $200</text>
       {/* Price curve going up and crossing */}
       <polyline
         points="0,90 50,85 100,80 140,60 165,50 190,38 230,30 280,25 320,20"
-        fill="none" stroke="#00D4FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+        fill="none" stroke="#4C8DF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
       />
       {/* Crossing point */}
-      <circle cx="165" cy="50" r="5" fill="#00FF88" style={{ filter: "drop-shadow(0 0 6px #00FF88)" }} />
-      <text x="172" y="46" fontSize="8" fill="#00FF88" fontFamily="monospace">FIRED!</text>
+      <circle cx="165" cy="50" r="5" fill="#3FB950" style={{ filter: "drop-shadow(0 0 6px #3FB950)" }} />
+      <text x="172" y="46" fontSize="8" fill="#3FB950" fontFamily="monospace">FIRED!</text>
       {/* Labels */}
       <text x="4" y="112" fontSize="8" fill="rgba(100,116,139,0.7)" fontFamily="monospace">t=0</text>
       <text x="290" y="112" fontSize="8" fill="rgba(100,116,139,0.7)" fontFamily="monospace">now</text>
@@ -69,20 +69,20 @@ const EXPLAIN_RISK_ALERTS: ExplanationContent = {
     <svg viewBox="0 0 320 100" className="w-full" style={{ maxHeight: 100 }}>
       <defs>
         <radialGradient id="ws-glow" cx="50%" cy="50%">
-          <stop offset="0%" stopColor="#FFD700" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="#FFD700" stopOpacity="0" />
+          <stop offset="0%" stopColor="#D29922" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#D29922" stopOpacity="0" />
         </radialGradient>
       </defs>
       {/* Backend node */}
-      <rect x="10" y="35" width="80" height="30" rx="6" fill="rgba(255,215,0,0.1)" stroke="#FFD700" strokeWidth="1" />
-      <text x="50" y="54" fontSize="9" fill="#FFD700" textAnchor="middle" fontFamily="monospace">BACKEND</text>
+      <rect x="10" y="35" width="80" height="30" rx="6" fill="rgba(210,153,34,0.1)" stroke="#D29922" strokeWidth="1" />
+      <text x="50" y="54" fontSize="9" fill="#D29922" textAnchor="middle" fontFamily="monospace">BACKEND</text>
       {/* WebSocket arrow */}
-      <line x1="92" y1="50" x2="228" y2="50" stroke="#FFD700" strokeWidth="1.5" strokeDasharray="5 3" />
-      <polygon points="228,46 238,50 228,54" fill="#FFD700" />
-      <text x="160" y="44" fontSize="8" fill="rgba(255,215,0,0.7)" textAnchor="middle" fontFamily="monospace">WebSocket</text>
+      <line x1="92" y1="50" x2="228" y2="50" stroke="#D29922" strokeWidth="1.5" strokeDasharray="5 3" />
+      <polygon points="228,46 238,50 228,54" fill="#D29922" />
+      <text x="160" y="44" fontSize="8" fill="rgba(210,153,34,0.7)" textAnchor="middle" fontFamily="monospace">WebSocket</text>
       {/* Frontend node */}
-      <rect x="240" y="35" width="70" height="30" rx="6" fill="rgba(255,215,0,0.1)" stroke="#FFD700" strokeWidth="1" />
-      <text x="275" y="54" fontSize="9" fill="#FFD700" textAnchor="middle" fontFamily="monospace">UI</text>
+      <rect x="240" y="35" width="70" height="30" rx="6" fill="rgba(210,153,34,0.1)" stroke="#D29922" strokeWidth="1" />
+      <text x="275" y="54" fontSize="9" fill="#D29922" textAnchor="middle" fontFamily="monospace">UI</text>
       {/* Risk levels */}
       <circle cx="160" cy="78" r="5" fill="#f87171" />
       <text x="168" y="82" fontSize="8" fill="#f87171" fontFamily="monospace">CRITICAL</text>
@@ -114,7 +114,7 @@ interface RiskAlert {
 const MAX_RISK_ALERTS = 20;
 
 function statusColor(status: AlertStatus) {
-  if (status === "active") return { bg: "rgba(0,212,255,0.1)", border: "rgba(0,212,255,0.35)", text: "#00D4FF" };
+  if (status === "active") return { bg: "rgba(76,141,246,0.1)", border: "rgba(76,141,246,0.35)", text: "#4C8DF6" };
   if (status === "fired") return { bg: "rgba(74,222,128,0.1)", border: "rgba(74,222,128,0.35)", text: "#4ade80" };
   return { bg: "rgba(100,116,139,0.1)", border: "rgba(100,116,139,0.25)", text: "#64748b" };
 }
@@ -271,7 +271,7 @@ export default function AlertsPage() {
         className="rounded-xl p-5"
         style={{
           background: "rgba(8,11,20,0.7)",
-          border: "1px solid rgba(0,212,255,0.12)",
+          border: "1px solid rgba(76,141,246,0.12)",
         }}
       >
         <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
@@ -295,7 +295,7 @@ export default function AlertsPage() {
               className="px-3 py-2 rounded-lg text-sm text-slate-200 placeholder-slate-600 outline-none uppercase"
               style={{
                 background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(0,212,255,0.15)",
+                border: "1px solid rgba(76,141,246,0.15)",
               }}
             />
           </div>
@@ -311,7 +311,7 @@ export default function AlertsPage() {
               className="px-3 py-2 rounded-lg text-sm text-slate-200 outline-none"
               style={{
                 background: "rgba(8,11,20,0.9)",
-                border: "1px solid rgba(0,212,255,0.15)",
+                border: "1px solid rgba(76,141,246,0.15)",
               }}
             >
               <option value="above">Oberhalb</option>
@@ -335,7 +335,7 @@ export default function AlertsPage() {
               className="px-3 py-2 rounded-lg text-sm text-slate-200 placeholder-slate-600 outline-none"
               style={{
                 background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(0,212,255,0.15)",
+                border: "1px solid rgba(76,141,246,0.15)",
               }}
             />
           </div>
@@ -346,9 +346,9 @@ export default function AlertsPage() {
             disabled={creating}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
             style={{
-              background: creating ? "rgba(0,212,255,0.07)" : "rgba(0,212,255,0.12)",
-              border: "1px solid rgba(0,212,255,0.35)",
-              color: "#00D4FF",
+              background: creating ? "rgba(76,141,246,0.07)" : "rgba(76,141,246,0.12)",
+              border: "1px solid rgba(76,141,246,0.35)",
+              color: "#4C8DF6",
             }}
           >
             <Plus className="w-4 h-4" />
@@ -365,10 +365,10 @@ export default function AlertsPage() {
         className="rounded-xl overflow-hidden"
         style={{
           background: "rgba(8,11,20,0.7)",
-          border: "1px solid rgba(0,212,255,0.12)",
+          border: "1px solid rgba(76,141,246,0.12)",
         }}
       >
-        <div className="px-5 py-3" style={{ borderBottom: "1px solid rgba(0,212,255,0.08)" }}>
+        <div className="px-5 py-3" style={{ borderBottom: "1px solid rgba(76,141,246,0.08)" }}>
           <h2 className="text-sm font-semibold text-white">Alle Alarme</h2>
         </div>
 
@@ -376,7 +376,7 @@ export default function AlertsPage() {
           <div className="flex items-center justify-center h-24">
             <div
               className="w-5 h-5 rounded-full border-2 animate-spin"
-              style={{ borderColor: "rgba(0,212,255,0.3)", borderTopColor: "#00D4FF" }}
+              style={{ borderColor: "rgba(76,141,246,0.3)", borderTopColor: "#4C8DF6" }}
             />
           </div>
         ) : alerts.length === 0 ? (
@@ -390,7 +390,7 @@ export default function AlertsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(0,212,255,0.06)" }}>
+                <tr style={{ borderBottom: "1px solid rgba(76,141,246,0.06)" }}>
                   {["Ticker", "Bedingung", "Schwellenwert", "Status", "Erstellt", ""].map((h) => (
                     <th
                       key={h}

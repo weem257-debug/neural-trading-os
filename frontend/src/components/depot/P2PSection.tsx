@@ -96,7 +96,7 @@ const pct = (n: number | null) =>
 const PLATFORM_COLORS: Record<string, string> = {
   mintos: "#FF6B35",
   bondora: "#00C896",
-  peerberry: "#7B2FFF",
+  peerberry: "#A371F7",
 };
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -136,7 +136,7 @@ function MetricBox({
 // ---------------------------------------------------------------------------
 
 function PlatformCard({ data }: { data: PlatformData }) {
-  const color = PLATFORM_COLORS[data.platform] ?? "#00D4FF";
+  const color = PLATFORM_COLORS[data.platform] ?? "#4C8DF6";
   const label = PLATFORM_LABELS[data.platform] ?? data.platform;
   const defaultPct =
     data.outstanding_principal > 0
@@ -189,7 +189,7 @@ function PlatformCard({ data }: { data: PlatformData }) {
         </div>
         <div>
           <p className="text-xs text-slate-500">Zinsen diesen Monat</p>
-          <p className="font-semibold" style={{ color: "#00FF88" }}>
+          <p className="font-semibold" style={{ color: "#3FB950" }}>
             {fmtFull(data.interest_month, data.currency)}
           </p>
         </div>
@@ -233,7 +233,7 @@ function AllocationChart({ platforms }: { platforms: PlatformData[] }) {
     Investiert: Math.round(p.total_invested),
     Zinsen: Math.round(p.total_interest),
     Cash: Math.round(p.cash_balance),
-    color: PLATFORM_COLORS[p.platform] ?? "#00D4FF",
+    color: PLATFORM_COLORS[p.platform] ?? "#4C8DF6",
   }));
 
   return (
@@ -263,16 +263,16 @@ function AllocationChart({ platforms }: { platforms: PlatformData[] }) {
           <Tooltip
             contentStyle={{
               background: "rgba(8,11,20,0.95)",
-              border: "1px solid rgba(0,212,255,0.2)",
+              border: "1px solid rgba(76,141,246,0.2)",
               borderRadius: 8,
               fontSize: 12,
               color: "#fff",
             }}
             formatter={(value: number, name: string) => [fmtFull(value), name]}
           />
-          <Bar dataKey="Investiert" fill="#00D4FF" radius={[0, 4, 4, 0]} barSize={10} />
-          <Bar dataKey="Zinsen" fill="#00FF88" radius={[0, 4, 4, 0]} barSize={10} />
-          <Bar dataKey="Cash" fill="#7B2FFF" radius={[0, 4, 4, 0]} barSize={10} />
+          <Bar dataKey="Investiert" fill="#4C8DF6" radius={[0, 4, 4, 0]} barSize={10} />
+          <Bar dataKey="Zinsen" fill="#3FB950" radius={[0, 4, 4, 0]} barSize={10} />
+          <Bar dataKey="Cash" fill="#A371F7" radius={[0, 4, 4, 0]} barSize={10} />
           <Legend
             iconType="circle"
             iconSize={8}
@@ -367,7 +367,7 @@ function HistoryTab() {
               <Tooltip
                 contentStyle={{
                   background: "rgba(8,11,20,0.95)",
-                  border: "1px solid rgba(0,212,255,0.2)",
+                  border: "1px solid rgba(76,141,246,0.2)",
                   borderRadius: 8,
                   fontSize: 12,
                   color: "#fff",
@@ -382,14 +382,14 @@ function HistoryTab() {
               <Line
                 type="monotone"
                 dataKey="Investiert"
-                stroke="#00D4FF"
+                stroke="#4C8DF6"
                 strokeWidth={2}
                 dot={false}
               />
               <Line
                 type="monotone"
                 dataKey="Zinsen"
-                stroke="#00FF88"
+                stroke="#3FB950"
                 strokeWidth={2}
                 dot={false}
               />
@@ -442,7 +442,7 @@ function HistoryTab() {
                     </span>
                   </td>
                   <td className="px-4 py-2 font-mono text-slate-300">{fmt(s.total_invested)}</td>
-                  <td className="px-4 py-2 font-mono" style={{ color: "#00FF88" }}>
+                  <td className="px-4 py-2 font-mono" style={{ color: "#3FB950" }}>
                     {fmt(s.total_interest)}
                   </td>
                   <td className="px-4 py-2 font-mono text-cyan-400">{fmt(s.cash_balance)}</td>
@@ -595,17 +595,17 @@ export function P2PSection() {
               <MetricBox
                 label="Zinsen gesamt"
                 value={fmt(summary.total_interest)}
-                color="#00FF88"
+                color="#3FB950"
               />
               <MetricBox
                 label="Zinsen p.a. (Ø)"
                 value={pct(summary.net_annual_return_weighted)}
-                color="#00D4FF"
+                color="#4C8DF6"
               />
               <MetricBox
                 label="Cash verfügbar"
                 value={fmt(summary.cash_balance)}
-                color="#7B2FFF"
+                color="#A371F7"
               />
               <MetricBox
                 label="Ausfälle gesamt"

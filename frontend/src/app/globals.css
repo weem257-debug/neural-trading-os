@@ -1,25 +1,60 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================================
-   NEURAL TRADING OS — GLOBAL DESIGN SYSTEM
+   DESIGN SYSTEM
+   ------------------------------------------------------------
+   Restrained dark theme for a financial product: neutral slate
+   surfaces, one blue accent, and semantic red/green reserved for
+   gain/loss so colour always carries meaning. The previous neon
+   palette (cyan/magenta/electric-purple with glow on everything)
+   made every element compete for attention and read as a toy.
+
+   Class names are deliberately unchanged — ~40 pages reference
+   .glass-card, .text-neon-*, .btn-*, .signal-* etc. Only the
+   values were restyled, so nothing has to be touched page by page.
    ============================================================ */
 
 :root {
-  --base: #080B14;
-  --base-2: #0D1117;
-  --base-3: #111827;
-  --cyan: #00D4FF;
-  --neon-green: #00FF88;
-  --neon-pink: #FF0080;
-  --neon-purple: #7B2FFF;
-  --neon-yellow: #FFD700;
-  --foreground: #E2E8F0;
-  --foreground-muted: #64748B;
-  --foreground-dim: #334155;
+  /* Surfaces */
+  --base: #0B0E14;
+  --base-2: #10141C;
+  --base-3: #161B24;
+  --surface: #131821;
+  --surface-hover: #1A2029;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Accent + semantics */
+  --accent: #4C8DF6;
+  --accent-soft: rgba(76, 141, 246, 0.12);
+  /* Darker accent for FILLED surfaces carrying white text: --accent itself only
+     reaches 3.26:1 against #fff, below the 4.5:1 WCAG AA floor for body text.
+     This variant sits at 4.79:1 (hover 6.01:1). Use --accent for text, borders
+     and glows on dark backgrounds; use this one behind white labels. */
+  --accent-strong: #2F6FD8;
+  --positive: #3FB950;
+  --negative: #E5534B;
+  --warning: #D29922;
+  --violet: #A371F7;
+
+  /* Text */
+  --foreground: #E6EDF3;
+  --text-muted: #8B949E;
+  --text-dim: #6E7681;
+
+  /* Legacy aliases — old components still reference these names.
+     Repointed at the new palette so they desaturate automatically. */
+  --cyan: var(--accent);
+  --neon-green: var(--positive);
+  --neon-pink: var(--negative);
+  --neon-purple: var(--violet);
+  --neon-yellow: var(--warning);
+  --foreground-muted: var(--text-muted);
+  --foreground-dim: var(--text-dim);
 }
 
 /* ---- Base ---- */
@@ -34,7 +69,7 @@ html {
 body {
   background: var(--base);
   color: var(--foreground);
-  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* overflow: hidden removed — scroll is controlled per layout container, not globally.
@@ -42,193 +77,154 @@ body {
   -webkit-overflow-scrolling: touch; /* iOS momentum scroll */
 }
 
-/* ---- Neon Scrollbar ---- */
-::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.3);
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.4);
-  border-radius: 2px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 212, 255, 0.7);
-  box-shadow: 0 0 6px rgba(0, 212, 255, 0.5);
+/* Tabular figures wherever numbers are compared down a column. */
+.font-mono,
+table,
+.data-value {
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---- Glassmorphism Cards ---- */
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ---- Cards ---- */
 @layer components {
   .glass-card {
     @apply relative overflow-hidden;
-    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
 
-  .glass-card-cyan {
-    @apply glass-card;
-    border-color: rgba(0, 212, 255, 0.2);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,212,255,0.1), inset 0 1px 0 rgba(0,212,255,0.05);
-  }
-
-  .glass-card-green {
-    @apply glass-card;
-    border-color: rgba(0, 255, 136, 0.2);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(0,255,136,0.1), inset 0 1px 0 rgba(0,255,136,0.05);
-  }
-
-  .glass-card-pink {
-    @apply glass-card;
-    border-color: rgba(255, 0, 128, 0.2);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,0,128,0.1), inset 0 1px 0 rgba(255,0,128,0.05);
-  }
-
+  /* The accent variants used to differ by a coloured border plus an outer
+     glow. With ten of them on one screen that was the noise the redesign is
+     meant to remove, so they now resolve to the same neutral surface. */
+  .glass-card-cyan,
+  .glass-card-green,
+  .glass-card-pink,
   .glass-card-purple {
     @apply glass-card;
-    border-color: rgba(123, 47, 255, 0.2);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(123,47,255,0.1), inset 0 1px 0 rgba(123,47,255,0.05);
   }
 
-  /* Legacy .card — mapped to glass-card for backward compat */
   .card {
     @apply glass-card p-4;
   }
 
-  /* ---- Neon Text ---- */
-  .text-neon-cyan {
-    color: var(--cyan);
-    text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-  }
+  /* ---- Accent text (no glow) ---- */
+  .text-neon-cyan   { color: var(--accent); }
+  .text-neon-green  { color: var(--positive); }
+  .text-neon-pink   { color: var(--negative); }
+  .text-neon-purple { color: var(--violet); }
+  .text-neon-yellow { color: var(--warning); }
 
-  .text-neon-green {
-    color: var(--neon-green);
-    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-  }
-
-  .text-neon-pink {
-    color: var(--neon-pink);
-    text-shadow: 0 0 10px rgba(255, 0, 128, 0.5);
-  }
-
-  .text-neon-purple {
-    color: var(--neon-purple);
-    text-shadow: 0 0 10px rgba(123, 47, 255, 0.5);
-  }
-
-  /* ---- Glow Buttons ---- */
+  /* ---- Buttons ---- */
+  /* White on --accent is 3.26:1 — under the WCAG AA floor for body text. The
+     class is currently unused, so this is not a live defect; it would become one
+     the moment someone wires it up. Filled with --accent-strong it clears AA
+     (4.79:1) while staying the same hue. */
   .btn-cyan {
-    @apply relative overflow-hidden font-semibold transition-all duration-200;
-    background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,212,255,0.1));
-    border: 1px solid rgba(0,212,255,0.4);
-    color: #00D4FF;
-    box-shadow: 0 0 15px rgba(0,212,255,0.2);
+    @apply font-medium transition-colors duration-150 rounded-md;
+    background: var(--accent-strong);
+    border: 1px solid var(--accent-strong);
+    color: #fff;
   }
-  .btn-cyan:hover {
-    background: linear-gradient(135deg, rgba(0,212,255,0.3), rgba(0,212,255,0.15));
-    box-shadow: 0 0 25px rgba(0,212,255,0.4), 0 0 50px rgba(0,212,255,0.2);
-  }
+  .btn-cyan:hover { background: #2560BE; border-color: #2560BE; }
 
   .btn-green {
-    @apply relative overflow-hidden font-semibold transition-all duration-200;
-    background: linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,255,136,0.1));
-    border: 1px solid rgba(0,255,136,0.4);
-    color: #00FF88;
-    box-shadow: 0 0 15px rgba(0,255,136,0.2);
+    @apply font-medium transition-colors duration-150 rounded-md;
+    background: rgba(63, 185, 80, 0.12);
+    border: 1px solid rgba(63, 185, 80, 0.35);
+    color: var(--positive);
   }
-  .btn-green:hover {
-    box-shadow: 0 0 25px rgba(0,255,136,0.4), 0 0 50px rgba(0,255,136,0.2);
-  }
+  .btn-green:hover { background: rgba(63, 185, 80, 0.2); }
 
   .btn-pink {
-    @apply relative overflow-hidden font-semibold transition-all duration-200;
-    background: linear-gradient(135deg, rgba(255,0,128,0.2), rgba(255,0,128,0.1));
-    border: 1px solid rgba(255,0,128,0.4);
-    color: #FF0080;
-    box-shadow: 0 0 15px rgba(255,0,128,0.2);
+    @apply font-medium transition-colors duration-150 rounded-md;
+    background: rgba(229, 83, 75, 0.12);
+    border: 1px solid rgba(229, 83, 75, 0.35);
+    color: var(--negative);
   }
-  .btn-pink:hover {
-    box-shadow: 0 0 25px rgba(255,0,128,0.4), 0 0 50px rgba(255,0,128,0.2);
-  }
+  .btn-pink:hover { background: rgba(229, 83, 75, 0.2); }
 
-  /* ---- Signal Badges ---- */
+  /* ---- Signal badges ---- */
   .signal-strong-buy {
-    background: rgba(0,255,136,0.15);
-    border: 1px solid rgba(0,255,136,0.4);
-    color: #00FF88;
-    text-shadow: 0 0 8px rgba(0,255,136,0.5);
+    background: rgba(63, 185, 80, 0.16);
+    border: 1px solid rgba(63, 185, 80, 0.4);
+    color: var(--positive);
   }
   .signal-buy {
-    background: rgba(0,255,136,0.08);
-    border: 1px solid rgba(0,255,136,0.25);
-    color: #00DD77;
+    background: rgba(63, 185, 80, 0.08);
+    border: 1px solid rgba(63, 185, 80, 0.22);
+    color: var(--positive);
   }
   .signal-hold {
-    background: rgba(255,215,0,0.08);
-    border: 1px solid rgba(255,215,0,0.25);
-    color: #FFD700;
+    background: rgba(210, 153, 34, 0.08);
+    border: 1px solid rgba(210, 153, 34, 0.22);
+    color: var(--warning);
   }
   .signal-sell {
-    background: rgba(255,0,128,0.08);
-    border: 1px solid rgba(255,0,128,0.25);
-    color: #FF6098;
+    background: rgba(229, 83, 75, 0.08);
+    border: 1px solid rgba(229, 83, 75, 0.22);
+    color: var(--negative);
   }
   .signal-strong-sell {
-    background: rgba(255,0,128,0.15);
-    border: 1px solid rgba(255,0,128,0.4);
-    color: #FF0080;
-    text-shadow: 0 0 8px rgba(255,0,128,0.5);
+    background: rgba(229, 83, 75, 0.16);
+    border: 1px solid rgba(229, 83, 75, 0.4);
+    color: var(--negative);
   }
 
-  /* ---- Sentiment Colors ---- */
-  .sentiment-positive { color: var(--neon-green); }
-  .sentiment-negative { color: var(--neon-pink); }
-  .sentiment-neutral  { color: var(--foreground-muted); }
+  /* ---- Sentiment ---- */
+  .sentiment-positive { color: var(--positive); }
+  .sentiment-negative { color: var(--negative); }
+  .sentiment-neutral  { color: var(--text-muted); }
 
   /* ---- PnL ---- */
-  .pnl-positive { color: var(--neon-green); text-shadow: 0 0 8px rgba(0,255,136,0.3); }
-  .pnl-negative { color: var(--neon-pink); text-shadow: 0 0 8px rgba(255,0,128,0.3); }
-  .pnl-zero     { color: var(--foreground-muted); }
+  .pnl-positive { color: var(--positive); }
+  .pnl-negative { color: var(--negative); }
+  .pnl-zero     { color: var(--text-muted); }
 
-  /* ---- Grid Background ---- */
+  /* ---- Grid background ---- */
   .bg-neural-grid {
     background-image:
-      linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
-    background-size: 40px 40px;
+      linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 48px 48px;
   }
 
-  /* ---- Animated border ---- */
   .border-glow-cyan {
-    border-color: rgba(0,212,255,0.3);
-    animation: border-glow 2s ease-in-out infinite;
+    border-color: var(--border-strong);
   }
 
   /* ---- Section label ---- */
   .section-label {
-    @apply text-xs font-semibold uppercase tracking-widest;
-    color: var(--foreground-muted);
-    letter-spacing: 0.15em;
+    @apply text-xs font-semibold uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
   }
 
-  /* ---- Status dot ---- */
+  /* ---- Status dots ---- */
   .status-dot-live {
     @apply w-2 h-2 rounded-full;
-    background: var(--neon-green);
-    box-shadow: 0 0 6px var(--neon-green);
-    animation: glow-pulse-green 2s ease-in-out infinite;
+    background: var(--positive);
   }
 
   .status-dot-paper {
     @apply w-2 h-2 rounded-full;
-    background: #00D4FF;
-    box-shadow: 0 0 6px #00D4FF;
-    animation: glow-pulse 2s ease-in-out infinite;
+    background: var(--accent);
   }
 
   /* ---- Data value ---- */
@@ -238,20 +234,15 @@ body {
   }
 }
 
-/* ---- Scan line effect ---- */
-.scanlines::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.08) 2px,
-    rgba(0, 0, 0, 0.08) 4px
-  );
-  pointer-events: none;
-  z-index: 1;
+/* ------------------------------------------------------------------
+   Global de-glow.
+   Neon text-shadows are set inline (style={{ textShadow: ... }}) in
+   dozens of components, and inline styles can only be beaten by
+   !important. Rather than editing every call site, the glow is switched
+   off here in one place. Delete this block to bring the neon look back.
+   ------------------------------------------------------------------ */
+h1, h2, h3, h4, p, span, div, a, button, td, th, li, label {
+  text-shadow: none !important;
 }
 
 /* ---- Ticker bar ---- */
@@ -262,7 +253,7 @@ body {
 
 .ticker-inner {
   display: inline-flex;
-  animation: ticker-scroll 40s linear infinite;
+  animation: ticker-scroll 60s linear infinite;
 }
 
 .ticker-inner:hover {
@@ -276,20 +267,23 @@ body {
   transition: stroke-dashoffset 0.8s ease;
 }
 
-/* ---- Keyframes (for non-Tailwind use) ---- */
+/* ---- Keyframes ----
+   The pulsing-glow animations are kept as gentle opacity fades so the many
+   inline `animation: glow-pulse ...` declarations still resolve to something
+   valid — they simply no longer flash. */
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 10px rgba(0,212,255,0.3); }
-  50%       { box-shadow: 0 0 25px rgba(0,212,255,0.6), 0 0 50px rgba(0,212,255,0.3); }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
 }
 
 @keyframes glow-pulse-green {
-  0%, 100% { box-shadow: 0 0 10px rgba(0,255,136,0.3); }
-  50%       { box-shadow: 0 0 25px rgba(0,255,136,0.6), 0 0 50px rgba(0,255,136,0.3); }
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
 }
 
 @keyframes border-glow {
-  0%, 100% { border-color: rgba(0,212,255,0.3); }
-  50%       { border-color: rgba(0,212,255,0.7); }
+  0%, 100% { border-color: var(--border); }
+  50%      { border-color: var(--border-strong); }
 }
 
 @keyframes ticker-scroll {
@@ -298,18 +292,28 @@ body {
 }
 
 @keyframes fade-in-up {
-  0%   { opacity: 0; transform: translateY(16px); }
+  0%   { opacity: 0; transform: translateY(8px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes slide-in-right {
-  0%   { opacity: 0; transform: translateX(20px); }
+  0%   { opacity: 0; transform: translateX(12px); }
   100% { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes neural-pulse {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50%       { opacity: 1; transform: scale(1.05); }
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+
+/* Several dashboards animate on a timer — honour the OS preference. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ---- Input overrides ---- */
@@ -319,6 +323,6 @@ input, select, textarea {
 
 /* ---- Selection ---- */
 ::selection {
-  background: rgba(0, 212, 255, 0.25);
+  background: rgba(76, 141, 246, 0.3);
   color: #fff;
 }

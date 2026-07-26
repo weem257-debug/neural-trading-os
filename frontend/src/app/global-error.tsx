@@ -14,7 +14,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
         style={{
           margin: 0,
           fontFamily: "system-ui, sans-serif",
-          background: "linear-gradient(180deg, #080B14 0%, #0D1117 100%)",
+          background: "linear-gradient(180deg, #0B0E14 0%, #10141C 100%)",
           minHeight: "100vh",
           display: "flex",
           alignItems: "center",

@@ -68,8 +68,8 @@ const BROKER_CARDS: BrokerCardInfo[] = [
     key: "comdirect",
     label: "Comdirect",
     description: "Depot — OAuth2 + PHOTO-TAN",
-    color: "rgba(0,212,255,0.1)",
-    accent: "#00D4FF",
+    color: "rgba(76,141,246,0.1)",
+    accent: "#4C8DF6",
     phaseLabel: "Offizielle API",
   },
   {
@@ -84,8 +84,8 @@ const BROKER_CARDS: BrokerCardInfo[] = [
     key: "flatex",
     label: "Flatex",
     description: "Konto via FinTS/HBCI",
-    color: "rgba(123,47,255,0.12)",
-    accent: "#7B2FFF",
+    color: "rgba(163,113,247,0.12)",
+    accent: "#A371F7",
     phaseLabel: "FinTS/HBCI",
   },
   {
@@ -100,16 +100,16 @@ const BROKER_CARDS: BrokerCardInfo[] = [
     key: "wh_selfinvest",
     label: "WH SelfInvest",
     description: "CFD/Futures — cTrader API",
-    color: "rgba(255,0,128,0.1)",
-    accent: "#FF0080",
+    color: "rgba(229,83,75,0.1)",
+    accent: "#E5534B",
     phaseLabel: "cTrader API",
   },
   {
     key: "crowdestor",
     label: "Crowdestor",
     description: "P2P Crowdinvesting",
-    color: "rgba(0,255,136,0.08)",
-    accent: "#00FF88",
+    color: "rgba(63,185,80,0.08)",
+    accent: "#3FB950",
     phaseLabel: "Inoffiziell",
   },
 ];
@@ -122,7 +122,7 @@ function StatusBadge({ status }: { status: string }) {
   if (status === "configured") {
     return (
       <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-        style={{ background: "rgba(0,255,136,0.1)", color: "#00FF88", border: "1px solid rgba(0,255,136,0.25)" }}>
+        style={{ background: "rgba(63,185,80,0.1)", color: "#3FB950", border: "1px solid rgba(63,185,80,0.25)" }}>
         <CheckCircle className="w-3 h-3" />
         Verbunden
       </span>
@@ -200,8 +200,8 @@ function FlatexCsvUpload({ onData }: { onData: (d: BrokerPortfolioData) => void 
       <label
         className={`flex flex-col items-center justify-center gap-1.5 rounded-xl p-3 text-xs cursor-pointer transition-all ${dragging ? "opacity-100" : "opacity-70 hover:opacity-100"}`}
         style={{
-          border: `1px dashed ${dragging ? "#7B2FFF" : "rgba(123,47,255,0.4)"}`,
-          background: dragging ? "rgba(123,47,255,0.08)" : "rgba(123,47,255,0.04)",
+          border: `1px dashed ${dragging ? "#A371F7" : "rgba(163,113,247,0.4)"}`,
+          background: dragging ? "rgba(163,113,247,0.08)" : "rgba(163,113,247,0.04)",
         }}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
@@ -331,7 +331,7 @@ function BrokerCard({
                   : <TrendingDown className="w-3.5 h-3.5 text-red-400" />
                 }
                 <span className="text-xs font-mono font-semibold"
-                  style={{ color: isPositive ? "#00FF88" : "#FF4444" }}>
+                  style={{ color: isPositive ? "#3FB950" : "#FF4444" }}>
                   {isPositive ? "+" : ""}{pl.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} EUR
                   {plPct !== null && ` (${isPositive ? "+" : ""}${plPct.toFixed(2)}%)`}
                 </span>
@@ -398,7 +398,7 @@ function BrokerCard({
                       €{(depot.total_value ?? 0).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                     {depotPl !== 0 && (
-                      <span style={{ color: depotPlPos ? "#00FF88" : "#FF4444", fontSize: "10px" }}>
+                      <span style={{ color: depotPlPos ? "#3FB950" : "#FF4444", fontSize: "10px" }}>
                         {depotPlPos ? "+" : ""}{depotPl.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </span>
                     )}
@@ -451,7 +451,7 @@ function PositionRow({ pos, accent }: { pos: BrokerPosition; accent: string }) {
           €{value.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
         {plPct !== null && plPct !== undefined && (
-          <span className="font-mono" style={{ color: isPos ? "#00FF88" : "#FF4444", fontSize: "10px" }}>
+          <span className="font-mono" style={{ color: isPos ? "#3FB950" : "#FF4444", fontSize: "10px" }}>
             {isPos ? "+" : ""}{plPct.toFixed(1)}%
           </span>
         )}
@@ -475,7 +475,7 @@ function TotalBanner({ total, brokerValue, p2pValue, loading }: {
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="flex items-center gap-3 flex-1">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "rgba(0,212,255,0.15)", border: "1px solid rgba(0,212,255,0.3)" }}>
+            style={{ background: "rgba(76,141,246,0.15)", border: "1px solid rgba(76,141,246,0.3)" }}>
             <Euro className="w-5 h-5 text-cyan-400" />
           </div>
           <div>
@@ -631,9 +631,9 @@ export function BrokersSection() {
           disabled={globalRefreshing}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all disabled:opacity-50"
           style={{
-            background: "rgba(0,212,255,0.1)",
-            border: "1px solid rgba(0,212,255,0.25)",
-            color: "#00D4FF",
+            background: "rgba(76,141,246,0.1)",
+            border: "1px solid rgba(76,141,246,0.25)",
+            color: "#4C8DF6",
           }}
         >
           <RefreshCw className={`w-4 h-4 ${globalRefreshing ? "animate-spin" : ""}`} />

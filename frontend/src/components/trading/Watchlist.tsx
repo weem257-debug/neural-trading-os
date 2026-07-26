@@ -48,7 +48,7 @@ function MiniSparkline({ data, positive }: { data: number[]; positive: boolean }
 
   const pathD = `M ${pts.join(" L ")}`;
   const areaD = `M ${pts[0]} L ${pts.join(" L ")} L ${w},${h} L 0,${h} Z`;
-  const color = positive ? "#00FF88" : "#FF0080";
+  const color = positive ? "#3FB950" : "#E5534B";
   const gradId = `wl-grad-${positive ? "g" : "r"}`;
 
   return (
@@ -83,7 +83,7 @@ function WatchlistRow({
   onRemove: (ticker: string) => void;
 }) {
   const positive = (entry.change_pct ?? 0) >= 0;
-  const color = positive ? "#00FF88" : "#FF0080";
+  const color = positive ? "#3FB950" : "#E5534B";
 
   return (
     <motion.div
@@ -152,7 +152,7 @@ function WatchlistRow({
       <Link
         href={`/signals?ticker=${entry.ticker}`}
         className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 w-5 h-5 flex items-center justify-center rounded"
-        style={{ color: "#7B2FFF" }}
+        style={{ color: "#A371F7" }}
         title={`${entry.ticker} analysieren`}
       >
         <Zap className="w-3 h-3" />
@@ -162,7 +162,7 @@ function WatchlistRow({
       <button
         onClick={() => onRemove(entry.ticker)}
         className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 flex-shrink-0 w-5 h-5 flex items-center justify-center rounded"
-        style={{ color: "#FF0080" }}
+        style={{ color: "#E5534B" }}
         title={`Remove ${entry.ticker}`}
       >
         <X className="w-3 h-3" />
@@ -317,7 +317,7 @@ export function Watchlist() {
       className="rounded-xl overflow-hidden"
       style={{
         background: "linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))",
-        border: "1px solid rgba(0,212,255,0.2)",
+        border: "1px solid rgba(76,141,246,0.2)",
         backdropFilter: "blur(20px)",
       }}
     >
@@ -327,13 +327,13 @@ export function Watchlist() {
         style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}
       >
         <div className="flex items-center gap-2">
-          <Eye className="w-4 h-4" style={{ color: "#00D4FF" }} />
-          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#00D4FF" }}>
+          <Eye className="w-4 h-4" style={{ color: "#4C8DF6" }} />
+          <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#4C8DF6" }}>
             Watchlist
           </span>
           <span
             className="text-xs px-1.5 py-0.5 rounded font-mono"
-            style={{ background: "rgba(0,212,255,0.1)", color: "#00D4FF", border: "1px solid rgba(0,212,255,0.25)" }}
+            style={{ background: "rgba(76,141,246,0.1)", color: "#4C8DF6", border: "1px solid rgba(76,141,246,0.25)" }}
           >
             {tickers.length}/{MAX_TICKERS}
           </span>
@@ -352,7 +352,7 @@ export function Watchlist() {
             onClick={() => fetchPrices(tickers)}
             disabled={loading}
             className="p-1.5 rounded transition-opacity disabled:opacity-40"
-            style={{ color: "#00D4FF" }}
+            style={{ color: "#4C8DF6" }}
             title="Jetzt aktualisieren"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
@@ -364,9 +364,9 @@ export function Watchlist() {
               onClick={() => setShowInput((v) => !v)}
               className="p-1.5 rounded transition-colors"
               style={{
-                background: showInput ? "rgba(0,212,255,0.15)" : "transparent",
-                color: "#00D4FF",
-                border: "1px solid rgba(0,212,255,0.3)",
+                background: showInput ? "rgba(76,141,246,0.15)" : "transparent",
+                color: "#4C8DF6",
+                border: "1px solid rgba(76,141,246,0.3)",
               }}
               title="Ticker hinzufügen"
             >
@@ -399,7 +399,7 @@ export function Watchlist() {
                   className="flex-1 bg-transparent text-xs font-mono text-slate-200 outline-none px-2 py-1.5 rounded"
                   style={{
                     background: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(0,212,255,0.3)",
+                    border: "1px solid rgba(76,141,246,0.3)",
                     color: "#E2E8F0",
                   }}
                 />
@@ -407,9 +407,9 @@ export function Watchlist() {
                   onClick={handleAddTicker}
                   className="px-3 py-1.5 rounded text-xs font-semibold"
                   style={{
-                    background: "rgba(0,212,255,0.15)",
-                    border: "1px solid rgba(0,212,255,0.4)",
-                    color: "#00D4FF",
+                    background: "rgba(76,141,246,0.15)",
+                    border: "1px solid rgba(76,141,246,0.4)",
+                    color: "#4C8DF6",
                   }}
                 >
                   Add

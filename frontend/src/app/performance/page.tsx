@@ -98,13 +98,13 @@ export default function PerformancePage() {
   const avgRetPct = perf ? (perf.avg_return * 100).toFixed(2) : null;
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #080b14 0%, #0d1117 100%)" }}>
+    <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #0B0E14 0%, #10141C 100%)" }}>
       {/* Gradient orbs */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-5"
-          style={{ background: "radial-gradient(circle, #00D4FF, transparent)", filter: "blur(60px)" }} />
+          style={{ background: "radial-gradient(circle, #4C8DF6, transparent)", filter: "blur(60px)" }} />
         <div className="absolute bottom-1/3 right-1/4 w-96 h-96 rounded-full opacity-5"
-          style={{ background: "radial-gradient(circle, #7B2FFF, transparent)", filter: "blur(60px)" }} />
+          style={{ background: "radial-gradient(circle, #A371F7, transparent)", filter: "blur(60px)" }} />
       </div>
 
       <div className="relative max-w-4xl mx-auto px-4 py-16 sm:py-24">
@@ -114,13 +114,13 @@ export default function PerformancePage() {
           className="text-center mb-16"
         >
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-6"
-            style={{ background: "rgba(0,212,255,0.1)", border: "1px solid rgba(0,212,255,0.2)", color: "#00D4FF" }}>
+            style={{ background: "rgba(76,141,246,0.1)", border: "1px solid rgba(76,141,246,0.2)", color: "#4C8DF6" }}>
             <Brain className="w-3.5 h-3.5" />
             KI-Analyse-Performance — Live-Daten
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
             Wie gut sind die<br />
-            <span style={{ color: "#00D4FF" }}>KI-Handelssignale?</span>
+            <span style={{ color: "#4C8DF6" }}>KI-Handelssignale?</span>
           </h1>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto">
             Echtzeit-Auswertung aller generierten Signale. Kein Marketing — echte Zahlen aus dem laufenden System.
@@ -141,7 +141,7 @@ export default function PerformancePage() {
               label="Trefferquote"
               value={winPct !== null ? `${winPct}%` : "—"}
               sub="Signale mit positiver Rendite"
-              color="#00FF88"
+              color="#3FB950"
               icon={Target}
               delay={0.1}
             />
@@ -149,7 +149,7 @@ export default function PerformancePage() {
               label="Ø Rendite"
               value={avgRetPct !== null ? `${Number(avgRetPct) > 0 ? "+" : ""}${avgRetPct}%` : "—"}
               sub="Durchschnitt aller bewerteten Signale"
-              color="#00D4FF"
+              color="#4C8DF6"
               icon={TrendingUp}
               delay={0.15}
             />
@@ -177,7 +177,7 @@ export default function PerformancePage() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
             className="flex items-start gap-3 p-4 rounded-xl mb-8"
-            style={{ background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.18)" }}
+            style={{ background: "rgba(76,141,246,0.06)", border: "1px solid rgba(76,141,246,0.18)" }}
           >
             <Brain className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />
             <div>
@@ -198,7 +198,7 @@ export default function PerformancePage() {
           >
             {perf.best_signal && (
               <div className="rounded-2xl p-5"
-                style={{ background: "rgba(0,255,136,0.04)", border: "1px solid rgba(0,255,136,0.15)" }}>
+                style={{ background: "rgba(63,185,80,0.04)", border: "1px solid rgba(63,185,80,0.15)" }}>
                 <div className="flex items-center gap-2 mb-3">
                   <Award className="w-4 h-4 text-green-400" />
                   <span className="text-xs font-semibold text-green-400 tracking-wider uppercase">Bestes Signal</span>
@@ -266,13 +266,13 @@ export default function PerformancePage() {
                                 className="h-full rounded-full"
                                 style={{
                                   width: `${winPct}%`,
-                                  background: winPct >= 60 ? "#00FF88" : winPct >= 40 ? "#FFAA00" : "#EF4444",
+                                  background: winPct >= 60 ? "#3FB950" : winPct >= 40 ? "#FFAA00" : "#EF4444",
                                 }}
                               />
                             </div>
                             <span
                               className="text-xs font-semibold w-10 text-right"
-                              style={{ color: winPct >= 60 ? "#00FF88" : winPct >= 40 ? "#FFAA00" : "#EF4444" }}
+                              style={{ color: winPct >= 60 ? "#3FB950" : winPct >= 40 ? "#FFAA00" : "#EF4444" }}
                             >
                               {winPct}%
                             </span>
@@ -280,7 +280,7 @@ export default function PerformancePage() {
                         </td>
                         <td
                           className="py-2.5 pr-4 text-right text-xs font-semibold"
-                          style={{ color: positive ? "#00FF88" : "#EF4444" }}
+                          style={{ color: positive ? "#3FB950" : "#EF4444" }}
                         >
                           {positive ? "+" : ""}{avgRet}%
                         </td>
@@ -299,35 +299,35 @@ export default function PerformancePage() {
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.34 }}
             className="rounded-2xl p-6 mb-12"
-            style={{ background: "linear-gradient(135deg, rgba(0,212,255,0.04), rgba(123,47,255,0.04))", border: "1px solid rgba(0,212,255,0.18)" }}
+            style={{ background: "linear-gradient(135deg, rgba(76,141,246,0.04), rgba(163,113,247,0.04))", border: "1px solid rgba(76,141,246,0.18)" }}
           >
             <div className="flex items-center gap-2 mb-5">
-              <User className="w-4 h-4" style={{ color: "#00D4FF" }} />
+              <User className="w-4 h-4" style={{ color: "#4C8DF6" }} />
               <h2 className="text-lg font-bold text-white">Meine Signal-Performance</h2>
               <span className="text-xs text-slate-600 ml-auto">Persönliche Auswertung</span>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
               {/* Personal win rate */}
-              <div className="rounded-xl p-4" style={{ background: "rgba(0,255,136,0.05)", border: "1px solid rgba(0,255,136,0.15)" }}>
+              <div className="rounded-xl p-4" style={{ background: "rgba(63,185,80,0.05)", border: "1px solid rgba(63,185,80,0.15)" }}>
                 <p className="text-xs text-slate-500 mb-1">Meine Trefferquote</p>
-                <p className="text-2xl font-bold" style={{ color: "#00FF88" }}>{Math.round(myPerf.win_rate * 100)}%</p>
+                <p className="text-2xl font-bold" style={{ color: "#3FB950" }}>{Math.round(myPerf.win_rate * 100)}%</p>
                 {perf && myPerf.win_rate > perf.win_rate && (
-                  <p className="text-xs mt-1" style={{ color: "#00FF88" }}>↑ besser als Ø</p>
+                  <p className="text-xs mt-1" style={{ color: "#3FB950" }}>↑ besser als Ø</p>
                 )}
               </div>
               {/* Personal avg return */}
-              <div className="rounded-xl p-4" style={{ background: "rgba(0,212,255,0.05)", border: "1px solid rgba(0,212,255,0.15)" }}>
+              <div className="rounded-xl p-4" style={{ background: "rgba(76,141,246,0.05)", border: "1px solid rgba(76,141,246,0.15)" }}>
                 <p className="text-xs text-slate-500 mb-1">Meine Ø Rendite</p>
-                <p className="text-2xl font-bold" style={{ color: myPerf.avg_return >= 0 ? "#00D4FF" : "#EF4444" }}>
+                <p className="text-2xl font-bold" style={{ color: myPerf.avg_return >= 0 ? "#4C8DF6" : "#EF4444" }}>
                   {myPerf.avg_return >= 0 ? "+" : ""}{(myPerf.avg_return * 100).toFixed(2)}%
                 </p>
                 {perf && myPerf.avg_return > perf.avg_return && (
-                  <p className="text-xs mt-1" style={{ color: "#00D4FF" }}>↑ besser als Ø</p>
+                  <p className="text-xs mt-1" style={{ color: "#4C8DF6" }}>↑ besser als Ø</p>
                 )}
               </div>
               {/* Evaluated count */}
-              <div className="rounded-xl p-4" style={{ background: "rgba(123,47,255,0.05)", border: "1px solid rgba(123,47,255,0.15)" }}>
+              <div className="rounded-xl p-4" style={{ background: "rgba(163,113,247,0.05)", border: "1px solid rgba(163,113,247,0.15)" }}>
                 <p className="text-xs text-slate-500 mb-1">Ausgewertete Signale</p>
                 <p className="text-2xl font-bold text-white">{myPerf.total_evaluated}</p>
                 <p className="text-xs text-slate-600 mt-1">mit Rendite-Tracking</p>
@@ -358,14 +358,14 @@ export default function PerformancePage() {
                       <div className="flex items-center justify-between text-xs mb-1">
                         <span className="text-slate-500">{label}</span>
                         <span className="flex gap-3">
-                          <span style={{ color: better ? "#00FF88" : "#94a3b8" }}>Ich: <strong>{fmt(mine)}</strong></span>
+                          <span style={{ color: better ? "#3FB950" : "#94a3b8" }}>Ich: <strong>{fmt(mine)}</strong></span>
                           <span className="text-slate-600">System: {fmt(global)}</span>
                         </span>
                       </div>
                       <div className="relative h-1.5 rounded-full bg-white/5">
                         <div
                           className="absolute left-0 h-full rounded-full transition-all"
-                          style={{ width: `${Math.min(100, Math.max(0, mine * 100))}%`, background: better ? "#00FF88" : "#94a3b8", opacity: 0.6 }}
+                          style={{ width: `${Math.min(100, Math.max(0, mine * 100))}%`, background: better ? "#3FB950" : "#94a3b8", opacity: 0.6 }}
                         />
                         <div
                           className="absolute left-0 h-full rounded-full border-r-2 border-white/30"
@@ -382,7 +382,7 @@ export default function PerformancePage() {
               <Link
                 href={isAuthenticated ? "/signals" : "/register"}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:brightness-110"
-                style={{ background: "rgba(0,212,255,0.1)", border: "1px solid rgba(0,212,255,0.25)", color: "#00D4FF" }}
+                style={{ background: "rgba(76,141,246,0.1)", border: "1px solid rgba(76,141,246,0.25)", color: "#4C8DF6" }}
               >
                 <Zap className="w-3.5 h-3.5" /> Neues Signal generieren
               </Link>
@@ -405,7 +405,7 @@ export default function PerformancePage() {
             ].map(({ step, title, desc }) => (
               <div key={step} className="space-y-2">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
-                  style={{ background: "rgba(0,212,255,0.1)", color: "#00D4FF", border: "1px solid rgba(0,212,255,0.2)" }}>
+                  style={{ background: "rgba(76,141,246,0.1)", color: "#4C8DF6", border: "1px solid rgba(76,141,246,0.2)" }}>
                   {step}
                 </div>
                 <p className="text-sm font-semibold text-slate-200">{title}</p>
@@ -442,10 +442,10 @@ export default function PerformancePage() {
               href={isAuthenticated ? "/signals" : "/register"}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all"
               style={{
-                background: "linear-gradient(135deg, rgba(0,212,255,0.2), rgba(123,47,255,0.15))",
-                border: "1px solid rgba(0,212,255,0.4)",
-                color: "#00D4FF",
-                boxShadow: "0 0 30px rgba(0,212,255,0.15)",
+                background: "linear-gradient(135deg, rgba(76,141,246,0.2), rgba(163,113,247,0.15))",
+                border: "1px solid rgba(76,141,246,0.4)",
+                color: "#4C8DF6",
+                boxShadow: "0 0 30px rgba(76,141,246,0.15)",
               }}
             >
               <Zap className="w-4 h-4" />

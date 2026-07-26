@@ -43,8 +43,8 @@ interface SubData {
 
 const TIER_CONFIG: Record<string, { label: string; color: string; glow: string; icon: typeof Crown; upgrade: boolean }> = {
   free:          { label: "Free",          color: "text-slate-400",   glow: "rgba(100,116,139,0.3)", icon: Zap,       upgrade: true },
-  basic:         { label: "Basic",         color: "text-cyan-400",    glow: "rgba(0,212,255,0.3)",   icon: TrendingUp, upgrade: true },
-  pro:           { label: "Pro",           color: "text-violet-400",  glow: "rgba(123,47,255,0.3)",  icon: Crown,     upgrade: false },
+  basic:         { label: "Basic",         color: "text-cyan-400",    glow: "rgba(76,141,246,0.3)",   icon: TrendingUp, upgrade: true },
+  pro:           { label: "Pro",           color: "text-violet-400",  glow: "rgba(163,113,247,0.3)",  icon: Crown,     upgrade: false },
   institutional: { label: "Institutional", color: "text-amber-400",   glow: "rgba(245,158,11,0.3)",  icon: Crown,     upgrade: false },
   demo:          { label: "Demo",          color: "text-slate-500",   glow: "rgba(100,116,139,0.2)", icon: Zap,       upgrade: true },
 };
@@ -144,7 +144,7 @@ export default function AccountPage() {
   const usageColor =
     usagePct >= 90 ? "#ef4444" :
     usagePct >= 70 ? "#f59e0b" :
-    "#00D4FF";
+    "#4C8DF6";
 
   return (
     <div className="space-y-6 max-w-xl">
@@ -168,7 +168,7 @@ export default function AccountPage() {
         className="rounded-2xl p-6"
         style={{
           background: "rgba(8,11,20,0.7)",
-          border: "1px solid rgba(0,212,255,0.15)",
+          border: "1px solid rgba(76,141,246,0.15)",
           backdropFilter: "blur(16px)",
           boxShadow: `0 0 40px ${cfg.glow}, 0 4px 24px rgba(0,0,0,0.4)`,
         }}
@@ -177,7 +177,7 @@ export default function AccountPage() {
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
             style={{
-              background: `linear-gradient(135deg, ${cfg.glow.replace("0.3", "0.15")}, rgba(123,47,255,0.1))`,
+              background: `linear-gradient(135deg, ${cfg.glow.replace("0.3", "0.15")}, rgba(163,113,247,0.1))`,
               border: `1px solid ${cfg.glow.replace("0.3", "0.4")}`,
             }}
           >
@@ -219,7 +219,7 @@ export default function AccountPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
           className="rounded-2xl p-5"
-          style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(0,212,255,0.12)", backdropFilter: "blur(16px)" }}
+          style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(76,141,246,0.12)", backdropFilter: "blur(16px)" }}
         >
           <p className="text-xs font-semibold tracking-wider text-slate-500 mb-3">SIGNAL-NUTZUNG HEUTE</p>
 
@@ -262,12 +262,12 @@ export default function AccountPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           className="rounded-2xl p-5"
-          style={{ background: "rgba(0,255,136,0.04)", border: "1px solid rgba(0,255,136,0.18)" }}
+          style={{ background: "rgba(63,185,80,0.04)", border: "1px solid rgba(63,185,80,0.18)" }}
         >
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-bold text-slate-200">Abonnement</p>
             <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-              style={{ background: sub.status === "active" ? "rgba(0,255,136,0.15)" : "rgba(255,170,0,0.1)", color: sub.status === "active" ? "#00FF88" : "#FFAA00" }}>
+              style={{ background: sub.status === "active" ? "rgba(63,185,80,0.15)" : "rgba(255,170,0,0.1)", color: sub.status === "active" ? "#3FB950" : "#FFAA00" }}>
               {sub.status === "active" ? "Aktiv" : sub.status}
             </span>
           </div>
@@ -290,7 +290,7 @@ export default function AccountPage() {
           <Link
             href="/billing"
             className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold"
-            style={{ color: "#00D4FF" }}
+            style={{ color: "#4C8DF6" }}
           >
             <CreditCard className="w-3.5 h-3.5" />
             Abonnement verwalten →
@@ -305,10 +305,10 @@ export default function AccountPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           className="rounded-2xl overflow-hidden"
-          style={{ border: "1px solid rgba(123,47,255,0.25)" }}
+          style={{ border: "1px solid rgba(163,113,247,0.25)" }}
         >
           {/* Header */}
-          <div className="px-5 py-4" style={{ background: "linear-gradient(135deg, rgba(123,47,255,0.1), rgba(0,212,255,0.06))" }}>
+          <div className="px-5 py-4" style={{ background: "linear-gradient(135deg, rgba(163,113,247,0.1), rgba(76,141,246,0.06))" }}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-bold text-slate-200">Nächste Stufe freischalten</p>
@@ -350,7 +350,7 @@ export default function AccountPage() {
                   ]).map(({ ok, text }, i) => (
                     <div key={i} className="flex items-center gap-1.5">
                       {ok
-                        ? <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#00FF88" }} />
+                        ? <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#3FB950" }} />
                         : <XCircle    className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#ef4444" }} />
                       }
                       <span className={`text-xs ${ok ? "text-slate-300" : "text-slate-600"}`}>{text}</span>
@@ -362,7 +362,7 @@ export default function AccountPage() {
               {/* Next plan column */}
               <div
                 className="rounded-xl p-3"
-                style={{ background: "rgba(123,47,255,0.07)", border: "1px solid rgba(123,47,255,0.2)" }}
+                style={{ background: "rgba(163,113,247,0.07)", border: "1px solid rgba(163,113,247,0.2)" }}
               >
                 <p className="text-[10px] font-semibold tracking-widest mb-2" style={{ color: "#A78BFA" }}>
                   MIT {tier === "free" ? "BASIC" : "PRO"}
@@ -394,10 +394,10 @@ export default function AccountPage() {
               href={tier === "basic" ? "/billing?plan=pro" : "/billing?plan=basic"}
               className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold transition-all hover:brightness-110"
               style={{
-                background: "linear-gradient(135deg, rgba(123,47,255,0.25), rgba(0,212,255,0.15))",
-                border: "1px solid rgba(123,47,255,0.45)",
+                background: "linear-gradient(135deg, rgba(163,113,247,0.25), rgba(76,141,246,0.15))",
+                border: "1px solid rgba(163,113,247,0.45)",
                 color: "#A78BFA",
-                boxShadow: "0 0 20px rgba(123,47,255,0.15)",
+                boxShadow: "0 0 20px rgba(163,113,247,0.15)",
                 letterSpacing: "0.04em",
               }}
             >
@@ -414,7 +414,7 @@ export default function AccountPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
         className="rounded-2xl overflow-hidden"
-        style={{ border: "1px solid rgba(0,212,255,0.1)" }}
+        style={{ border: "1px solid rgba(76,141,246,0.1)" }}
       >
         {[
           { href: "/settings", icon: Settings, label: "Einstellungen & Passwort ändern", sub: "API-Keys, Trading-Präferenzen, Passwort" },
@@ -426,7 +426,7 @@ export default function AccountPage() {
             className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.03] group"
             style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : undefined }}
           >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.15)" }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(76,141,246,0.08)", border: "1px solid rgba(76,141,246,0.15)" }}>
               <Icon className="w-4 h-4 text-cyan-400" />
             </div>
             <div className="flex-1 min-w-0">
@@ -444,7 +444,7 @@ export default function AccountPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.22 }}
         className="rounded-2xl overflow-hidden"
-        style={{ border: "1px solid rgba(0,212,255,0.1)" }}
+        style={{ border: "1px solid rgba(76,141,246,0.1)" }}
       >
         <div className="px-5 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
           <p className="text-xs font-semibold tracking-wider text-slate-500">INTEGRATIONEN</p>
@@ -458,7 +458,7 @@ export default function AccountPage() {
               ? `Verbunden als @${telegramStatus.username ?? "…"}`
               : "Nicht verbunden — in Einstellungen konfigurieren",
             badge: telegramStatus?.connected
-              ? { text: "Aktiv", color: "#00FF88", bg: "rgba(0,255,136,0.12)" }
+              ? { text: "Aktiv", color: "#3FB950", bg: "rgba(63,185,80,0.12)" }
               : { text: "Inaktiv", color: "#94a3b8", bg: "rgba(255,255,255,0.05)" },
           },
           {
@@ -469,7 +469,7 @@ export default function AccountPage() {
               ? `${connectedBrokers} Depot${connectedBrokers > 1 ? "s" : ""} verbunden`
               : "Kein Depot verbunden — in Einstellungen hinzufügen",
             badge: connectedBrokers > 0
-              ? { text: `${connectedBrokers} aktiv`, color: "#00D4FF", bg: "rgba(0,212,255,0.1)" }
+              ? { text: `${connectedBrokers} aktiv`, color: "#4C8DF6", bg: "rgba(76,141,246,0.1)" }
               : { text: "Keine", color: "#94a3b8", bg: "rgba(255,255,255,0.05)" },
           },
         ].map(({ href, icon: Icon, label, sub, badge }, i) => (
@@ -479,7 +479,7 @@ export default function AccountPage() {
             className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-white/[0.03] group"
             style={{ borderTop: i > 0 ? "1px solid rgba(255,255,255,0.05)" : undefined }}
           >
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.15)" }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(76,141,246,0.08)", border: "1px solid rgba(76,141,246,0.15)" }}>
               <Icon className="w-4 h-4 text-cyan-400" />
             </div>
             <div className="flex-1 min-w-0">
@@ -503,14 +503,14 @@ export default function AccountPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.24 }}
           className="rounded-2xl p-5"
-          style={{ background: "rgba(0,212,255,0.03)", border: "1px solid rgba(0,212,255,0.14)" }}
+          style={{ background: "rgba(76,141,246,0.03)", border: "1px solid rgba(76,141,246,0.14)" }}
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Target className="w-4 h-4 text-cyan-400" />
               <p className="text-sm font-bold text-slate-200">Meine KI-Performance</p>
             </div>
-            <Link href="/performance" className="text-xs font-semibold" style={{ color: "#00D4FF" }}>
+            <Link href="/performance" className="text-xs font-semibold" style={{ color: "#4C8DF6" }}>
               Details →
             </Link>
           </div>
@@ -527,7 +527,7 @@ export default function AccountPage() {
               <div className="text-center">
                 <p
                   className="text-2xl font-black"
-                  style={{ color: myPerf.win_rate >= 0.5 ? "#00FF88" : "#ef4444" }}
+                  style={{ color: myPerf.win_rate >= 0.5 ? "#3FB950" : "#ef4444" }}
                 >
                   {Math.round(myPerf.win_rate * 100)}%
                 </p>
@@ -536,7 +536,7 @@ export default function AccountPage() {
               <div className="text-center">
                 <p
                   className="text-2xl font-black"
-                  style={{ color: myPerf.avg_return >= 0 ? "#00D4FF" : "#ef4444" }}
+                  style={{ color: myPerf.avg_return >= 0 ? "#4C8DF6" : "#ef4444" }}
                 >
                   {myPerf.avg_return >= 0 ? "+" : ""}{(myPerf.avg_return * 100).toFixed(1)}%
                 </p>
@@ -548,7 +548,7 @@ export default function AccountPage() {
               </div>
               {myPerf.best_signal && (
                 <div className="col-span-3 mt-1 flex items-center gap-2 px-3 py-2 rounded-lg"
-                  style={{ background: "rgba(0,255,136,0.05)", border: "1px solid rgba(0,255,136,0.12)" }}>
+                  style={{ background: "rgba(63,185,80,0.05)", border: "1px solid rgba(63,185,80,0.12)" }}>
                   <CheckCircle className="w-3 h-3 text-green-400 flex-shrink-0" />
                   <span className="text-xs text-slate-400">
                     Bestes Signal: <span className="font-bold text-slate-200">{myPerf.best_signal.ticker}</span>
@@ -568,17 +568,17 @@ export default function AccountPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
           className="rounded-2xl p-5"
-          style={{ background: "rgba(0,255,136,0.04)", border: "1px solid rgba(0,255,136,0.12)" }}
+          style={{ background: "rgba(63,185,80,0.04)", border: "1px solid rgba(63,185,80,0.12)" }}
         >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Share2 className="w-4 h-4" style={{ color: "#00FF88" }} />
+              <Share2 className="w-4 h-4" style={{ color: "#3FB950" }} />
               <p className="text-sm font-bold text-slate-200">Freunde einladen</p>
             </div>
             {referralCount !== null && referralCount > 0 && (
               <span
                 className="text-xs font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(0,255,136,0.12)", color: "#00FF88" }}
+                style={{ background: "rgba(63,185,80,0.12)", color: "#3FB950" }}
               >
                 {referralCount} {referralCount === 1 ? "Einladung" : "Einladungen"} angenommen
               </span>
@@ -597,7 +597,7 @@ export default function AccountPage() {
             <button
               onClick={copyReferral}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all hover:brightness-110 flex-shrink-0"
-              style={{ background: "rgba(0,255,136,0.1)", border: "1px solid rgba(0,255,136,0.25)", color: "#00FF88" }}
+              style={{ background: "rgba(63,185,80,0.1)", border: "1px solid rgba(63,185,80,0.25)", color: "#3FB950" }}
             >
               {copied ? <><Check className="w-3 h-3" /> Kopiert</> : "Kopieren"}
             </button>
@@ -611,7 +611,7 @@ export default function AccountPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.21 }}
         className="rounded-2xl p-5"
-        style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(0,212,255,0.12)", backdropFilter: "blur(16px)" }}
+        style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(76,141,246,0.12)", backdropFilter: "blur(16px)" }}
       >
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold tracking-wider text-slate-500">PROFIL</p>
@@ -619,7 +619,7 @@ export default function AccountPage() {
             <button
               onClick={() => { setNewEmail(user?.email ?? ""); setEditingEmail(true); setEmailSaveMsg(null); }}
               className="text-xs font-semibold transition-colors hover:text-cyan-300"
-              style={{ color: "#00D4FF" }}
+              style={{ color: "#4C8DF6" }}
             >
               Bearbeiten
             </button>
@@ -639,12 +639,12 @@ export default function AccountPage() {
               value={newEmail}
               onChange={(e) => setNewEmail(e.target.value)}
               className="w-full px-3 py-2 rounded-xl text-sm text-slate-200 outline-none transition-all"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(0,212,255,0.25)" }}
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(76,141,246,0.25)" }}
               placeholder="neue@email.de"
               autoFocus
             />
             {emailSaveMsg && (
-              <p className="text-xs" style={{ color: emailSaveMsg.type === "ok" ? "#00FF88" : "#ef4444" }}>
+              <p className="text-xs" style={{ color: emailSaveMsg.type === "ok" ? "#3FB950" : "#ef4444" }}>
                 {emailSaveMsg.text}
               </p>
             )}
@@ -667,7 +667,7 @@ export default function AccountPage() {
                   }
                 }}
                 className="flex-1 py-2 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
-                style={{ background: "rgba(0,212,255,0.12)", border: "1px solid rgba(0,212,255,0.3)", color: "#00D4FF" }}
+                style={{ background: "rgba(76,141,246,0.12)", border: "1px solid rgba(76,141,246,0.3)", color: "#4C8DF6" }}
               >
                 {emailSaving ? "Speichert…" : "Speichern"}
               </button>
@@ -682,7 +682,7 @@ export default function AccountPage() {
           </div>
         )}
         {!editingEmail && emailSaveMsg?.type === "ok" && (
-          <p className="text-xs mt-2" style={{ color: "#00FF88" }}>{emailSaveMsg.text}</p>
+          <p className="text-xs mt-2" style={{ color: "#3FB950" }}>{emailSaveMsg.text}</p>
         )}
       </motion.div>
 
@@ -692,9 +692,9 @@ export default function AccountPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.22 }}
         className="rounded-2xl p-5"
-        style={{ background: "rgba(0,212,255,0.03)", border: "1px solid rgba(0,212,255,0.12)" }}
+        style={{ background: "rgba(76,141,246,0.03)", border: "1px solid rgba(76,141,246,0.12)" }}
       >
-        <p className="text-xs font-semibold tracking-wider mb-1" style={{ color: "rgba(0,212,255,0.7)" }}>DATENSCHUTZ</p>
+        <p className="text-xs font-semibold tracking-wider mb-1" style={{ color: "rgba(76,141,246,0.7)" }}>DATENSCHUTZ</p>
         <p className="text-xs text-slate-600 mb-3">
           Alle deine gespeicherten Daten als JSON herunterladen (DSGVO Art. 20 — Recht auf Datenportabilität). Enthält Kontoinformationen, Signalverlauf, Kursalarme, Depot-Verbindungen, Portfolios und Handelserfahrungen.
         </p>
@@ -707,7 +707,7 @@ export default function AccountPage() {
           }}
           disabled={exporting}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-50"
-          style={{ background: "rgba(0,212,255,0.08)", border: "1px solid rgba(0,212,255,0.25)", color: "#00D4FF" }}
+          style={{ background: "rgba(76,141,246,0.08)", border: "1px solid rgba(76,141,246,0.25)", color: "#4C8DF6" }}
         >
           {exporting ? (
             <><span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" /> Wird exportiert…</>
@@ -746,7 +746,7 @@ export default function AccountPage() {
             }}
             disabled={emailPrefLoading}
             className="relative flex-shrink-0 w-11 h-6 rounded-full transition-all duration-200 disabled:opacity-50"
-            style={{ background: emailSubscribed ? "rgba(0,212,255,0.7)" : "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}
+            style={{ background: emailSubscribed ? "rgba(76,141,246,0.7)" : "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)" }}
             aria-label={emailSubscribed ? "E-Mails deaktivieren" : "E-Mails aktivieren"}
           >
             <span

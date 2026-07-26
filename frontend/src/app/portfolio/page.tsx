@@ -129,11 +129,11 @@ function AnalyticsPanel() {
           {/* Key metrics row */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {[
-              { label: "Sharpe Ratio", value: data.sharpe_ratio.toFixed(3), color: data.sharpe_ratio >= 1 ? "#00FF88" : data.sharpe_ratio >= 0 ? "#FFD700" : "#FF0080", hint: "Annualisiert, rf=0" },
-              { label: "Beta vs SPY", value: data.beta.toFixed(3), color: "#00D4FF", hint: "Marktkorrelation" },
-              { label: "Volatilität 30T", value: `${(data.volatility_30d * 100).toFixed(1)}%`, color: "#7B2FFF", hint: "Annualisiert" },
-              { label: "Bester Wert", value: data.best_performer.ticker, color: "#00FF88", hint: `${data.best_performer.return_pct > 0 ? "+" : ""}${data.best_performer.return_pct.toFixed(1)}%` },
-              { label: "Schwächster Wert", value: data.worst_performer.ticker, color: "#FF0080", hint: `${data.worst_performer.return_pct.toFixed(1)}%` },
+              { label: "Sharpe Ratio", value: data.sharpe_ratio.toFixed(3), color: data.sharpe_ratio >= 1 ? "#3FB950" : data.sharpe_ratio >= 0 ? "#D29922" : "#E5534B", hint: "Annualisiert, rf=0" },
+              { label: "Beta vs SPY", value: data.beta.toFixed(3), color: "#4C8DF6", hint: "Marktkorrelation" },
+              { label: "Volatilität 30T", value: `${(data.volatility_30d * 100).toFixed(1)}%`, color: "#A371F7", hint: "Annualisiert" },
+              { label: "Bester Wert", value: data.best_performer.ticker, color: "#3FB950", hint: `${data.best_performer.return_pct > 0 ? "+" : ""}${data.best_performer.return_pct.toFixed(1)}%` },
+              { label: "Schwächster Wert", value: data.worst_performer.ticker, color: "#E5534B", hint: `${data.worst_performer.return_pct.toFixed(1)}%` },
             ].map(({ label, value, color, hint }) => (
               <div
                 key={label}
@@ -152,7 +152,7 @@ function AnalyticsPanel() {
 
           {/* Worst performer */}
           <div className="flex items-center gap-3 p-3 rounded-xl"
-            style={{ background: "rgba(255,0,128,0.05)", border: "1px solid rgba(255,0,128,0.15)" }}>
+            style={{ background: "rgba(229,83,75,0.05)", border: "1px solid rgba(229,83,75,0.15)" }}>
             <TrendingDown className="w-4 h-4 text-pink-500 flex-shrink-0" />
             <div>
               <p className="text-xs text-slate-500">Schwächster Titel (30T)</p>
@@ -214,7 +214,7 @@ function generateEquityCurve() {
 }
 
 const EQUITY_CURVE = generateEquityCurve();
-const COLORS = ["#00D4FF", "#00FF88", "#7B2FFF", "#FFD700", "#FF0080"];
+const COLORS = ["#4C8DF6", "#3FB950", "#A371F7", "#D29922", "#E5534B"];
 
 const EXPLAIN_ANALYTICS: ExplanationContent = {
   title: "Portfolio-Analytics",
@@ -338,8 +338,8 @@ export default function PortfolioPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <div className="flex items-center gap-3 mb-1">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: "rgba(123,47,255,0.15)", border: "1px solid rgba(123,47,255,0.3)" }}>
-              <Briefcase className="w-4 h-4" style={{ color: "#7B2FFF" }} />
+              style={{ background: "rgba(163,113,247,0.15)", border: "1px solid rgba(163,113,247,0.3)" }}>
+              <Briefcase className="w-4 h-4" style={{ color: "#A371F7" }} />
             </div>
             <h1 className="text-2xl font-bold text-slate-100">Portfolio</h1>
             <NeonBadge color="purple">{livePortfolio.positions.length} Positionen</NeonBadge>
@@ -364,14 +364,14 @@ export default function PortfolioPage() {
       {/* Hero stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Gesamtwert",   value: livePortfolio.total_value,  prefix: "$", color: "#00D4FF", icon: DollarSign  },
-          { label: "Cash",         value: livePortfolio.cash,          prefix: "$", color: "#7B2FFF", icon: PieChart    },
-          { label: "Investiert",   value: livePortfolio.invested,      prefix: "$", color: "#00D4FF", icon: Activity    },
+          { label: "Gesamtwert",   value: livePortfolio.total_value,  prefix: "$", color: "#4C8DF6", icon: DollarSign  },
+          { label: "Cash",         value: livePortfolio.cash,          prefix: "$", color: "#A371F7", icon: PieChart    },
+          { label: "Investiert",   value: livePortfolio.invested,      prefix: "$", color: "#4C8DF6", icon: Activity    },
           {
             label: "Gesamt-P&L",
             value: Math.abs(livePortfolio.total_pnl),
             prefix: pnlPos ? "+$" : "-$",
-            color: pnlPos ? "#00FF88" : "#FF0080",
+            color: pnlPos ? "#3FB950" : "#E5534B",
             icon: pnlPos ? TrendingUp : TrendingDown,
             sub: `${pnlPos ? "+" : ""}${(livePortfolio.total_pnl_pct * 100).toFixed(2)}% gesamt`,
           },
@@ -407,7 +407,7 @@ export default function PortfolioPage() {
           <div className="flex items-center gap-2">
             <InfoButton onClick={() => setExplainContent(EXPLAIN_EQUITY)} color="cyan" />
             <span className="text-xs text-slate-500">Rendite:</span>
-            <span className="text-xs font-bold font-mono" style={{ color: "#00FF88" }}>{livePortfolio.total_pnl_pct > 0 ? "+" : ""}{(livePortfolio.total_pnl_pct * 100).toFixed(2)}%</span>
+            <span className="text-xs font-bold font-mono" style={{ color: "#3FB950" }}>{livePortfolio.total_pnl_pct > 0 ? "+" : ""}{(livePortfolio.total_pnl_pct * 100).toFixed(2)}%</span>
           </div>
         </div>
         <div style={{ height: "200px" }}>
@@ -415,8 +415,8 @@ export default function PortfolioPage() {
             <AreaChart data={equityCurve} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
               <defs>
                 <linearGradient id="equityGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor="#00D4FF" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#00D4FF" stopOpacity="0" />
+                  <stop offset="0%"   stopColor="#4C8DF6" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="#4C8DF6" stopOpacity="0" />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -433,7 +433,7 @@ export default function PortfolioPage() {
               <Tooltip
                 contentStyle={{
                   background: "rgba(8,11,20,0.95)",
-                  border: "1px solid rgba(0,212,255,0.3)",
+                  border: "1px solid rgba(76,141,246,0.3)",
                   borderRadius: "8px",
                   color: "#E2E8F0",
                   fontSize: "12px",
@@ -442,10 +442,10 @@ export default function PortfolioPage() {
               />
               <Area
                 type="monotone" dataKey="value"
-                stroke="#00D4FF" strokeWidth={2}
+                stroke="#4C8DF6" strokeWidth={2}
                 fill="url(#equityGradient)"
                 dot={false}
-                style={{ filter: "drop-shadow(0 0 4px rgba(0,212,255,0.4))" }}
+                style={{ filter: "drop-shadow(0 0 4px rgba(76,141,246,0.4))" }}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -458,8 +458,8 @@ export default function PortfolioPage() {
           <SectionLabel>Offene Positionen</SectionLabel>
           <div className="flex items-center gap-2">
             {hasLivePrices && (
-              <div className="flex items-center gap-1.5 text-xs" style={{ color: "#00FF88" }}>
-                <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#00FF88", boxShadow: "0 0 4px #00FF88", animation: "glow-pulse-green 1.5s ease-in-out infinite" }} />
+              <div className="flex items-center gap-1.5 text-xs" style={{ color: "#3FB950" }}>
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#3FB950", boxShadow: "0 0 4px #3FB950", animation: "glow-pulse-green 1.5s ease-in-out infinite" }} />
                 Live
               </div>
             )}
@@ -511,7 +511,7 @@ export default function PortfolioPage() {
                         {isLive && (
                           <div
                             className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                            style={{ background: "#00FF88", boxShadow: "0 0 4px #00FF88" }}
+                            style={{ background: "#3FB950", boxShadow: "0 0 4px #3FB950" }}
                             title="Live-Kurs"
                           />
                         )}
@@ -525,7 +525,7 @@ export default function PortfolioPage() {
                     <td className="pr-4 font-mono text-slate-300">${p.market_value.toLocaleString()}</td>
                     <td className="pr-4">
                       <div>
-                        <p className="font-mono font-bold" style={{ color: pos ? "#00FF88" : "#FF0080" }}>
+                        <p className="font-mono font-bold" style={{ color: pos ? "#3FB950" : "#E5534B" }}>
                           {pos ? "+" : ""}{(p.unrealized_pnl_pct * 100).toFixed(2)}%
                         </p>
                         <p className="text-xs text-slate-600 font-mono">

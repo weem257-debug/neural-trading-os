@@ -15,27 +15,27 @@ const TYPE_CONFIG: Record<
   { color: string; border: string; bg: string; Icon: React.ElementType }
 > = {
   success: {
-    color: "#00FF88",
-    border: "rgba(0,255,136,0.35)",
-    bg: "rgba(0,255,136,0.08)",
+    color: "#3FB950",
+    border: "rgba(63,185,80,0.35)",
+    bg: "rgba(63,185,80,0.08)",
     Icon: CheckCircle,
   },
   warning: {
-    color: "#FFD700",
-    border: "rgba(255,215,0,0.35)",
-    bg: "rgba(255,215,0,0.08)",
+    color: "#D29922",
+    border: "rgba(210,153,34,0.35)",
+    bg: "rgba(210,153,34,0.08)",
     Icon: AlertTriangle,
   },
   error: {
-    color: "#FF0080",
-    border: "rgba(255,0,128,0.35)",
-    bg: "rgba(255,0,128,0.08)",
+    color: "#E5534B",
+    border: "rgba(229,83,75,0.35)",
+    bg: "rgba(229,83,75,0.08)",
     Icon: XCircle,
   },
   info: {
-    color: "#00D4FF",
-    border: "rgba(0,212,255,0.35)",
-    bg: "rgba(0,212,255,0.08)",
+    color: "#4C8DF6",
+    border: "rgba(76,141,246,0.35)",
+    bg: "rgba(76,141,246,0.08)",
     Icon: Info,
   },
 };

@@ -4,17 +4,17 @@ export default function AccountLoading() {
       {/* Profile card */}
       <div
         className="rounded-2xl p-6"
-        style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(0,212,255,0.1)" }}
+        style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(76,141,246,0.1)" }}
       >
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl flex-shrink-0" style={{ background: "rgba(0,212,255,0.08)" }} />
+          <div className="w-16 h-16 rounded-2xl flex-shrink-0" style={{ background: "rgba(76,141,246,0.08)" }} />
           <div className="flex-1 space-y-2">
             <div className="h-5 w-32 rounded" style={{ background: "rgba(255,255,255,0.08)" }} />
             <div className="h-3 w-44 rounded" style={{ background: "rgba(255,255,255,0.04)" }} />
             <div className="h-3 w-24 rounded" style={{ background: "rgba(255,255,255,0.04)" }} />
             <div className="flex gap-2 mt-1">
-              <div className="h-5 w-5 rounded" style={{ background: "rgba(0,212,255,0.08)" }} />
-              <div className="h-5 w-16 rounded" style={{ background: "rgba(0,212,255,0.06)" }} />
+              <div className="h-5 w-5 rounded" style={{ background: "rgba(76,141,246,0.08)" }} />
+              <div className="h-5 w-16 rounded" style={{ background: "rgba(76,141,246,0.06)" }} />
             </div>
           </div>
         </div>
@@ -23,7 +23,7 @@ export default function AccountLoading() {
       {/* Signal usage */}
       <div
         className="rounded-2xl p-5"
-        style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(0,212,255,0.1)" }}
+        style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(76,141,246,0.1)" }}
       >
         <div className="h-3 w-40 rounded mb-3" style={{ background: "rgba(255,255,255,0.04)" }} />
         <div className="flex items-baseline justify-between mb-2">
@@ -72,11 +72,11 @@ export default function AccountLoading() {
       {/* Referral link */}
       <div
         className="rounded-2xl p-5"
-        style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(0,255,136,0.1)" }}
+        style={{ background: "rgba(8,11,20,0.6)", border: "1px solid rgba(63,185,80,0.1)" }}
       >
         <div className="h-3 w-32 rounded mb-3" style={{ background: "rgba(255,255,255,0.04)" }} />
         <div className="h-10 rounded-xl" style={{ background: "rgba(255,255,255,0.05)" }} />
-        <div className="h-9 rounded-xl mt-2" style={{ background: "rgba(0,255,136,0.06)" }} />
+        <div className="h-9 rounded-xl mt-2" style={{ background: "rgba(63,185,80,0.06)" }} />
       </div>
     </div>
   );

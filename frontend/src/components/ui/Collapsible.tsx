@@ -67,8 +67,8 @@ export function Collapsible({
             <span
               className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
               style={{
-                background: "rgba(0,212,255,0.12)",
-                border: "1px solid rgba(0,212,255,0.25)",
+                background: "rgba(76,141,246,0.12)",
+                border: "1px solid rgba(76,141,246,0.25)",
               }}
               aria-hidden="true"
             >

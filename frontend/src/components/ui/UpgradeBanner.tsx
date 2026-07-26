@@ -69,18 +69,18 @@ export function UpgradeBanner() {
       className="mb-4 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl text-xs"
       style={{
         background: isNearLimit
-          ? "linear-gradient(90deg, rgba(255,0,128,0.08) 0%, rgba(123,47,255,0.08) 100%)"
-          : "linear-gradient(90deg, rgba(255,215,0,0.06) 0%, rgba(123,47,255,0.06) 100%)",
-        border: `1px solid ${isNearLimit ? "rgba(255,0,128,0.3)" : "rgba(255,215,0,0.2)"}`,
+          ? "linear-gradient(90deg, rgba(229,83,75,0.08) 0%, rgba(163,113,247,0.08) 100%)"
+          : "linear-gradient(90deg, rgba(210,153,34,0.06) 0%, rgba(163,113,247,0.06) 100%)",
+        border: `1px solid ${isNearLimit ? "rgba(229,83,75,0.3)" : "rgba(210,153,34,0.2)"}`,
       }}
     >
       <div className="flex items-center gap-2 flex-wrap">
         <Zap
           className="w-3.5 h-3.5 shrink-0"
-          style={{ color: isNearLimit ? "#FF0080" : "#FFD700" }}
+          style={{ color: isNearLimit ? "#E5534B" : "#D29922" }}
         />
         <span className="text-slate-300 font-medium">
-          <span style={{ color: isAtLimit ? "#FF0080" : isNearLimit ? "#FF6098" : "#FFD700" }}>
+          <span style={{ color: isAtLimit ? "#E5534B" : isNearLimit ? "#E5534B" : "#D29922" }}>
             {usage.signals_used_today}/{usage.signals_limit} Signale
           </span>
           {" "}heute genutzt
@@ -94,7 +94,7 @@ export function UpgradeBanner() {
         <Link
           href={upgradeHref}
           className="flex items-center gap-1 font-semibold hover:underline transition-colors"
-          style={{ color: isNearLimit ? "#FF0080" : "#00D4FF" }}
+          style={{ color: isNearLimit ? "#E5534B" : "#4C8DF6" }}
         >
           {upgradeLabel} <ArrowRight className="w-3 h-3" />
         </Link>

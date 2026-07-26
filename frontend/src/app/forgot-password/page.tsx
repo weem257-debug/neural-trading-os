@@ -48,14 +48,14 @@ export default function ForgotPasswordPage() {
 
   const inputStyle = {
     background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(0,212,255,0.15)",
+    border: "1px solid rgba(76,141,246,0.15)",
   };
   const onFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.border = "1px solid rgba(0,212,255,0.5)";
-    e.currentTarget.style.boxShadow = "0 0 12px rgba(0,212,255,0.1)";
+    e.currentTarget.style.border = "1px solid rgba(76,141,246,0.5)";
+    e.currentTarget.style.boxShadow = "0 0 12px rgba(76,141,246,0.1)";
   };
   const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    e.currentTarget.style.border = "1px solid rgba(0,212,255,0.15)";
+    e.currentTarget.style.border = "1px solid rgba(76,141,246,0.15)";
     e.currentTarget.style.boxShadow = "none";
   };
 
@@ -65,16 +65,16 @@ export default function ForgotPasswordPage() {
         className="w-full max-w-sm relative"
         style={{
           background: "rgba(8,11,20,0.85)",
-          border: "1px solid rgba(0,212,255,0.25)",
+          border: "1px solid rgba(76,141,246,0.25)",
           borderRadius: "1rem",
           backdropFilter: "blur(24px)",
           boxShadow:
-            "0 0 60px rgba(0,212,255,0.08), 0 25px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(0,212,255,0.1)",
+            "0 0 60px rgba(76,141,246,0.08), 0 25px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(76,141,246,0.1)",
         }}
       >
         <div
           className="absolute top-0 left-8 right-8 h-px rounded-full"
-          style={{ background: "linear-gradient(90deg, transparent, rgba(0,212,255,0.6), transparent)" }}
+          style={{ background: "linear-gradient(90deg, transparent, rgba(76,141,246,0.6), transparent)" }}
         />
 
         <div className="px-8 py-10">
@@ -82,16 +82,16 @@ export default function ForgotPasswordPage() {
             <div
               className="w-14 h-14 rounded-xl flex items-center justify-center mb-4"
               style={{
-                background: "linear-gradient(135deg, rgba(0,212,255,0.15), rgba(123,47,255,0.15))",
-                border: "1px solid rgba(0,212,255,0.35)",
-                boxShadow: "0 0 24px rgba(0,212,255,0.25)",
+                background: "linear-gradient(135deg, rgba(76,141,246,0.15), rgba(163,113,247,0.15))",
+                border: "1px solid rgba(76,141,246,0.35)",
+                boxShadow: "0 0 24px rgba(76,141,246,0.25)",
               }}
             >
-              <Cpu className="w-7 h-7" style={{ color: "#00D4FF", filter: "drop-shadow(0 0 8px rgba(0,212,255,0.8))" }} />
+              <Cpu className="w-7 h-7" style={{ color: "#4C8DF6", filter: "drop-shadow(0 0 8px rgba(76,141,246,0.8))" }} />
             </div>
             <h1
               className="text-xl font-black tracking-widest"
-              style={{ color: "#00D4FF", textShadow: "0 0 20px rgba(0,212,255,0.6), 0 0 40px rgba(0,212,255,0.3)", letterSpacing: "0.15em" }}
+              style={{ color: "#4C8DF6", textShadow: "0 0 20px rgba(76,141,246,0.6), 0 0 40px rgba(76,141,246,0.3)", letterSpacing: "0.15em" }}
             >
               NEURAL TRADING OS
             </h1>
@@ -103,7 +103,7 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <div
               className="flex items-start gap-3 px-4 py-4 rounded-lg"
-              style={{ background: "rgba(0,255,136,0.08)", border: "1px solid rgba(0,255,136,0.3)" }}
+              style={{ background: "rgba(63,185,80,0.08)", border: "1px solid rgba(63,185,80,0.3)" }}
             >
               <CheckCircle className="w-5 h-5 flex-shrink-0 text-green-400 mt-0.5" />
               <div>
@@ -137,7 +137,7 @@ export default function ForgotPasswordPage() {
                     E-MAIL
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "rgba(0,212,255,0.5)" }} />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "rgba(76,141,246,0.5)" }} />
                     <input
                       id="fp-email"
                       type="email"
@@ -159,10 +159,10 @@ export default function ForgotPasswordPage() {
                   disabled={loading || !email.trim()}
                   className="w-full py-3 rounded-lg text-sm font-bold tracking-widest transition-all duration-200 mt-2"
                   style={{
-                    background: loading ? "rgba(0,212,255,0.1)" : "linear-gradient(135deg, rgba(0,212,255,0.15), rgba(123,47,255,0.15))",
-                    border: "1px solid rgba(0,212,255,0.4)",
-                    color: loading ? "rgba(0,212,255,0.5)" : "#00D4FF",
-                    boxShadow: loading ? "none" : "0 0 20px rgba(0,212,255,0.15)",
+                    background: loading ? "rgba(76,141,246,0.1)" : "linear-gradient(135deg, rgba(76,141,246,0.15), rgba(163,113,247,0.15))",
+                    border: "1px solid rgba(76,141,246,0.4)",
+                    color: loading ? "rgba(76,141,246,0.5)" : "#4C8DF6",
+                    boxShadow: loading ? "none" : "0 0 20px rgba(76,141,246,0.15)",
                     letterSpacing: "0.12em",
                     opacity: !email.trim() ? 0.5 : 1,
                   }}
@@ -174,7 +174,7 @@ export default function ForgotPasswordPage() {
           )}
 
           <p className="text-center text-xs mt-5" style={{ color: "rgba(100,116,139,0.4)" }}>
-            <a href="/login" className="hover:underline transition-colors" style={{ color: "rgba(0,212,255,0.5)" }}>
+            <a href="/login" className="hover:underline transition-colors" style={{ color: "rgba(76,141,246,0.5)" }}>
               ← Zurück zur Anmeldung
             </a>
           </p>

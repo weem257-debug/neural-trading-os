@@ -19,20 +19,20 @@ const variantStyles: Record<string, { border: string; glow: string }> = {
     glow: "transparent",
   },
   cyan: {
-    border: "rgba(0,212,255,0.25)",
-    glow: "rgba(0,212,255,0.05)",
+    border: "rgba(76,141,246,0.25)",
+    glow: "rgba(76,141,246,0.05)",
   },
   green: {
-    border: "rgba(0,255,136,0.25)",
-    glow: "rgba(0,255,136,0.05)",
+    border: "rgba(63,185,80,0.25)",
+    glow: "rgba(63,185,80,0.05)",
   },
   pink: {
-    border: "rgba(255,0,128,0.25)",
-    glow: "rgba(255,0,128,0.05)",
+    border: "rgba(229,83,75,0.25)",
+    glow: "rgba(229,83,75,0.05)",
   },
   purple: {
-    border: "rgba(123,47,255,0.25)",
-    glow: "rgba(123,47,255,0.05)",
+    border: "rgba(163,113,247,0.25)",
+    glow: "rgba(163,113,247,0.05)",
   },
 };
 
@@ -95,11 +95,11 @@ export function NeonBadge({
   color?: "cyan" | "green" | "pink" | "purple" | "yellow";
 }) {
   const colorMap: Record<string, { bg: string; border: string; text: string }> = {
-    cyan:   { bg: "rgba(0,212,255,0.12)",   border: "rgba(0,212,255,0.35)",   text: "#00D4FF" },
-    green:  { bg: "rgba(0,255,136,0.12)",   border: "rgba(0,255,136,0.35)",   text: "#00FF88" },
-    pink:   { bg: "rgba(255,0,128,0.12)",   border: "rgba(255,0,128,0.35)",   text: "#FF0080" },
-    purple: { bg: "rgba(123,47,255,0.12)",  border: "rgba(123,47,255,0.35)",  text: "#7B2FFF" },
-    yellow: { bg: "rgba(255,215,0,0.12)",   border: "rgba(255,215,0,0.35)",   text: "#FFD700" },
+    cyan:   { bg: "rgba(76,141,246,0.12)",   border: "rgba(76,141,246,0.35)",   text: "#4C8DF6" },
+    green:  { bg: "rgba(63,185,80,0.12)",   border: "rgba(63,185,80,0.35)",   text: "#3FB950" },
+    pink:   { bg: "rgba(229,83,75,0.12)",   border: "rgba(229,83,75,0.35)",   text: "#E5534B" },
+    purple: { bg: "rgba(163,113,247,0.12)",  border: "rgba(163,113,247,0.35)",  text: "#A371F7" },
+    yellow: { bg: "rgba(210,153,34,0.12)",   border: "rgba(210,153,34,0.35)",   text: "#D29922" },
   };
   const c = colorMap[color];
   return (

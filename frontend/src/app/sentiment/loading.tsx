@@ -17,8 +17,8 @@ export default function SentimentLoading() {
       <div
         className="rounded-2xl p-5"
         style={{
-          background: "linear-gradient(135deg, rgba(123,47,255,0.06), rgba(123,47,255,0.02))",
-          border: "1px solid rgba(123,47,255,0.12)",
+          background: "linear-gradient(135deg, rgba(163,113,247,0.06), rgba(163,113,247,0.02))",
+          border: "1px solid rgba(163,113,247,0.12)",
         }}
       >
         <SkeletonBlock height={10} width={120} className="mb-4" />
@@ -33,7 +33,7 @@ export default function SentimentLoading() {
         className="rounded-2xl p-5"
         style={{
           background: "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
-          border: "1px solid rgba(0,212,255,0.1)",
+          border: "1px solid rgba(76,141,246,0.1)",
         }}
       >
         <SkeletonBlock height={10} width={140} className="mb-4" />
@@ -43,8 +43,8 @@ export default function SentimentLoading() {
               key={i}
               className="aspect-square rounded-xl"
               style={{
-                background: "rgba(0,212,255,0.04)",
-                border: "1px solid rgba(0,212,255,0.07)",
+                background: "rgba(76,141,246,0.04)",
+                border: "1px solid rgba(76,141,246,0.07)",
                 opacity: 1 - i * 0.03,
               }}
             />
@@ -59,7 +59,7 @@ export default function SentimentLoading() {
           className="rounded-2xl p-5"
           style={{
             background: "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))",
-            border: "1px solid rgba(0,212,255,0.1)",
+            border: "1px solid rgba(76,141,246,0.1)",
             opacity: 1 - i * 0.2,
           }}
         >
@@ -89,7 +89,7 @@ export default function SentimentLoading() {
               <div
                 key={j}
                 className="flex items-start gap-3 p-3 rounded-xl"
-                style={{ background: "rgba(0,212,255,0.03)", border: "1px solid rgba(0,212,255,0.07)" }}
+                style={{ background: "rgba(76,141,246,0.03)", border: "1px solid rgba(76,141,246,0.07)" }}
               >
                 <SkeletonBlock height={16} width={16} rounded="rounded-full" />
                 <div className="flex-1 space-y-2">

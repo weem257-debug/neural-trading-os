@@ -1,11 +1,11 @@
 export default function SignalViewLoading() {
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: "#080b14" }}>
+    <div className="min-h-screen flex flex-col" style={{ background: "#0B0E14" }}>
       {/* Header bar */}
       <div className="border-b border-white/5 px-4 py-3 flex items-center justify-between animate-pulse">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded" style={{ background: "rgba(0,212,255,0.15)" }} />
-          <div className="h-4 w-32 rounded" style={{ background: "rgba(0,212,255,0.1)" }} />
+          <div className="w-5 h-5 rounded" style={{ background: "rgba(76,141,246,0.15)" }} />
+          <div className="h-4 w-32 rounded" style={{ background: "rgba(76,141,246,0.1)" }} />
         </div>
         <div className="h-3 w-28 rounded" style={{ background: "rgba(100,116,139,0.15)" }} />
       </div>
