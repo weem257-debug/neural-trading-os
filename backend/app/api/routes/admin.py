@@ -190,15 +190,16 @@ async def update_user(
         await session.refresh(user)
 
     # F-19: immutable-ish audit trail for privileged user mutations (actor,
-    # target, before/after). Structured log so it lands in the central log sink.
-    logging.getLogger("audit").info(
+    # target, before/after). Emitted through structlog — stdlib `extra={}` is
+    # attached to the LogRecord but never rendered by the default formatter, so
+    # the previous call recorded nothing beyond the bare event name.
+    import structlog
+    structlog.get_logger("audit").info(
         "admin_user_update",
-        extra={
-            "actor": admin.username,
-            "target": username,
-            "before": before,
-            "after": after,
-        },
+        actor=admin.username,
+        target=username,
+        before=before,
+        after=after,
     )
 
     return UserUpdateResponse(

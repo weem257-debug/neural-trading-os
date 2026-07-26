@@ -137,26 +137,29 @@ def _score_symbol(hist_df) -> Optional[Candidate]:
             f"— Trend vorhanden, Richtung SELL"
         )
 
-    # RSI — over-sold / over-bought.
+    # RSI — over-sold / over-bought. Scores only when it AGREES with a direction
+    # ADX/DI already established (the same rule MACD/OBV use below). Without the
+    # agreement check an overbought RSI added 20 points to a BUY candidate —
+    # inflating the score with evidence that argues the opposite way.
     if rsi is not None:
-        if rsi < 30:
+        if rsi < 30 and direction in (None, "BUY"):
             score += _WEIGHT_RSI
             reasons.append(f"RSI({rsi:.1f}) < 30 — überverkauft")
             if direction is None:
                 direction = "BUY"
-        elif rsi > 70:
+        elif rsi > 70 and direction in (None, "SELL"):
             score += _WEIGHT_RSI
             reasons.append(f"RSI({rsi:.1f}) > 70 — überkauft")
             if direction is None:
                 direction = "SELL"
 
-    # Stochastic %K — over-sold / over-bought.
-    if stoch_k < 20:
+    # Stochastic %K — over-sold / over-bought, same agreement rule as RSI.
+    if stoch_k < 20 and direction in (None, "BUY"):
         score += _WEIGHT_STOCH
         reasons.append(f"Stochastic %K({stoch_k:.1f}) < 20 — überverkauft")
         if direction is None:
             direction = "BUY"
-    elif stoch_k > 80:
+    elif stoch_k > 80 and direction in (None, "SELL"):
         score += _WEIGHT_STOCH
         reasons.append(f"Stochastic %K({stoch_k:.1f}) > 80 — überkauft")
         if direction is None:

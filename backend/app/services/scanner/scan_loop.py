@@ -162,7 +162,17 @@ async def run_scan_cycle(
             if result is None:
                 continue
 
-            signal = await _persist_signal(candidate, result)
+            # A single bad row (e.g. an out-of-range numeric the model produced)
+            # must not abort the whole cycle — the remaining candidates already
+            # cleared the cap gate and their reserved budget would be wasted.
+            try:
+                signal = await _persist_signal(candidate, result)
+            except Exception as e:
+                logger.error(
+                    "scan_cycle_persist_failed",
+                    extra={"symbol": candidate.symbol, "reason": str(e)},
+                )
+                continue
             recent.add(candidate.symbol)
             summary["analyzed"] += 1
             summary["signals"].append({

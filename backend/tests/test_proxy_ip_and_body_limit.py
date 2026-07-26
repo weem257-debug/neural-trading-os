@@ -87,6 +87,30 @@ class TestBodySizeLimit:
                         headers={"Content-Type": "application/x-www-form-urlencoded"})
         assert r.status_code == 413, r.status_code
 
+    def test_oversized_chunked_body_rejected_413(self, client):
+        """
+        A streamed body carries no Content-Length. The header-only check let it
+        through entirely, so the 1 MiB cap could be skipped with
+        Transfer-Encoding: chunked. The limit must count the bytes as they
+        arrive, not just trust the declared length.
+        """
+        def _chunks():
+            for _ in range(32):
+                yield b"x" * 65536      # 32 * 64 KiB = 2 MiB > 1 MiB cap
+
+        r = client.post("/api/auth/token", content=_chunks(),
+                        headers={"Content-Type": "application/x-www-form-urlencoded"})
+        assert r.status_code == 413, r.status_code
+
+    def test_normal_chunked_body_passes(self, client):
+        """A small streamed body must not be caught by the byte counter."""
+        def _chunks():
+            yield b"username=nobody&password=whatever"
+
+        r = client.post("/api/auth/token", content=_chunks(),
+                        headers={"Content-Type": "application/x-www-form-urlencoded"})
+        assert r.status_code in (401, 422), r.status_code
+
     def test_normal_body_passes(self, client):
         # A normal (wrong-credentials) login is not blocked by the size limit.
         r = client.post("/api/auth/token",

@@ -229,7 +229,19 @@ def _is_unsubscribed(username: str) -> bool:
 
 async def _send_reset_email(to: str, token: str, username: str) -> None:
     if not settings.SMTP_HOST:
-        _logger.info("[DEV] Password reset token for %s: %s", username, token)
+        # A missing SMTP_HOST is a plain misconfiguration, not proof of a dev
+        # box — in production this printed a live, usable reset token into the
+        # log sink. stdlib logging also bypasses the structlog redaction
+        # processor, so nothing scrubbed it. Keep the dev convenience, but only
+        # outside hardened environments.
+        from app.core.config import is_hardened_environment
+        if is_hardened_environment():
+            _logger.warning(
+                "password_reset_email_skipped_no_smtp username=%s (token not logged)",
+                username,
+            )
+        else:
+            _logger.info("[DEV] Password reset token for %s: %s", username, token)
         return
 
     reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"

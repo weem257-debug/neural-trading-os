@@ -16,7 +16,9 @@ Endpoints:
   GET  /mode          — current execution mode
   POST /mode          — switch mode (live→paper always; paper→live requires API key)
 """
+import asyncio
 from collections import OrderedDict
+from contextlib import AsyncExitStack
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Header
@@ -47,6 +49,24 @@ class _BoundedOrderCache(OrderedDict):
 # Per-instance idempotency store. See note in submit_order: move to a shared
 # atomic store (DB/Redis) before multi-replica live trading.
 _ORDER_IDEMPOTENCY: "_BoundedOrderCache" = _BoundedOrderCache()
+
+# One lock per idempotency key. A plain read-then-write around an awaited
+# submit_order() is a check-then-act race even in a single process: both
+# coroutines see an empty cache during the await window and each places an
+# order. Holding the key's lock across the submit closes that window.
+_ORDER_IDEMPOTENCY_LOCKS: "OrderedDict[str, asyncio.Lock]" = OrderedDict()
+_ORDER_LOCKS_MAX = 10_000
+
+
+def _idempotency_lock(key: str) -> asyncio.Lock:
+    """Get-or-create the lock for one idempotency key (bounded, FIFO-evicted)."""
+    lock = _ORDER_IDEMPOTENCY_LOCKS.get(key)
+    if lock is None:
+        lock = asyncio.Lock()
+        _ORDER_IDEMPOTENCY_LOCKS[key] = lock
+        while len(_ORDER_IDEMPOTENCY_LOCKS) > _ORDER_LOCKS_MAX:
+            _ORDER_IDEMPOTENCY_LOCKS.popitem(last=False)
+    return lock
 
 
 def _get_client() -> NautilusExecutionClient:
@@ -92,52 +112,60 @@ async def submit_order(
     _idem_cache_key = None
     if idempotency_key:
         _idem_cache_key = f"{current_user.username}:{idempotency_key}"
-        cached = _ORDER_IDEMPOTENCY.get(_idem_cache_key)
-        if cached is not None:
-            return cached
 
-    if client.mode == "live" and not settings.ENABLE_LIVE_TRADING:
-        raise HTTPException(
-            status_code=403,
-            detail="Live-Trading ist deaktiviert. Setze ENABLE_LIVE_TRADING=true in der Konfiguration.",
-        )
-
-    if settings.ENABLE_LIVE_TRADING and client.mode == "live":
-        logger.warning(
-            "LIVE ORDER submitted: %s %s %.4f",
-            req.side, req.ticker, req.quantity,
-        )
-    else:
-        logger.info(
-            "PAPER ORDER: %s %s %.4f",
-            req.side, req.ticker, req.quantity,
-        )
-
-    try:
-        result = await client.submit_order(req, owner_username=current_user.username)
+    # The cache lookup and the write-back must happen under the SAME lock —
+    # otherwise two concurrent retries of the same key both miss the cache
+    # during the awaited submit and each place a real order.
+    async with AsyncExitStack() as stack:
         if _idem_cache_key is not None:
-            _ORDER_IDEMPOTENCY[_idem_cache_key] = result
-        # Dispatch outbound webhook for filled orders (best-effort, non-blocking)
+            await stack.enter_async_context(_idempotency_lock(_idem_cache_key))
+            cached = _ORDER_IDEMPOTENCY.get(_idem_cache_key)
+            if cached is not None:
+                return cached
+
+        if client.mode == "live" and not settings.ENABLE_LIVE_TRADING:
+            raise HTTPException(
+                status_code=403,
+                detail="Live-Trading ist deaktiviert. Setze ENABLE_LIVE_TRADING=true in der Konfiguration.",
+            )
+
+        if settings.ENABLE_LIVE_TRADING and client.mode == "live":
+            logger.warning(
+                "LIVE ORDER submitted: %s %s %.4f",
+                req.side, req.ticker, req.quantity,
+            )
+        else:
+            logger.info(
+                "PAPER ORDER: %s %s %.4f",
+                req.side, req.ticker, req.quantity,
+            )
+
         try:
-            import asyncio as _asyncio
-            from app.services.webhooks.client import get_webhook_manager
-            loop = _asyncio.get_event_loop()
-            loop.create_task(get_webhook_manager().dispatch("order.filled", {
-                "order_id": result.order_id if hasattr(result, "order_id") else None,
-                "ticker": req.ticker,
-                "side": req.side,
-                "quantity": req.quantity,
-                "mode": client.mode,
-            }))
-        except Exception as hook_err:
-            # Webhook dispatch is best-effort and must never fail the order.
-            logger.warning("order_filled_webhook_dispatch_failed: %s", hook_err)
-        return result
-    except PermissionError as e:
-        raise HTTPException(status_code=403, detail=str(e))
-    except Exception as e:
-        logger.error("Order submission error: %s", e)
-        raise HTTPException(status_code=500, detail="Order-Übermittlung fehlgeschlagen")
+            result = await client.submit_order(req, owner_username=current_user.username)
+            if _idem_cache_key is not None:
+                _ORDER_IDEMPOTENCY[_idem_cache_key] = result
+            # Dispatch outbound webhook for filled orders (best-effort, non-blocking)
+            try:
+                from app.services.webhooks.client import get_webhook_manager
+                loop = asyncio.get_event_loop()
+                loop.create_task(get_webhook_manager().dispatch("order.filled", {
+                    "order_id": result.order_id if hasattr(result, "order_id") else None,
+                    "ticker": req.ticker,
+                    "side": req.side,
+                    "quantity": req.quantity,
+                    "mode": client.mode,
+                }))
+            except Exception as hook_err:
+                # Webhook dispatch is best-effort and must never fail the order.
+                logger.warning("order_filled_webhook_dispatch_failed: %s", hook_err)
+            return result
+        except PermissionError as e:
+            raise HTTPException(status_code=403, detail=str(e))
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error("Order submission error: %s", e)
+            raise HTTPException(status_code=500, detail="Order-Übermittlung fehlgeschlagen")
 
 
 # ---------------------------------------------------------------------------

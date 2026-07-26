@@ -137,3 +137,38 @@ the live auth core, and specified here:
 - **CSP enforce on marketing routes**: requires converting `/landing`,
   `/datenschutz`, `/impressum` to dynamic rendering (loses SSG/CDN benefit) — kept
   Report-Only by design; revisit if their static status is not required.
+
+---
+
+## 5. Residual risks (2026-07-26 audit pass)
+
+Found and **fixed** in this pass: F-13 order-idempotency race (the cache read
+and write-back straddled an `await`), F-17 WS size limit counted characters not
+bytes, F-23 body-size limit was bypassable with `Transfer-Encoding: chunked`,
+F-19 admin audit log discarded all its fields (stdlib `extra=` is never
+rendered by the default formatter), F-24 redaction ran *before* traceback
+rendering **and** covered only the single module that uses structlog — it now
+also runs on the stdlib root handler, which all 47 other modules write through.
+A password-reset token was logged in cleartext whenever `SMTP_HOST` was unset;
+that is now restricted to non-hardened environments.
+
+Known and **deliberately not changed** — each needs a decision, not a patch:
+
+- **Proxy-IP trust has no proxy allow-list.** With `TRUST_PROXY=true`,
+  `X-Real-IP` is trusted verbatim without checking that `request.client.host`
+  is the Railway edge proxy. Anything able to reach the app process directly
+  (a second ingress, internal networking, a re-platform) can mint a fresh
+  rate-limit bucket per request. Proper fix: run uvicorn with
+  `--proxy-headers --forwarded-allow-ips=<edge>` or add an explicit allow-list.
+  Not shipped because Railway publishes no stable edge-IP range and a wrong
+  list would break rate limiting outright.
+- **Refresh-token cookie is scoped `Path=/`** rather than `/api/auth`. Wider
+  blast radius than necessary; rotation is still flag-gated
+  (`REFRESH_ROTATION_ENABLED`), so the exposure is currently theoretical.
+- **SSRF guard has a DNS-rebinding TOCTOU gap.** `assert_url_allowed()`
+  resolves once and returns the original URL; the HTTP client re-resolves when
+  connecting. Whoever wires the first caller MUST connect to the
+  already-resolved IP (pin it / pass a fixed resolver), not to the hostname.
+- **Kronos re-downloads OHLCV** for the Top-N inside the scan cycle even though
+  the prefilter just fetched it — this doubles Yahoo request volume when
+  `KRONOS_ENABLED=true` and lengthens how long the advisory lock is held.

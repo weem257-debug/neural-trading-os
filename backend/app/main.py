@@ -11,6 +11,7 @@ Run with:
   uvicorn app.main:app --reload --port 8000
 """
 import asyncio
+import logging as _stdlib_logging
 import os
 import time
 from contextlib import asynccontextmanager
@@ -51,14 +52,17 @@ _shared_processors = [
     structlog.stdlib.add_log_level,
     structlog.processors.TimeStamper(fmt="iso"),
     structlog.processors.StackInfoRenderer(),
-    # F-24: scrub tokens/cookies/passwords/keys from every event before render.
-    _redact_processor,
 ]
 
+# F-24: scrub tokens/cookies/passwords/keys from every event. This MUST be the
+# LAST processor before the renderer — `dict_tracebacks` materialises the
+# `exception` field, and a traceback can carry a DSN with an embedded password
+# or an Authorization-header repr. Redacting before it ran left those unscrubbed.
 if _is_development:
     structlog.configure(
         processors=[
             *_shared_processors,  # type: ignore[list-item]
+            _redact_processor,
             structlog.dev.ConsoleRenderer(colors=True),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
@@ -70,6 +74,7 @@ else:
         processors=[
             *_shared_processors,  # type: ignore[list-item]
             structlog.processors.dict_tracebacks,
+            _redact_processor,
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
@@ -78,6 +83,33 @@ else:
     )
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger(__name__)
+
+
+# F-24 (completion): the structlog processor above only covers events logged
+# through structlog — and this module is the ONLY one that does. All 47 other
+# modules use stdlib `logging.getLogger(...)`, whose records never touch a
+# structlog processor, so tokens/cookies in their messages and tracebacks went
+# out unredacted. Redact at the root handler instead, which every stdlib logger
+# ultimately writes through.
+class _RedactingFormatter(_stdlib_logging.Formatter):
+    """stdlib formatter that scrubs secrets from the fully rendered line."""
+
+    def format(self, record: "_stdlib_logging.LogRecord") -> str:
+        from app.core.log_redaction import redact_text
+        return redact_text(super().format(record))
+
+
+_root_logger = _stdlib_logging.getLogger()
+if not any(getattr(h, "_redacting", False) for h in _root_logger.handlers):
+    _redacting_handler = _stdlib_logging.StreamHandler()
+    _redacting_handler.setFormatter(
+        _RedactingFormatter("%(asctime)s %(levelname)s %(name)s %(message)s")
+    )
+    _redacting_handler._redacting = True  # type: ignore[attr-defined]
+    # Replace rather than append: without this the default "handler of last
+    # resort" would emit a second, unredacted copy of every WARNING+ record.
+    _root_logger.handlers = [_redacting_handler]
+    _root_logger.setLevel(_stdlib_logging.INFO)
 
 
 # ---------------------------------------------------------------------------
@@ -149,23 +181,79 @@ except ValueError:
     _WS_MAX_MESSAGES_PER_MIN = 120
 
 
-class BodySizeLimitMiddleware(BaseHTTPMiddleware):
-    """Reject requests whose declared Content-Length exceeds the limit with 413,
-    before the body is read into memory (F-23 resource-limit hardening)."""
+class BodySizeLimitMiddleware:
+    """
+    Reject oversized request bodies with 413 (F-23 resource-limit hardening).
 
-    async def dispatch(self, request: Request, call_next):
-        cl = request.headers.get("content-length")
-        if cl:
-            try:
-                if int(cl) > _MAX_BODY_BYTES:
-                    from starlette.responses import JSONResponse
-                    return JSONResponse(
-                        status_code=413,
-                        content={"detail": "Request-Body zu groß"},
-                    )
-            except ValueError:
-                pass
-        return await call_next(request)
+    Pure ASGI (not BaseHTTPMiddleware) on purpose: the previous version only
+    inspected the declared ``Content-Length``, so a request sent with
+    ``Transfer-Encoding: chunked`` — or simply without the header — skipped the
+    check entirely and could still be buffered in full by the body parser. The
+    declared length is still rejected up front (cheapest path), and the actual
+    streamed bytes are now counted as they arrive.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+
+        for name, value in scope.get("headers") or ():
+            if name == b"content-length":
+                try:
+                    if int(value) > _MAX_BODY_BYTES:
+                        await self._send_413(send)
+                        return
+                except ValueError:
+                    pass
+                break
+
+        received = 0
+        rejected = False
+        response_started = False
+
+        async def limited_receive():
+            nonlocal received, rejected
+            if rejected:
+                return {"type": "http.disconnect"}
+            message = await receive()
+            if message.get("type") == "http.request":
+                received += len(message.get("body", b"") or b"")
+                if received > _MAX_BODY_BYTES:
+                    # Answer 413 right here and hand the app a disconnect so it
+                    # unwinds. Raising instead would be swallowed by the body
+                    # parsers and surface as an unrelated 400.
+                    rejected = True
+                    await self._send_413(send)
+                    return {"type": "http.disconnect"}
+            return message
+
+        async def tracking_send(message):
+            nonlocal response_started
+            # Once the 413 is out, the app's own response must not be written.
+            if rejected:
+                return
+            if message.get("type") == "http.response.start":
+                response_started = True
+            await send(message)
+
+        await self.app(scope, limited_receive, tracking_send)
+
+    @staticmethod
+    async def _send_413(send):
+        body = b'{"detail":"Request-Body zu gro\\u00df"}'
+        await send({
+            "type": "http.response.start",
+            "status": 413,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode()),
+            ],
+        })
+        await send({"type": "http.response.body", "body": body})
 
 
 # Default watchlist for live price streaming — covers common user additions beyond the demo portfolio
@@ -937,9 +1025,13 @@ async def lifespan(app: FastAPI):
     # Optional Kronos forecasting model warm-up (additive; no-op unless
     # KRONOS_ENABLED and the optional deps are installed). Scheduled as a
     # background task so a slow model load never delays app readiness.
+    # Keep a reference: the event loop holds only a weak one, so a fire-and-
+    # forget task can be garbage-collected mid-load. It is also cancelled on
+    # shutdown so a slow model load cannot hang the shutdown sequence.
+    kronos_warmup_task = None
     if settings.KRONOS_ENABLED:
         from app.services.scanner.forecast import warm_up as _kronos_warm_up
-        asyncio.create_task(_kronos_warm_up())
+        kronos_warmup_task = asyncio.create_task(_kronos_warm_up())
         logger.info("kronos_warmup_scheduled", model=settings.KRONOS_MODEL)
 
     logger.info("api_ready", live_trading=settings.ENABLE_LIVE_TRADING)
@@ -1017,6 +1109,13 @@ async def lifespan(app: FastAPI):
         await scanner_task
     except asyncio.CancelledError:
         pass
+
+    if kronos_warmup_task is not None:
+        kronos_warmup_task.cancel()
+        try:
+            await kronos_warmup_task
+        except asyncio.CancelledError:
+            pass
 
     from app.services.learning.scheduler import stop_scheduler
     stop_scheduler(learning_scheduler)
@@ -1212,10 +1311,13 @@ async def websocket_endpoint(
         _msg_count = 0
         while True:
             data = await websocket.receive_text()
-            if len(data) > _WS_MAX_MESSAGE_BYTES:
+            # Measure UTF-8 bytes, not characters: len() on the decoded string
+            # let a multi-byte payload reach ~4x the configured byte cap.
+            _data_bytes = len(data.encode("utf-8", "ignore"))
+            if _data_bytes > _WS_MAX_MESSAGE_BYTES:
                 await websocket.close(code=1009)  # message too big
                 await ws_manager.disconnect(websocket, channel)
-                logger.warning("websocket_message_too_large", channel=channel, size=len(data))
+                logger.warning("websocket_message_too_large", channel=channel, size=_data_bytes)
                 return
             now = _time.monotonic()
             if now - _win_start >= 60:
