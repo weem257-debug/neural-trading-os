@@ -28,6 +28,8 @@ import {
 import { api } from "@/lib/api";
 import type { HkcmAnalysis, HkcmTargetZone } from "@/types";
 import { GlassCard, SectionLabel } from "@/components/ui/GlassCard";
+import { AccentPanel, ParameterList, ParameterRow } from "@/components/ui/AccentPanel";
+import { ProseBlock, Verdict } from "@/components/ui/SectionHeader";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { notify } from "@/store/notificationStore";
 
@@ -64,31 +66,6 @@ function ageInDays(iso: string | null): number | null {
 /* Pieces                                                              */
 /* ------------------------------------------------------------------ */
 
-function Parameter({
-  label,
-  value,
-  note,
-  color,
-}: {
-  label: string;
-  value: string;
-  note?: string;
-  color?: string;
-}) {
-  return (
-    <div
-      className="rounded-lg px-3 py-2"
-      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}
-    >
-      <p className="text-xs uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="text-base font-bold font-mono mt-0.5" style={{ color: color ?? "#E2E8F0" }}>
-        {value}
-      </p>
-      {note && <p className="text-xs text-slate-600 mt-0.5">{note}</p>}
-    </div>
-  );
-}
-
 function LevelList({ label, levels, color }: { label: string; levels: number[]; color: string }) {
   if (levels.length === 0) return null;
   return (
@@ -118,20 +95,6 @@ function ZoneBar({ zone }: { zone: HkcmTargetZone }) {
       <span className="text-xs font-mono font-bold text-slate-300 whitespace-nowrap">
         {fmt(zone.low)} – {fmt(zone.high)}
       </span>
-    </div>
-  );
-}
-
-function Prose({ title, text }: { title: string; text: string }) {
-  if (!text.trim()) return null;
-  return (
-    <div>
-      <p className="text-xs uppercase tracking-wider text-slate-500 mb-1">{title}</p>
-      {text.split("\n").map((paragraph, i) => (
-        <p key={i} className="text-sm text-slate-400 leading-relaxed mb-1.5 last:mb-0">
-          {paragraph}
-        </p>
-      ))}
     </div>
   );
 }
@@ -320,9 +283,6 @@ export function HkcmPanel({ symbol }: { symbol: string }) {
               </span>
             )}
           </div>
-          {analysis.headline && (
-            <p className="text-sm text-slate-300 font-medium mt-1">{analysis.headline}</p>
-          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -349,6 +309,8 @@ export function HkcmPanel({ symbol }: { symbol: string }) {
       </div>
 
       <div className="p-4 space-y-4">
+        {analysis.headline && <Verdict>{analysis.headline}</Verdict>}
+
         {/* Trade parameters */}
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -357,25 +319,26 @@ export function HkcmPanel({ symbol }: { symbol: string }) {
               {analysis.entry_potential ? "Potenzielle Handelsparameter" : "Handelsparameter"}
             </p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <Parameter
-              label={`${analysis.entry_kind || "Einstieg"}-Einstieg`}
-              value={fmt(analysis.entry)}
-              color={long ? "#3FB950" : "#4C8DF6"}
-            />
-            <Parameter
-              label="Stopp"
-              value={analysis.stop !== null ? fmt(analysis.stop) : "—"}
-              note={analysis.stop === null ? analysis.stop_note : undefined}
-              color="#E5534B"
-            />
-            <Parameter label="Teil-Ausstieg" value={fmt(analysis.partial_exit)} />
-            <Parameter
-              label="Risiko"
-              value={analysis.risk_note ? analysis.risk_note.split(" ")[0] : "—"}
-              note={analysis.risk_note ? "pro Trade" : undefined}
-            />
-          </div>
+          <AccentPanel tone={long ? "positive" : "accent"}>
+            <ParameterList>
+              <ParameterRow
+                name={`(${analysis.entry_kind || "Einstieg"}-)Einstieg`}
+                value={fmt(analysis.entry)}
+                valueColor={long ? "var(--positive)" : "var(--accent)"}
+              />
+              <ParameterRow
+                name="Unser Stopp"
+                value={analysis.stop !== null ? fmt(analysis.stop) : analysis.stop_note || "—"}
+                valueColor={analysis.stop !== null ? "var(--negative)" : "var(--text-dim)"}
+              />
+              {analysis.partial_exit !== null && (
+                <ParameterRow name="(Teil-)Ausstieg (halbe Position)" value={fmt(analysis.partial_exit)} />
+              )}
+              {analysis.risk_note && (
+                <ParameterRow name="Risiko pro Trade" value={analysis.risk_note} />
+              )}
+            </ParameterList>
+          </AccentPanel>
         </div>
 
         {/* Levels + zones */}
@@ -433,11 +396,11 @@ export function HkcmPanel({ symbol }: { symbol: string }) {
 
         {expanded && (
           <div className="space-y-3 pt-1">
-            <Prose title="Was ist passiert?" text={analysis.what_happened} />
-            <Prose title="Primärszenario" text={analysis.primary_scenario} />
-            <Prose title="Alternativszenario" text={analysis.alternative_scenario} />
-            <Prose title="Übergeordneter Ausblick" text={analysis.outlook} />
-            <Prose title="Handelsmöglichkeiten" text={analysis.opportunities} />
+            <ProseBlock title="Was ist passiert?" text={analysis.what_happened} />
+            <ProseBlock title="Primärszenario" text={analysis.primary_scenario} />
+            <ProseBlock title="Alternativszenario" text={analysis.alternative_scenario} />
+            <ProseBlock title="Übergeordneter Ausblick" text={analysis.outlook} />
+            <ProseBlock title="Handelsmöglichkeiten" text={analysis.opportunities} />
 
             {analysis.chart_urls.length > 0 && (
               <div>

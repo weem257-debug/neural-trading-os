@@ -17,18 +17,105 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { CandlestickChart as CandlestickIcon } from "lucide-react";
+import { CandlestickChart as CandlestickIcon, Globe } from "lucide-react";
 import { api } from "@/lib/api";
-import { GlassCard, NeonBadge } from "@/components/ui/GlassCard";
+import { GlassCard } from "@/components/ui/GlassCard";
 import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { TradingViewWidget } from "@/components/trading/TradingViewWidget";
 import { MarketBrowser } from "@/components/trading/MarketBrowser";
 import { StockBoard } from "@/components/trading/StockBoard";
 import { HkcmPanel } from "@/components/trading/HkcmPanel";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { useTradingStore } from "@/store/tradingStore";
 import { notify } from "@/store/notificationStore";
 
 const DEFAULT_WATCHLIST = ["AAPL", "MSFT", "NVDA", "TSLA", "BTC-USD"];
 const MAX_SYMBOLS = 30;
+
+
+/**
+ * Hero band — the newsletter's opening panel, rebuilt: a deep navy field, the
+ * greeting line in small letterspaced caps, and the thing the page is actually
+ * about set large and bold underneath. Here that is the symbol on the chart
+ * plus its live price, so the band doubles as the quote header.
+ */
+function ChartHero({ symbol, loading }: { symbol: string; loading: boolean }) {
+  const [quote, setQuote] = useState<{ price: number | null; change: number | null }>({
+    price: null,
+    change: null,
+  });
+  // WS ticks win over the REST snapshot for symbols the socket is covering.
+  const tick = useTradingStore((s) => (symbol ? s.prices[symbol] : undefined));
+
+  useEffect(() => {
+    if (!symbol) {
+      setQuote({ price: null, change: null });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await api.portfolio.prices([symbol]);
+        const row = data[symbol];
+        if (!cancelled && row) setQuote({ price: row.price, change: row.change_pct });
+      } catch {
+        if (!cancelled) setQuote({ price: null, change: null });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol]);
+
+  const price = tick?.price ?? quote.price;
+  const change = tick?.change_pct ?? quote.change;
+  const positive = (change ?? 0) >= 0;
+  const changeColor =
+    change === null || change === undefined
+      ? "var(--text-dim)"
+      : positive
+        ? "var(--positive)"
+        : "var(--negative)";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="rounded-xl px-6 py-7 text-center"
+      style={{
+        // Deep navy field, like the newsletter's header panel.
+        background: "linear-gradient(160deg, #12233D 0%, #0E1A2E 100%)",
+        border: "1px solid rgba(76,141,246,0.25)",
+      }}
+    >
+      <p
+        className="text-xs font-semibold uppercase tracking-[0.2em]"
+        style={{ color: "rgba(230,237,243,0.55)" }}
+      >
+        Aktuelle Analyse
+      </p>
+
+      <h1 className="text-3xl font-bold font-mono mt-2" style={{ color: "#FFFFFF" }}>
+        {symbol || (loading ? "…" : "Kein Symbol")}
+      </h1>
+
+      {symbol && (
+        <div className="flex items-baseline justify-center gap-3 mt-2 flex-wrap">
+          <span className="text-2xl font-bold font-mono" style={{ color: "#FFFFFF" }}>
+            {price === null || price === undefined
+              ? "—"
+              : `$${price.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          </span>
+          <span className="text-base font-bold font-mono" style={{ color: changeColor }}>
+            {change === null || change === undefined
+              ? "—"
+              : `${positive ? "+" : ""}${change.toFixed(2)}%`}
+          </span>
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 function ChartsView() {
   const router = useRouter();
@@ -119,31 +206,17 @@ function ChartsView() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <div className="flex items-center gap-3 mb-1 flex-wrap">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(76,141,246,0.15)", border: "1px solid rgba(76,141,246,0.3)" }}
-          >
-            <CandlestickIcon className="w-4 h-4" style={{ color: "#4C8DF6" }} />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-100">Charts</h1>
-          {activeSymbol && <NeonBadge color="cyan">{activeSymbol}</NeonBadge>}
-          {isFallback && (
-            <span
-              className="text-xs font-bold px-2.5 py-1 rounded-full"
-              style={{ background: "rgba(100,116,139,0.12)", border: "1px solid rgba(100,116,139,0.3)", color: "#64748B" }}
-              title="Die Watchlist konnte nicht vom Server geladen oder gespeichert werden."
-            >
-              LOKAL
-            </span>
-          )}
-        </div>
-        <p className="text-sm text-slate-500">
-          Kurschart mit Zeichenwerkzeugen und Indikatoren. Symbol unten wählen — der Chart springt sofort um.
+      <ChartHero symbol={activeSymbol} loading={loading} />
+
+      {isFallback && (
+        <p
+          className="text-xs text-center"
+          style={{ color: "var(--warning)" }}
+          role="status"
+        >
+          Watchlist konnte nicht vom Server geladen werden — Änderungen bleiben nur lokal.
         </p>
-      </motion.div>
+      )}
 
       {/* Chart — the point of the page, so it gets the viewport */}
       <GlassCard variant="cyan" padding="p-3">
@@ -174,15 +247,30 @@ function ChartsView() {
       )}
 
       {/* What HKCM says about the symbol currently on the chart */}
-      <HkcmPanel symbol={activeSymbol} />
+      <div>
+        <SectionHeader
+          title="Fremdanalyse"
+          icon={<CandlestickIcon className="w-3.5 h-3.5" />}
+          tone="var(--violet)"
+          meta="HKCM"
+        />
+        <HkcmPanel symbol={activeSymbol} />
+      </div>
 
       {/* Curated markets — add anything that isn't on the watchlist yet */}
+      <div>
+        <SectionHeader
+          title="Märkte"
+          icon={<Globe className="w-3.5 h-3.5" />}
+          meta="Markt wählen → Symbol in den Chart"
+        />
       <MarketBrowser
         activeSymbol={activeSymbol}
         watchlist={symbols}
         onSelect={handleSelect}
         onAddToWatchlist={handleAdd}
       />
+      </div>
     </div>
   );
 }

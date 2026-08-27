@@ -25,6 +25,7 @@ import { api } from "@/lib/api";
 import { useTradingStore } from "@/store/tradingStore";
 import { usePrefsStore, useStockView } from "@/store/prefsStore";
 import { Sparkline, SPARK_DOWN, SPARK_UP } from "@/components/charts/Sparkline";
+import { AccentTone, toneColor } from "@/components/ui/AccentPanel";
 import { SectionLabel } from "@/components/ui/GlassCard";
 
 const REFRESH_INTERVAL_MS = 60_000;
@@ -126,7 +127,8 @@ function StockCard({
   onRemove?: (ticker: string) => void;
 }) {
   const positive = (entry.change_pct ?? 0) >= 0;
-  const color = positive ? SPARK_UP : SPARK_DOWN;
+  const tone: AccentTone = entry.change_pct === null ? "muted" : positive ? "positive" : "negative";
+  const color = toneColor(tone);
   const selectable = !!onSelect;
 
   return (
@@ -136,42 +138,57 @@ function StockCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.18 }}
-      className="group relative rounded-xl p-3 transition-colors"
+      className="group relative rounded-lg overflow-hidden transition-colors"
       style={{
-        background: active ? "rgba(76,141,246,0.10)" : "rgba(255,255,255,0.03)",
-        border: `1px solid ${active ? "rgba(76,141,246,0.45)" : "rgba(255,255,255,0.07)"}`,
-        boxShadow: active ? "0 0 14px rgba(76,141,246,0.12)" : "none",
+        background: active ? "var(--surface-hover)" : "var(--surface)",
+        border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
       }}
     >
-      {/* The whole tile selects the symbol. A real <button> keeps it keyboard
-          reachable; the action buttons below sit above it via z-index. */}
+      {/* HKCM's signature: a thick bar down the left edge, coloured by the
+          direction the numbers describe. */}
+      <span
+        aria-hidden="true"
+        className="absolute left-0 top-0 bottom-0 w-1"
+        style={{ background: color }}
+      />
+
       {selectable && (
         <button
           type="button"
           onClick={() => onSelect?.(entry.ticker)}
           aria-label={`${entry.ticker} im Chart anzeigen`}
           aria-current={active ? "true" : undefined}
-          className="absolute inset-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
+          className="absolute inset-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60"
         />
       )}
 
-      <div className="relative pointer-events-none">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="min-w-0">
-            <p className="text-sm font-bold font-mono text-slate-100 truncate">{entry.ticker}</p>
-            <p className="text-lg font-bold font-mono text-slate-100 leading-tight mt-0.5">
-              {entry.error ? "N/A" : fmtPrice(entry.price)}
-            </p>
-          </div>
-          <span
-            className="text-xs font-mono font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-            style={{ color, background: `${color}18`, border: `1px solid ${color}33` }}
-          >
+      <div className="relative pointer-events-none pl-4 pr-3 py-3">
+        {/* Ticker sits in the label position — light and small; the price is
+            the bold value under it. Same weight contrast as the newsletter's
+            "Bezeichnung: Wert" rows. */}
+        <p
+          className="text-xs font-semibold uppercase tracking-wider truncate"
+          style={{ color: "var(--text-muted)" }}
+        >
+          {entry.ticker}
+        </p>
+
+        <div className="flex items-baseline justify-between gap-2 mt-1">
+          <p className="text-xl font-bold font-mono leading-none" style={{ color: "var(--foreground)" }}>
+            {entry.error ? "N/A" : fmtPrice(entry.price)}
+          </p>
+          <span className="text-sm font-bold font-mono" style={{ color }}>
             {fmtChange(entry.change_pct)}
           </span>
         </div>
 
-        <Sparkline data={entry.history} positive={positive} width={140} height={34} className="w-full" />
+        <Sparkline
+          data={entry.history}
+          positive={positive}
+          width={140}
+          height={32}
+          className="w-full mt-2"
+        />
       </div>
 
       {/* Actions — revealed on hover/focus, above the full-tile select button */}
@@ -179,7 +196,7 @@ function StockCard({
         <Link
           href={`/signals?ticker=${encodeURIComponent(entry.ticker)}`}
           className="w-5 h-5 flex items-center justify-center rounded"
-          style={{ color: "#A371F7", background: "rgba(8,11,20,0.85)" }}
+          style={{ color: "var(--violet)", background: "var(--base)" }}
           title={`${entry.ticker} analysieren`}
           aria-label={`${entry.ticker} analysieren`}
         >
@@ -190,7 +207,7 @@ function StockCard({
             type="button"
             onClick={() => onRemove(entry.ticker)}
             className="w-5 h-5 flex items-center justify-center rounded"
-            style={{ color: SPARK_DOWN, background: "rgba(8,11,20,0.85)" }}
+            style={{ color: "var(--negative)", background: "var(--base)" }}
             title={`${entry.ticker} entfernen`}
             aria-label={`${entry.ticker} entfernen`}
           >
