@@ -1,6 +1,7 @@
 {
   "nav": {
     "dashboard": "Übersicht",
+    "charts": "Charts",
     "signals": "KI-Signale",
     "portfolio": "Portfolio",
     "portfolios": "Meine Depots",

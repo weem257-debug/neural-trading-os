@@ -25,6 +25,7 @@ import {
   Award,
   LineChart,
   Radio,
+  CandlestickChart,
 } from "lucide-react";
 import { LanguageToggle, useI18n } from "@/i18n/context";
 import { api } from "@/lib/api";
@@ -34,6 +35,7 @@ import { Capacitor } from "@capacitor/core";
 
 const navItems = [
   { href: "/dashboard",  labelKey: "nav.dashboard",  icon: LayoutDashboard, color: "cyan" },
+  { href: "/charts",     labelKey: "nav.charts",     icon: CandlestickChart, color: "cyan" },
   { href: "/signals",    labelKey: "nav.signals",    icon: TrendingUp,      color: "green" },
   { href: "/portfolio",  labelKey: "nav.portfolio",  icon: Briefcase,       color: "purple" },
   { href: "/depot",      labelKey: "nav.depot",      icon: Wallet,          color: "cyan" },
@@ -136,7 +138,12 @@ function NavContent({ onNavClick }: { onNavClick?: () => void }) {
       </div>
 
       {/* Nav */}
-      <div className="flex-1 px-3 py-4 space-y-1">
+      {/* `min-h-0` lets this flex child shrink below its content height, and
+          `overflow-y-auto` then scrolls the surplus. Without both, the parent
+          <nav>'s `overflow-hidden` silently CLIPS every nav item below the fold
+          on short viewports — on a 768px-high laptop that hid everything from
+          "Sentiment" downwards, so those screens were unreachable. */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-4 space-y-1">
         {navItems.map(({ href, labelKey, icon: Icon, color }) => {
           const active = pathname === href || pathname.startsWith(href + "/");
           const c = colorMap[color] ?? colorMap.cyan;

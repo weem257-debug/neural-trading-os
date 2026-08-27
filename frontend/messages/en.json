@@ -1,6 +1,7 @@
 {
   "nav": {
     "dashboard": "Overview",
+    "charts": "Charts",
     "signals": "AI Signals",
     "portfolio": "Portfolio",
     "portfolios": "My Portfolios",

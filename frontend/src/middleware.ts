@@ -72,7 +72,10 @@ function buildCsp(nonce: string): string {
     // fonts.gstatic.com: the actual font files referenced by the Google Fonts CSS.
     "font-src 'self' data: https://fonts.gstatic.com",
     `connect-src ${connectSrc.join(" ")}`,
-    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+    // *.tradingview.com: the "Advanced Chart" embed on /live renders inside a
+    // TradingView-hosted iframe. Without it the chart area stays empty as soon
+    // as the policy is enforced on that route (TASK-CSP-ENFORCE).
+    "frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://*.tradingview.com",
     "worker-src 'self' blob:",
     "child-src 'self' blob:",
     "object-src 'none'",

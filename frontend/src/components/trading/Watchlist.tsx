@@ -6,6 +6,7 @@ import { Plus, X, RefreshCw, Eye, Zap } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { useTradingStore } from "@/store/tradingStore";
+import { Sparkline } from "@/components/charts/Sparkline";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,52 +26,6 @@ const DEFAULT_TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "BTC-USD"];
 const MAX_TICKERS = 10;
 const REFRESH_INTERVAL_MS = 60_000; // WS ticks handle real-time; REST is fallback
 const STORAGE_KEY = "watchlist_tickers";
-
-// ---------------------------------------------------------------------------
-// Sparkline — 7 data points, SVG micro-chart
-// ---------------------------------------------------------------------------
-function MiniSparkline({ data, positive }: { data: number[]; positive: boolean }) {
-  if (data.length < 2) {
-    return <div className="w-16 h-6 opacity-30 text-xs text-slate-500 flex items-center">—</div>;
-  }
-
-  const w = 64;
-  const h = 24;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-
-  const pts = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w;
-    const y = h - ((v - min) / range) * (h - 4) - 2;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  });
-
-  const pathD = `M ${pts.join(" L ")}`;
-  const areaD = `M ${pts[0]} L ${pts.join(" L ")} L ${w},${h} L 0,${h} Z`;
-  const color = positive ? "#3FB950" : "#E5534B";
-  const gradId = `wl-grad-${positive ? "g" : "r"}`;
-
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible flex-shrink-0">
-      <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={areaD} fill={`url(#${gradId})`} />
-      <path d={pathD} stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      <circle
-        cx={pts[pts.length - 1].split(",")[0]}
-        cy={pts[pts.length - 1].split(",")[1]}
-        r="2"
-        fill={color}
-        style={{ filter: `drop-shadow(0 0 3px ${color})` }}
-      />
-    </svg>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Individual row
@@ -112,10 +67,14 @@ function WatchlistRow({
         {entry.ticker.length > 4 ? entry.ticker.slice(0, 3) : entry.ticker}
       </div>
 
-      {/* Ticker name */}
-      <span className="text-xs font-semibold text-slate-300 w-16 truncate flex-shrink-0">
+      {/* Ticker name — opens the full chart for this symbol */}
+      <Link
+        href={`/charts?symbol=${encodeURIComponent(entry.ticker)}`}
+        className="text-xs font-semibold text-slate-300 w-16 truncate flex-shrink-0 hover:text-cyan-400 transition-colors"
+        title={`${entry.ticker} im Chart öffnen`}
+      >
         {entry.ticker}
-      </span>
+      </Link>
 
       {/* Price */}
       <div className="flex-1 min-w-0">
@@ -146,7 +105,7 @@ function WatchlistRow({
       </div>
 
       {/* Sparkline */}
-      <MiniSparkline data={entry.history} positive={positive} />
+      <Sparkline data={entry.history} positive={positive} />
 
       {/* Analyse — only visible on hover */}
       <Link
