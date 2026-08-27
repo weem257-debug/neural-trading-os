@@ -35,7 +35,7 @@ from app.core.config import (
     stripe_webhook_secret_missing,
 )
 from app.core.rate_limits import limiter
-from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing, telegram, settings as settings_routes, brokers, admin, report, legal
+from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing, telegram, settings as settings_routes, brokers, admin, report, legal, hkcm
 from app.api import auth
 from app.websocket.manager import ws_manager
 
@@ -1235,6 +1235,7 @@ app.include_router(brokers.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(report.router, prefix="/api")
 app.include_router(legal.router, prefix="/api")
+app.include_router(hkcm.router, prefix="/api")
 
 
 # ---------------------------------------------------------------------------

@@ -24,6 +24,7 @@ import { SkeletonBlock } from "@/components/ui/Skeleton";
 import { TradingViewWidget } from "@/components/trading/TradingViewWidget";
 import { MarketBrowser } from "@/components/trading/MarketBrowser";
 import { StockBoard } from "@/components/trading/StockBoard";
+import { HkcmPanel } from "@/components/trading/HkcmPanel";
 import { notify } from "@/store/notificationStore";
 
 const DEFAULT_WATCHLIST = ["AAPL", "MSFT", "NVDA", "TSLA", "BTC-USD"];
@@ -171,6 +172,9 @@ function ChartsView() {
           maxSymbols={MAX_SYMBOLS}
         />
       )}
+
+      {/* What HKCM says about the symbol currently on the chart */}
+      <HkcmPanel symbol={activeSymbol} />
 
       {/* Curated markets — add anything that isn't on the watchlist yet */}
       <MarketBrowser

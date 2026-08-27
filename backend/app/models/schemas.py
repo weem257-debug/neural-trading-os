@@ -676,3 +676,84 @@ class MarketCategory(BaseModel):
 
 class MarketsResponse(BaseModel):
     markets: list[MarketCategory]
+
+
+# ---------------------------------------------------------------------------
+# HKCM newsletter (/api/hkcm)
+# ---------------------------------------------------------------------------
+
+
+class HkcmTargetZone(BaseModel):
+    """A coloured price band HKCM draws into its charts."""
+
+    color: str = Field(..., description="gruen | rot | blau")
+    label: str = Field(..., description="Zielzone | Langfrist-Einstiegsbereich")
+    low: Optional[float] = None
+    high: Optional[float] = None
+
+
+class HkcmAnalysisResponse(BaseModel):
+    """One instrument's analysis out of a newsletter issue."""
+
+    id: int
+    ticker: str
+    isin: str = ""
+    name: str = ""
+    headline: str = ""
+    entry: Optional[float] = None
+    entry_kind: str = Field("", description="Long | Spot | Short")
+    entry_potential: bool = False
+    stop: Optional[float] = None
+    stop_note: str = ""
+    partial_exit: Optional[float] = None
+    risk_note: str = ""
+    what_happened: str = ""
+    primary_scenario: str = ""
+    alternative_scenario: str = ""
+    alternative_probability: Optional[int] = None
+    outlook: str = ""
+    opportunities: str = ""
+    supports: list[float] = Field(default_factory=list)
+    resistances: list[float] = Field(default_factory=list)
+    target_zones: list[HkcmTargetZone] = Field(default_factory=list)
+    chart_urls: list[str] = Field(default_factory=list)
+    position: int = 0
+    sent_at: Optional[str] = None
+    issue_id: int
+    category: str = ""
+
+
+class HkcmIssueResponse(BaseModel):
+    """A newsletter issue with all of its analyses."""
+
+    id: int
+    subject: str = ""
+    category: str = ""
+    sent_at: Optional[str] = None
+    news: str = ""
+    upcoming: str = ""
+    analyses: list[HkcmAnalysisResponse] = Field(default_factory=list)
+
+
+class HkcmIssueSummary(BaseModel):
+    """Issue without the analysis bodies — for the archive list."""
+
+    id: int
+    subject: str = ""
+    category: str = ""
+    sent_at: Optional[str] = None
+    tickers: list[str] = Field(default_factory=list)
+
+
+class HkcmIssueListResponse(BaseModel):
+    issues: list[HkcmIssueSummary] = Field(default_factory=list)
+    total: int = 0
+
+
+class HkcmImportResponse(BaseModel):
+    """Result of importing one mail."""
+
+    imported: bool = Field(..., description="False when the mail was already stored")
+    issue_id: int
+    analyses: int = 0
+    tickers: list[str] = Field(default_factory=list)
