@@ -420,10 +420,12 @@ async def _send_price_alert_telegram(username: str, alert_dict: dict) -> None:
 async def _send_price_alert_email(username: str, alert_dict: dict) -> None:
     """E-Mail-Notification wenn ein Preis-Alarm ausgelöst wird (fire-and-forget)."""
     try:
-        from app.core.config import get_settings
+        # `app.core.config` exposes a module-level `settings` instance — there is
+        # no `get_settings()` factory. The old import raised ImportError inside
+        # this try-block, so price-alert e-mails were silently never sent.
+        from app.core.config import settings
         from app.api.auth import _is_unsubscribed
         from app.core.email import send_mail
-        settings = get_settings()
 
         if not settings.SMTP_HOST:
             logger.debug("price_alert_email_skipped_no_smtp", extra={"username": username})
