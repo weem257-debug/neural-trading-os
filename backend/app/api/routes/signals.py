@@ -10,12 +10,9 @@ import csv
 import io
 import logging
 import random
-import smtplib
 import uuid
 from collections import deque
 from datetime import datetime, UTC
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -24,6 +21,7 @@ from pydantic import BaseModel, Field
 
 from app.api.auth import UserInfo, get_current_user, get_current_user_optional
 from app.core.config import settings
+from app.core.email import send_mail
 from app.models.schemas import (
     TradingSignal, SignalRequest, SignalDirection, ErrorResponse,
     SignalPerformanceResponse, SignalPerformanceEntry, ClearCacheResponse,
@@ -71,7 +69,6 @@ async def _send_quota_notification(username: str, email: str, plan: str, limit: 
 
     from app.api.auth import _unsubscribe_url
     unsub_url = _unsubscribe_url(username)
-    sender = settings.SMTP_FROM or settings.SMTP_USER
     subject = f"Tageskontingent aufgebraucht — Neural Trading OS"
     html = f"""
 <!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">
@@ -93,26 +90,8 @@ async def _send_quota_notification(username: str, email: str, plan: str, limit: 
 </body></html>"""
     text = f"Hallo {username},\ndein Tageskontingent von {limit} Signalen ({plan}) ist aufgebraucht.\nUpgrade: {settings.FRONTEND_URL}/billing?plan={upgrade_plan}"
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = sender
-        msg["To"] = email
-        msg["List-Unsubscribe"] = f"<{unsub_url}>"
-        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [email], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
-    except Exception as exc:
-        logger.warning("quota_notification_failed for %s: %s", username, exc)
+    if not await send_mail(email, subject, text, html, unsub_url):
+        logger.warning("quota_notification_failed for %s", username)
 
 
 async def _send_quota_telegram_nudge(username: str, plan: str, limit: int) -> None:
@@ -182,7 +161,6 @@ async def _send_quota_approaching_notification(username: str, email: str, plan: 
 
     from app.api.auth import _unsubscribe_url
     unsub_url = _unsubscribe_url(username)
-    sender = settings.SMTP_FROM or settings.SMTP_USER
     subject = f"Nur noch {remaining} Signal{'e' if remaining != 1 else ''} verfügbar — Neural Trading OS"
     html = f"""
 <!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">
@@ -209,26 +187,8 @@ async def _send_quota_approaching_notification(username: str, email: str, plan: 
         f"Upgrade: {settings.FRONTEND_URL}/billing?plan={upgrade_plan}"
     )
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = sender
-        msg["To"] = email
-        msg["List-Unsubscribe"] = f"<{unsub_url}>"
-        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [email], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
-    except Exception as exc:
-        logger.warning("quota_approaching_notification_failed for %s: %s", username, exc)
+    if not await send_mail(email, subject, text, html, unsub_url):
+        logger.warning("quota_approaching_notification_failed for %s", username)
 
 
 async def _check_signal_quota(user: Optional[UserInfo]) -> None:

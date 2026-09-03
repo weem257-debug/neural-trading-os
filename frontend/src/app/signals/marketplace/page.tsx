@@ -15,7 +15,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import Link from "next/link";
-import type { TradingSignal } from "@/types";
+import type { TradingSignal, DirectionFilter } from "@/types";
 
 interface PerfData {
   avg_return: number;
@@ -31,8 +31,6 @@ interface TrendingTicker {
   avg_confidence: number;
   trending: boolean;
 }
-
-type DirectionFilter = "ALL" | "BUY" | "SELL" | "HOLD";
 
 const DIRECTION_COLOR: Record<string, string> = {
   BUY: "#3FB950",

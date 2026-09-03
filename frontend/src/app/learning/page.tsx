@@ -300,10 +300,10 @@ function AddVideoPanel({ onAdded }: { onAdded: () => void }) {
 // Page
 // ---------------------------------------------------------------------------
 
-type Tab = "overview" | "youtube" | "trades" | "jobs" | "kontext" | "signal-quality";
+type LearningTab = "overview" | "youtube" | "trades" | "jobs" | "kontext" | "signal-quality";
 
 export default function LearningPage() {
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<LearningTab>("overview");
   const [stats, setStats] = useState<LearningStats | null>(null);
   const [insights, setInsights] = useState<YoutubeInsight[]>([]);
   const [learnings, setLearnings] = useState<TradeLearning[]>([]);
@@ -341,7 +341,7 @@ export default function LearningPage() {
     }
   };
 
-  const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
+  const TABS: { key: LearningTab; label: string; icon: React.ElementType }[] = [
     { key: "overview", label: "Übersicht", icon: Brain },
     { key: "youtube", label: "YouTube Insights", icon: Youtube },
     { key: "trades", label: "Trade-Lernkurve", icon: BarChart2 },

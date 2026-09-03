@@ -3,14 +3,8 @@ import { notFound } from "next/navigation";
 import { TrendingUp, TrendingDown, Minus, ArrowRight, Zap, ExternalLink, Clock } from "lucide-react";
 import Link from "next/link";
 import { ShareButtons } from "./ShareButtons";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.BACKEND_URL ??
-  "http://localhost:8000";
-
-const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ?? "https://neuraltrading.io";
+import { SERVER_API_BASE as API_BASE } from "@/lib/serverApi";
+import { SITE_URL as APP_URL } from "@/lib/constants";
 
 type SignalDirection = "BUY" | "STRONG_BUY" | "SELL" | "STRONG_SELL" | "HOLD";
 

@@ -34,7 +34,7 @@ const SHIMMER_STYLE = `
 }
 `;
 
-function ShimmerStyleTag() {
+export function ShimmerStyleTag() {
   return <style dangerouslySetInnerHTML={{ __html: SHIMMER_STYLE }} />;
 }
 

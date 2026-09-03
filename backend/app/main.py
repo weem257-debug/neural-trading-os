@@ -35,7 +35,7 @@ from app.core.config import (
     stripe_webhook_secret_missing,
 )
 from app.core.rate_limits import limiter
-from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing, telegram, settings as settings_routes, brokers, admin, report, legal
+from app.api.routes import health, signals, portfolio, sentiment, backtest, execution, risk, alerts, webhooks, analysis, waitlist, portfolio_mgmt, p2p, fints_routes, learning, billing, telegram, settings as settings_routes, brokers, admin, report, legal, hkcm
 from app.api import auth
 from app.websocket.manager import ws_manager
 
@@ -327,9 +327,7 @@ async def _send_signal_win_email(user_id: str, ticker: str, direction: str, entr
         from app.core.config import settings as _s
         from app.api.auth import _is_unsubscribed, _unsubscribe_url
         from sqlalchemy import select
-        import smtplib
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
+        from app.core.email import send_mail
 
         if _is_unsubscribed(user_id):
             return
@@ -357,7 +355,6 @@ async def _send_signal_win_email(user_id: str, ticker: str, direction: str, entr
             )
 
         unsub_url = _unsubscribe_url(user_id)
-        sender = _s.SMTP_FROM or _s.SMTP_USER
         html = (
             f'<!DOCTYPE html><html lang="de"><head><meta charset="utf-8"></head>'
             f'<body style="margin:0;padding:0;background:#080b14;font-family:\'Segoe UI\',Arial,sans-serif;color:#E2E8F0">'
@@ -381,26 +378,38 @@ async def _send_signal_win_email(user_id: str, ticker: str, direction: str, entr
         )
         text = f"Dein Signal {ticker} ({dir_label}) hat gewonnen: {pct_str}\nNächstes Signal: {_s.FRONTEND_URL}/signals"
 
-        def _send_sync() -> None:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = f"🎯 {ticker} {pct_str} — Dein KI-Signal hat gewonnen!"
-            msg["From"] = sender
-            msg["To"] = user.email
-            msg["List-Unsubscribe"] = f"<{unsub_url}>"
-            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            msg.attach(MIMEText(text, "plain", "utf-8"))
-            msg.attach(MIMEText(html, "html", "utf-8"))
-            with smtplib.SMTP(_s.SMTP_HOST, _s.SMTP_PORT) as srv:
-                if _s.SMTP_HOST != "localhost":
-                    srv.starttls()
-                if _s.SMTP_USER:
-                    srv.login(_s.SMTP_USER, _s.SMTP_PASSWORD or "")
-                srv.sendmail(sender, [user.email], msg.as_string())
-
-        await asyncio.to_thread(_send_sync)
+        await send_mail(
+            user.email,
+            f"🎯 {ticker} {pct_str} — Dein KI-Signal hat gewonnen!",
+            text,
+            html,
+            unsub_url,
+        )
         logger.info("signal_win_email_sent", user_id=user_id, ticker=ticker, return_pct=return_pct)
     except Exception as e:
         logger.debug("signal_win_email_failed", user_id=user_id, reason=str(e))
+
+
+async def _sleep_until_utc(hour: int, minute: int = 0, *, on_sleep=None) -> None:
+    """
+    Sleep until the next occurrence of ``hour:minute`` UTC (today if that
+    time hasn't passed yet, otherwise tomorrow). Shared by the daily/weekly
+    background-job scheduling loops below.
+
+    ``on_sleep``, if given, is called with the computed sleep duration in
+    seconds right before sleeping — used by loops that log how long they're
+    about to sleep for.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    next_run = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if next_run <= now:
+        next_run += timedelta(days=1)
+    sleep_secs = (next_run - now).total_seconds()
+    if on_sleep is not None:
+        on_sleep(sleep_secs)
+    await asyncio.sleep(sleep_secs)
 
 
 async def _signal_performance_loop() -> None:
@@ -527,16 +536,7 @@ async def _signal_performance_loop() -> None:
             logger.error("signal_performance_loop_error", reason=str(loop_err))
 
 
-_SIGNAL_WATCHLIST = [
-    # US Tech (core)
-    "AAPL", "NVDA", "MSFT", "TSLA", "META", "AMD",
-    # US Tech (extended)
-    "GOOGL", "AMZN",
-    # Crypto (high relevance in DE market)
-    "BTC-USD", "ETH-USD",
-    # ETFs / Indices
-    "SPY", "QQQ",
-]
+from app.core.watchlists import SIGNAL_WATCHLIST as _SIGNAL_WATCHLIST
 
 
 async def _daily_signal_loop() -> None:
@@ -546,17 +546,10 @@ async def _daily_signal_loop() -> None:
     Only runs if ANTHROPIC_API_KEY is configured.
     """
     import os
-    from datetime import datetime, timedelta, timezone
     from app.core.config import settings
 
     while True:
-        now = datetime.now(timezone.utc)
-        next_run = now.replace(hour=15, minute=0, second=0, microsecond=0)
-        if next_run <= now:
-            next_run += timedelta(days=1)
-        sleep_secs = (next_run - now).total_seconds()
-        logger.info("daily_signal_loop_sleeping", seconds=int(sleep_secs))
-        await asyncio.sleep(sleep_secs)
+        await _sleep_until_utc(15, 0, on_sleep=lambda s: logger.info("daily_signal_loop_sleeping", seconds=int(s)))
 
         if not settings.ANTHROPIC_API_KEY or settings.ANTHROPIC_API_KEY.startswith("your-"):
             logger.info("daily_signal_skipped_no_api_key")
@@ -620,16 +613,8 @@ async def _telegram_morning_briefing_loop() -> None:
     Background task: send personalized morning briefing via Telegram at 07:30 UTC daily.
     Calls send_morning_briefings() which uses the same logic as the /briefing command.
     """
-    from datetime import datetime, timedelta, timezone
-
     while True:
-        now = datetime.now(timezone.utc)
-        next_run = now.replace(hour=7, minute=30, second=0, microsecond=0)
-        if next_run <= now:
-            next_run += timedelta(days=1)
-        sleep_secs = (next_run - now).total_seconds()
-        logger.info("telegram_morning_briefing_sleeping seconds=%d", int(sleep_secs))
-        await asyncio.sleep(sleep_secs)
+        await _sleep_until_utc(7, 30, on_sleep=lambda s: logger.info("telegram_morning_briefing_sleeping seconds=%d", int(s)))
         try:
             from app.api.routes.telegram import send_morning_briefings
             await send_morning_briefings()
@@ -643,16 +628,9 @@ async def _p2p_snapshot_loop() -> None:
     Skips if no credentials are configured (demo data would just duplicate).
     """
     import os
-    from datetime import datetime, timedelta, timezone
 
     while True:
-        now = datetime.now(timezone.utc)
-        next_run = now.replace(hour=2, minute=0, second=0, microsecond=0)
-        if next_run <= now:
-            next_run += timedelta(days=1)
-        sleep_secs = (next_run - now).total_seconds()
-        logger.info("p2p_snapshot_loop_sleeping", seconds=int(sleep_secs))
-        await asyncio.sleep(sleep_secs)
+        await _sleep_until_utc(2, 0, on_sleep=lambda s: logger.info("p2p_snapshot_loop_sleeping", seconds=int(s)))
 
         has_credentials = any([
             os.getenv("MINTOS_API_KEY", ""),
@@ -767,13 +745,8 @@ async def _price_stream_loop() -> None:
 
 async def _auto_upgrade_nudge_loop() -> None:
     """Sends upgrade-nudge emails daily at 17:00 UTC to free/basic users active today."""
-    from datetime import datetime, timedelta, timezone
     while True:
-        now = datetime.now(timezone.utc)
-        next_run = now.replace(hour=17, minute=0, second=0, microsecond=0)
-        if next_run <= now:
-            next_run += timedelta(days=1)
-        await asyncio.sleep((next_run - now).total_seconds())
+        await _sleep_until_utc(17, 0)
         try:
             from app.api.routes.admin import run_bulk_upgrade_emails_job
             sent, skipped, failed = await run_bulk_upgrade_emails_job()
@@ -784,13 +757,8 @@ async def _auto_upgrade_nudge_loop() -> None:
 
 async def _auto_reengagement_loop() -> None:
     """Sends re-engagement emails daily at 09:00 UTC to inactive free/basic users."""
-    from datetime import datetime, timedelta, timezone
     while True:
-        now = datetime.now(timezone.utc)
-        next_run = now.replace(hour=9, minute=0, second=0, microsecond=0)
-        if next_run <= now:
-            next_run += timedelta(days=1)
-        await asyncio.sleep((next_run - now).total_seconds())
+        await _sleep_until_utc(9, 0)
         try:
             from app.api.routes.admin import run_bulk_reengagement_emails_job
             sent, skipped, failed = await run_bulk_reengagement_emails_job()
@@ -801,13 +769,8 @@ async def _auto_reengagement_loop() -> None:
 
 async def _auto_activation_followup_loop() -> None:
     """Daily at 10:00 UTC: send activation follow-up to users registered 24-48h ago without first signal."""
-    from datetime import datetime, timedelta, timezone
     while True:
-        now = datetime.now(timezone.utc)
-        next_run = now.replace(hour=10, minute=0, second=0, microsecond=0)
-        if next_run <= now:
-            next_run += timedelta(days=1)
-        await asyncio.sleep((next_run - now).total_seconds())
+        await _sleep_until_utc(10, 0)
         try:
             from app.api.routes.admin import run_activation_followup_job
             sent, skipped, failed = await run_activation_followup_job()
@@ -833,6 +796,24 @@ async def _auto_weekly_digest_loop() -> None:
             logger.info("auto_weekly_digest_done sent=%d skipped=%d failed=%d", sent, skipped, failed)
         except Exception as exc:
             logger.error("auto_weekly_digest_loop_error reason=%s", exc)
+
+
+async def _cancel_tasks(*tasks) -> None:
+    """
+    Cancel each background task and await it to completion, swallowing the
+    resulting ``asyncio.CancelledError``. ``None`` entries are skipped (an
+    optional task — e.g. Kronos warmup — that was never created). Tasks are
+    cancelled and awaited one at a time, in the given order, mirroring the
+    shutdown sequence this replaces.
+    """
+    for task in tasks:
+        if task is None:
+            continue
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -1038,84 +1019,21 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown cleanup
-    risk_monitor_task.cancel()
-    try:
-        await risk_monitor_task
-    except asyncio.CancelledError:
-        pass
-
-    price_stream_task.cancel()
-    try:
-        await price_stream_task
-    except asyncio.CancelledError:
-        pass
-
-    alert_task.cancel()
-    try:
-        await alert_task
-    except asyncio.CancelledError:
-        pass
-
-    signal_perf_task.cancel()
-    try:
-        await signal_perf_task
-    except asyncio.CancelledError:
-        pass
-
-    p2p_snapshot_task.cancel()
-    try:
-        await p2p_snapshot_task
-    except asyncio.CancelledError:
-        pass
-
-    daily_signal_task.cancel()
-    try:
-        await daily_signal_task
-    except asyncio.CancelledError:
-        pass
-
-    morning_briefing_task.cancel()
-    try:
-        await morning_briefing_task
-    except asyncio.CancelledError:
-        pass
-
-    auto_upgrade_task.cancel()
-    try:
-        await auto_upgrade_task
-    except asyncio.CancelledError:
-        pass
-
-    auto_reengagement_task.cancel()
-    try:
-        await auto_reengagement_task
-    except asyncio.CancelledError:
-        pass
-
-    auto_weekly_digest_task.cancel()
-    try:
-        await auto_weekly_digest_task
-    except asyncio.CancelledError:
-        pass
-
-    auto_activation_task.cancel()
-    try:
-        await auto_activation_task
-    except asyncio.CancelledError:
-        pass
-
-    scanner_task.cancel()
-    try:
-        await scanner_task
-    except asyncio.CancelledError:
-        pass
-
-    if kronos_warmup_task is not None:
-        kronos_warmup_task.cancel()
-        try:
-            await kronos_warmup_task
-        except asyncio.CancelledError:
-            pass
+    await _cancel_tasks(
+        risk_monitor_task,
+        price_stream_task,
+        alert_task,
+        signal_perf_task,
+        p2p_snapshot_task,
+        daily_signal_task,
+        morning_briefing_task,
+        auto_upgrade_task,
+        auto_reengagement_task,
+        auto_weekly_digest_task,
+        auto_activation_task,
+        scanner_task,
+        kronos_warmup_task,
+    )
 
     from app.services.learning.scheduler import stop_scheduler
     stop_scheduler(learning_scheduler)
@@ -1235,6 +1153,7 @@ app.include_router(brokers.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(report.router, prefix="/api")
 app.include_router(legal.router, prefix="/api")
+app.include_router(hkcm.router, prefix="/api")
 
 
 # ---------------------------------------------------------------------------

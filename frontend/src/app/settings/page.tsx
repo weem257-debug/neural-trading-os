@@ -11,7 +11,7 @@ import {
 import { GlassCard, SectionLabel } from "@/components/ui/GlassCard";
 import { api, API_BASE } from "@/lib/api";
 import { getPasswordStrength } from "@/lib/passwordStrength";
-import type { PriceAlertRecord, WebhookRecord, RepoPathEntry, ApiMetricsResponse } from "@/types";
+import type { PriceAlertRecord, WebhookRecord, RepoPathEntry, ApiMetricsResponse, AlertCondition } from "@/types";
 
 const WEBHOOK_EVENT_OPTIONS = [
   { value: "signal.generated", label: "Signal generiert" },
@@ -19,8 +19,6 @@ const WEBHOOK_EVENT_OPTIONS = [
   { value: "order.filled",     label: "Order ausgeführt" },
   { value: "risk.alert",       label: "Risikoalarm" },
 ];
-
-type AlertCondition = PriceAlertRecord["condition"];
 
 // ---------------------------------------------------------------------------
 // Price Alerts Section Component

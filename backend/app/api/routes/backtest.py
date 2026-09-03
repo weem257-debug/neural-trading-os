@@ -105,17 +105,14 @@ async def _run_backtest_task(job_id: str, req: BacktestRequest) -> None:
         _jobs[job_id]["finished_at"] = datetime.now(UTC).isoformat()
 
 
-async def _vibe_trading_backtest(req: BacktestRequest) -> BacktestResult:
+def _load_ohlcv(req: BacktestRequest, min_bars: int):
     """
-    RSI Mean-Reversion strategy — inspired by Vibe-Trading's factor library.
-    Buy on RSI oversold (<30), sell on RSI overbought (>70).
-    Falls back to stub only when yfinance/pandas are unavailable.
+    Shared yfinance download path for the vibe_trading/qlib stub engines.
+
+    Returns a pandas Series of daily close prices on success, or a stub
+    ``BacktestResult`` (see ``app.services.jesse.client._stub_result``) that
+    the caller should return immediately when data isn't available.
     """
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _run_rsi_reversion_sync, req)
-
-
-def _run_rsi_reversion_sync(req: BacktestRequest) -> BacktestResult:
     try:
         import pandas as pd
         import yfinance as yf
@@ -123,13 +120,7 @@ def _run_rsi_reversion_sync(req: BacktestRequest) -> BacktestResult:
         from app.services.jesse.client import _stub_result
         return _stub_result(req, reason=f"missing_dependency: {exc}")
 
-    rsi_period: int = int(req.params.get("rsi_period", 14))
-    oversold: float   = float(req.params.get("oversold",  30.0))
-    overbought: float = float(req.params.get("overbought", 70.0))
-    fee: float        = float(req.params.get("fee", 0.001))
-
     yf_sym = req.ticker.upper().replace("-USDT", "-USD")
-    logger.info("Vibe-Trading RSI-Reversion: %s | %s→%s | rsi=%d", yf_sym, req.start_date, req.end_date, rsi_period)
 
     try:
         df = yf.download(yf_sym, start=req.start_date, end=req.end_date, progress=False, auto_adjust=True)
@@ -145,9 +136,94 @@ def _run_rsi_reversion_sync(req: BacktestRequest) -> BacktestResult:
         df.columns = [col[0] for col in df.columns]
 
     close = df["Close"].dropna()
-    if len(close) < rsi_period + 10:
+    if len(close) < min_bars:
         from app.services.jesse.client import _stub_result
         return _stub_result(req, reason="insufficient_data")
+
+    return close
+
+
+def _finalize(
+    req: BacktestRequest,
+    capital: float,
+    trades: list[dict],
+    equity_curve: list[dict],
+    *,
+    strategy_name: str,
+    engine: str,
+    log_label: str,
+    yf_sym: str,
+) -> BacktestResult:
+    """
+    Shared equity/Sharpe/max-drawdown/result-building tail for the
+    vibe_trading/qlib stub engines.
+    """
+    import pandas as pd
+
+    sell_trades  = [t for t in trades if "SELL" in t["side"] and "pnl_pct" in t]
+    total_return = (capital - req.initial_capital) / req.initial_capital * 100
+    win_rate     = len([t for t in sell_trades if t["pnl_pct"] > 0]) / max(len(sell_trades), 1)
+    n_days       = max((pd.to_datetime(req.end_date) - pd.to_datetime(req.start_date)).days, 1)
+    ann_return   = ((capital / req.initial_capital) ** (365 / n_days) - 1) * 100
+
+    max_dd = 0.0
+    peak = req.initial_capital
+    for pt in equity_curve:
+        peak   = max(peak, pt["value"])
+        max_dd = max(max_dd, (peak - pt["value"]) / peak if peak > 0 else 0.0)
+
+    sharpe = 0.0
+    try:
+        if len(equity_curve) > 5:
+            import numpy as np
+            vals = pd.Series([p["value"] for p in equity_curve]).pct_change().dropna()
+            if vals.std() > 0:
+                sharpe = round(float((vals.mean() / vals.std()) * (252 ** 0.5)), 3)
+    except Exception:
+        pass
+
+    logger.info("%s done: %s | return=%.1f%% | trades=%d", log_label, yf_sym, total_return, len(sell_trades))
+    return BacktestResult(
+        strategy_name=strategy_name,
+        ticker=req.ticker,
+        start_date=req.start_date,
+        end_date=req.end_date,
+        engine=engine,
+        initial_capital=req.initial_capital,
+        final_capital=round(capital, 2),
+        total_return_pct=round(total_return, 3),
+        annualized_return_pct=round(ann_return, 3),
+        max_drawdown_pct=round(max_dd * 100, 3),
+        sharpe_ratio=sharpe,
+        win_rate=round(win_rate, 4),
+        total_trades=len(sell_trades),
+        equity_curve=equity_curve,
+        trades=trades,
+    )
+
+
+async def _vibe_trading_backtest(req: BacktestRequest) -> BacktestResult:
+    """
+    RSI Mean-Reversion strategy — inspired by Vibe-Trading's factor library.
+    Buy on RSI oversold (<30), sell on RSI overbought (>70).
+    Falls back to stub only when yfinance/pandas are unavailable.
+    """
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _run_rsi_reversion_sync, req)
+
+
+def _run_rsi_reversion_sync(req: BacktestRequest) -> BacktestResult:
+    rsi_period: int = int(req.params.get("rsi_period", 14))
+    oversold: float   = float(req.params.get("oversold",  30.0))
+    overbought: float = float(req.params.get("overbought", 70.0))
+    fee: float        = float(req.params.get("fee", 0.001))
+
+    yf_sym = req.ticker.upper().replace("-USDT", "-USD")
+    logger.info("Vibe-Trading RSI-Reversion: %s | %s→%s | rsi=%d", yf_sym, req.start_date, req.end_date, rsi_period)
+
+    close = _load_ohlcv(req, min_bars=rsi_period + 10)
+    if isinstance(close, BacktestResult):
+        return close
 
     # RSI calculation
     delta = close.diff()
@@ -191,45 +267,12 @@ def _run_rsi_reversion_sync(req: BacktestRequest) -> BacktestResult:
         trades.append({"date": str(close.index[-1])[:10], "side": "SELL[close]", "price": round(last_price, 4), "pnl_pct": round(pnl_pct * 100, 3)})
         equity_curve.append({"date": str(close.index[-1])[:10], "value": round(capital, 2)})
 
-    sell_trades  = [t for t in trades if "SELL" in t["side"] and "pnl_pct" in t]
-    total_return = (capital - req.initial_capital) / req.initial_capital * 100
-    win_rate     = len([t for t in sell_trades if t["pnl_pct"] > 0]) / max(len(sell_trades), 1)
-    n_days       = max((pd.to_datetime(req.end_date) - pd.to_datetime(req.start_date)).days, 1)
-    ann_return   = ((capital / req.initial_capital) ** (365 / n_days) - 1) * 100
-
-    max_dd = 0.0
-    peak = req.initial_capital
-    for pt in equity_curve:
-        peak   = max(peak, pt["value"])
-        max_dd = max(max_dd, (peak - pt["value"]) / peak if peak > 0 else 0.0)
-
-    sharpe = 0.0
-    try:
-        if len(equity_curve) > 5:
-            import numpy as np
-            vals = pd.Series([p["value"] for p in equity_curve]).pct_change().dropna()
-            if vals.std() > 0:
-                sharpe = round(float((vals.mean() / vals.std()) * (252 ** 0.5)), 3)
-    except Exception:
-        pass
-
-    logger.info("Vibe-Trading RSI-Reversion done: %s | return=%.1f%% | trades=%d", yf_sym, total_return, len(sell_trades))
-    return BacktestResult(
+    return _finalize(
+        req, capital, trades, equity_curve,
         strategy_name=f"RSI-Reversion({rsi_period})",
-        ticker=req.ticker,
-        start_date=req.start_date,
-        end_date=req.end_date,
         engine="vibe_trading",
-        initial_capital=req.initial_capital,
-        final_capital=round(capital, 2),
-        total_return_pct=round(total_return, 3),
-        annualized_return_pct=round(ann_return, 3),
-        max_drawdown_pct=round(max_dd * 100, 3),
-        sharpe_ratio=sharpe,
-        win_rate=round(win_rate, 4),
-        total_trades=len(sell_trades),
-        equity_curve=equity_curve,
-        trades=trades,
+        log_label="Vibe-Trading RSI-Reversion",
+        yf_sym=yf_sym,
     )
 
 
@@ -245,13 +288,6 @@ async def _qlib_backtest(req: BacktestRequest) -> BacktestResult:
 
 
 def _run_dual_momentum_sync(req: BacktestRequest) -> BacktestResult:
-    try:
-        import pandas as pd
-        import yfinance as yf
-    except ImportError as exc:
-        from app.services.jesse.client import _stub_result
-        return _stub_result(req, reason=f"missing_dependency: {exc}")
-
     short_w: int = int(req.params.get("short_window", 20))
     long_w:  int = int(req.params.get("long_window",  60))
     fee:     float = float(req.params.get("fee", 0.001))
@@ -259,23 +295,9 @@ def _run_dual_momentum_sync(req: BacktestRequest) -> BacktestResult:
     yf_sym = req.ticker.upper().replace("-USDT", "-USD")
     logger.info("qlib Dual-Momentum: %s | %s→%s | short=%d long=%d", yf_sym, req.start_date, req.end_date, short_w, long_w)
 
-    try:
-        df = yf.download(yf_sym, start=req.start_date, end=req.end_date, progress=False, auto_adjust=True)
-    except Exception as exc:
-        from app.services.jesse.client import _stub_result
-        return _stub_result(req, reason=f"yfinance_error: {exc}")
-
-    if df is None or df.empty:
-        from app.services.jesse.client import _stub_result
-        return _stub_result(req, reason=f"no_price_data_for_{yf_sym}")
-
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [col[0] for col in df.columns]
-
-    close = df["Close"].dropna()
-    if len(close) < long_w + 10:
-        from app.services.jesse.client import _stub_result
-        return _stub_result(req, reason="insufficient_data")
+    close = _load_ohlcv(req, min_bars=long_w + 10)
+    if isinstance(close, BacktestResult):
+        return close
 
     # Momentum: price / price[n days ago] - 1
     mom_short = close / close.shift(short_w) - 1
@@ -319,45 +341,12 @@ def _run_dual_momentum_sync(req: BacktestRequest) -> BacktestResult:
         trades.append({"date": str(close.index[-1])[:10], "side": "SELL[close]", "price": round(last_price, 4), "pnl_pct": round(pnl_pct * 100, 3)})
         equity_curve.append({"date": str(close.index[-1])[:10], "value": round(capital, 2)})
 
-    sell_trades  = [t for t in trades if "SELL" in t["side"] and "pnl_pct" in t]
-    total_return = (capital - req.initial_capital) / req.initial_capital * 100
-    win_rate     = len([t for t in sell_trades if t["pnl_pct"] > 0]) / max(len(sell_trades), 1)
-    n_days       = max((pd.to_datetime(req.end_date) - pd.to_datetime(req.start_date)).days, 1)
-    ann_return   = ((capital / req.initial_capital) ** (365 / n_days) - 1) * 100
-
-    max_dd = 0.0
-    peak = req.initial_capital
-    for pt in equity_curve:
-        peak   = max(peak, pt["value"])
-        max_dd = max(max_dd, (peak - pt["value"]) / peak if peak > 0 else 0.0)
-
-    sharpe = 0.0
-    try:
-        if len(equity_curve) > 5:
-            import numpy as np
-            vals = pd.Series([p["value"] for p in equity_curve]).pct_change().dropna()
-            if vals.std() > 0:
-                sharpe = round(float((vals.mean() / vals.std()) * (252 ** 0.5)), 3)
-    except Exception:
-        pass
-
-    logger.info("qlib Dual-Momentum done: %s | return=%.1f%% | trades=%d", yf_sym, total_return, len(sell_trades))
-    return BacktestResult(
+    return _finalize(
+        req, capital, trades, equity_curve,
         strategy_name=f"Dual-Momentum({short_w}/{long_w})",
-        ticker=req.ticker,
-        start_date=req.start_date,
-        end_date=req.end_date,
         engine="qlib",
-        initial_capital=req.initial_capital,
-        final_capital=round(capital, 2),
-        total_return_pct=round(total_return, 3),
-        annualized_return_pct=round(ann_return, 3),
-        max_drawdown_pct=round(max_dd * 100, 3),
-        sharpe_ratio=sharpe,
-        win_rate=round(win_rate, 4),
-        total_trades=len(sell_trades),
-        equity_curve=equity_curve,
-        trades=trades,
+        log_label="qlib Dual-Momentum",
+        yf_sym=yf_sym,
     )
 
 

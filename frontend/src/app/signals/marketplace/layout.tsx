@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-
-const SITE_URL =
-  process.env.NEXT_PUBLIC_APP_URL ?? "https://neuraltrading.io";
+import { SITE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Signal-Marktplatz — Neural Trading OS",

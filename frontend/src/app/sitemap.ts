@@ -1,9 +1,5 @@
 import type { MetadataRoute } from "next";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.BACKEND_URL ??
-  "http://localhost:8000";
+import { SERVER_API_BASE as API_BASE } from "@/lib/serverApi";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.NEXT_PUBLIC_APP_URL ?? "https://neuraltrading.io";

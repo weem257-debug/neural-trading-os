@@ -568,3 +568,109 @@ class RefreshToken(Base):
         DateTime(timezone=True), nullable=True, default=None
     )
     replaced_by: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, default=None)
+
+
+class HkcmIssue(Base):
+    """
+    One ingested HKCM newsletter mail ("Tägliches Aktien-Update", "Sonderbericht").
+
+    `content_hash` is the SHA-256 of the parsed body WITHOUT the boilerplate
+    footer, so re-importing the same mail — whether it arrives twice, is fetched
+    again by the mailbox poller, or is uploaded by hand — is idempotent even
+    when the Message-ID differs (Outlook rewrites it on forward).
+    """
+
+    __tablename__ = "hkcm_issues"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    owner_username: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    message_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    category: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None, index=True
+    )
+    news: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    upcoming: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+
+class HkcmAnalysis(Base):
+    """
+    One instrument's analysis out of an HKCM issue.
+
+    `sent_at` is denormalised from the issue so "the newest analysis for ticker
+    X" is a single indexed query instead of a join plus sort. List-valued fields
+    (support/resistance levels, target zones, chart image URLs) are stored as
+    JSON text — they are read as a whole and never filtered on.
+    """
+
+    __tablename__ = "hkcm_analyses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    issue_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    owner_username: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    ticker: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    isin: Mapped[str] = mapped_column(String(12), nullable=False, default="")
+    name: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    headline: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+
+    entry: Mapped[Optional[float]] = mapped_column(_MONEY, nullable=True, default=None)
+    entry_kind: Mapped[str] = mapped_column(String(20), nullable=False, default="")
+    entry_potential: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    stop: Mapped[Optional[float]] = mapped_column(_MONEY, nullable=True, default=None)
+    stop_note: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    partial_exit: Mapped[Optional[float]] = mapped_column(_MONEY, nullable=True, default=None)
+    risk_note: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+
+    what_happened: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    primary_scenario: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    alternative_scenario: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    alternative_probability: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=None)
+    outlook: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    opportunities: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    supports_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    resistances_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    target_zones_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    chart_urls_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    sent_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    # -- JSON accessors ----------------------------------------------------
+    @property
+    def supports(self) -> list[float]:
+        return _load_json_list(self.supports_json)
+
+    @property
+    def resistances(self) -> list[float]:
+        return _load_json_list(self.resistances_json)
+
+    @property
+    def target_zones(self) -> list[dict]:
+        return _load_json_list(self.target_zones_json)
+
+    @property
+    def chart_urls(self) -> list[str]:
+        return _load_json_list(self.chart_urls_json)
+
+
+def _load_json_list(raw: Optional[str]) -> list:
+    """Tolerant JSON-list read — a corrupted column yields [] instead of raising
+    in the middle of serialising an API response."""
+    if not raw:
+        return []
+    try:
+        value = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    return value if isinstance(value, list) else []

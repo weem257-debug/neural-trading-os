@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { api, API_BASE, getAuthToken } from "@/lib/api";
 import { useTradingStore } from "@/store/tradingStore";
-import type { TradingSignal, SignalPerformanceResponse } from "@/types";
+import type { TradingSignal, SignalPerformanceResponse, DirectionFilter } from "@/types";
 import {
   TrendingUp, TrendingDown, Minus, Loader2, Brain,
   ChevronDown, Clock, Target, AlertTriangle, Zap, Download, ScanSearch, X, CheckSquare, Square,
@@ -13,20 +13,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { GlassCard, SectionLabel, NeonBadge } from "@/components/ui/GlassCard";
+import { SITE_URL as APP_URL } from "@/lib/constants";
+import { dirConfig } from "@/lib/signalDisplay";
 import { ExplanationModal, InfoButton } from "@/components/ui/ExplanationModal";
 import type { ExplanationContent } from "@/components/ui/ExplanationModal";
 import CandlestickChart from "@/components/charts/CandlestickChart";
 import { notify } from "@/store/notificationStore";
 import { useAuthStore } from "@/store/authStore";
-
-/* ---- Direction config ---- */
-const dirConfig = {
-  STRONG_BUY:  { label: "Starker Kauf",    short: "S.BUY", color: "#3FB950", bg: "rgba(63,185,80,0.15)", border: "rgba(63,185,80,0.4)", glow: "rgba(63,185,80,0.3)" },
-  BUY:         { label: "Kaufen",          short: "BUY",   color: "#3FB950", bg: "rgba(63,185,80,0.08)", border: "rgba(63,185,80,0.2)", glow: "rgba(63,185,80,0.15)" },
-  HOLD:        { label: "Halten",          short: "HOLD",  color: "#D29922", bg: "rgba(210,153,34,0.08)", border: "rgba(210,153,34,0.25)", glow: "rgba(210,153,34,0.15)" },
-  SELL:        { label: "Verkaufen",       short: "SELL",  color: "#E5534B", bg: "rgba(229,83,75,0.08)", border: "rgba(229,83,75,0.2)", glow: "rgba(229,83,75,0.15)" },
-  STRONG_SELL: { label: "Starker Verkauf", short: "S.SELL",color: "#E5534B", bg: "rgba(229,83,75,0.15)", border: "rgba(229,83,75,0.4)", glow: "rgba(229,83,75,0.3)" },
-};
 
 /* ---- Agent consensus gauge ---- */
 const DIRECTION_SCORES: Record<string, number> = {
@@ -103,7 +96,6 @@ function SignalCard({ signal, index }: { signal: TradingSignal; index: number })
   const [executing, setExecuting] = useState(false);
   const [copied, setCopied] = useState(false);
   const cfg = dirConfig[signal.direction] ?? dirConfig.HOLD;
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://neuraltrading.io";
 
   function copySignalLink(e: React.MouseEvent) {
     e.stopPropagation();
@@ -366,8 +358,6 @@ function SignalCard({ signal, index }: { signal: TradingSignal; index: number })
     </motion.div>
   );
 }
-
-type DirectionFilter = "ALL" | "BUY" | "SELL" | "HOLD";
 
 /* ---- Compact history row (DB-persisted signals from previous sessions) ---- */
 function HistoryRow({ signal }: { signal: TradingSignal }) {

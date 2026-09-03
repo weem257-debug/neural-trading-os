@@ -79,8 +79,9 @@ structlog==24.4.0
 # For development and CI install the dev file, which pulls this one in via -r:
 #   pip install -r requirements-dev.txt
 #
-# lxml stays here: it is a RUNTIME transitive (yfinance parses HTML with it),
-# not a test dependency. It resolves on Linux/CI but not on the Windows dev box.
+# lxml stays here: it is a RUNTIME dependency — yfinance parses HTML with it,
+# and app/services/hkcm/parser.py flattens the HKCM newsletter HTML with it.
+# Not a test dependency. It resolves on Linux/CI but not on the Windows dev box.
 # 6.0.4 carries PYSEC-2026-87; pin the fixed line so pip-audit stays green.
 lxml>=6.1.0
 

@@ -34,9 +34,6 @@ import hmac
 import logging
 import re
 import secrets
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 
 import json
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -47,6 +44,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import func, select, update
 
 from app.core.config import settings, demo_login_enabled, is_hardened_environment, jwt_key_is_secure
+from app.core.email import send_mail
 from app.core.rate_limits import limiter
 from app.db.database import get_session
 from app.db.models import User, SignalRecord, PriceAlertRecord, BankConnection, Portfolio, P2PSnapshot, TradeLearning
@@ -245,42 +243,25 @@ async def _send_reset_email(to: str, token: str, username: str) -> None:
         return
 
     reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
-    sender = settings.SMTP_FROM or settings.SMTP_USER
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Passwort zurücksetzen — Neural Trading OS"
-        msg["From"] = sender
-        msg["To"] = to
-
-        text = (
-            f"Hallo {username},\n\n"
-            f"Du hast eine Passwort-Zurücksetzung angefordert.\n\n"
-            f"Link: {reset_url}\n\n"
-            f"Der Link ist 1 Stunde gültig.\n\n"
-            f"Falls du diese Anfrage nicht gestellt hast, ignoriere diese E-Mail.\n\n"
-            f"Neural Trading OS"
-        )
-        html = (
-            f"<html><body>"
-            f"<p>Hallo <strong>{username}</strong>,</p>"
-            f"<p>Du hast eine Passwort-Zurücksetzung angefordert.</p>"
-            f"<p><a href='{reset_url}' style='background:#00D4FF;color:#000;padding:10px 20px;"
-            f"border-radius:6px;text-decoration:none;font-weight:bold;'>Passwort zurücksetzen</a></p>"
-            f"<p style='color:#666;font-size:12px;'>Der Link ist 1 Stunde gültig.</p>"
-            f"<p>Neural Trading OS</p></body></html>"
-        )
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [to], msg.as_string())
-
-    await asyncio.to_thread(_send_sync)
+    text = (
+        f"Hallo {username},\n\n"
+        f"Du hast eine Passwort-Zurücksetzung angefordert.\n\n"
+        f"Link: {reset_url}\n\n"
+        f"Der Link ist 1 Stunde gültig.\n\n"
+        f"Falls du diese Anfrage nicht gestellt hast, ignoriere diese E-Mail.\n\n"
+        f"Neural Trading OS"
+    )
+    html = (
+        f"<html><body>"
+        f"<p>Hallo <strong>{username}</strong>,</p>"
+        f"<p>Du hast eine Passwort-Zurücksetzung angefordert.</p>"
+        f"<p><a href='{reset_url}' style='background:#00D4FF;color:#000;padding:10px 20px;"
+        f"border-radius:6px;text-decoration:none;font-weight:bold;'>Passwort zurücksetzen</a></p>"
+        f"<p style='color:#666;font-size:12px;'>Der Link ist 1 Stunde gültig.</p>"
+        f"<p>Neural Trading OS</p></body></html>"
+    )
+    await send_mail(to, "Passwort zurücksetzen — Neural Trading OS", text, html)
 
 
 async def _send_welcome_email(to: str, username: str) -> None:
@@ -292,72 +273,51 @@ async def _send_welcome_email(to: str, username: str) -> None:
 
     dashboard_url = f"{settings.FRONTEND_URL}/dashboard"
     unsub_url = _unsubscribe_url(username)
-    sender = settings.SMTP_FROM or settings.SMTP_USER
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Willkommen bei Neural Trading OS 🚀"
-        msg["From"] = sender
-        msg["To"] = to
-        msg["List-Unsubscribe"] = f"<{unsub_url}>"
-        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-
-        text = (
-            f"Hallo {username},\n\n"
-            f"dein Konto wurde erfolgreich erstellt. Willkommen bei Neural Trading OS!\n\n"
-            f"Dein Free Plan enthält:\n"
-            f"  • 3 KI-Signale pro Tag\n"
-            f"  • Paper Trading (risikofreies Üben)\n"
-            f"  • Elliott-Wellen-Analyse\n"
-            f"  • Echtzeit-Risiko-Dashboard\n\n"
-            f"Jetzt loslegen: {dashboard_url}\n\n"
-            f"Für mehr Signale und Live-Trading: {settings.FRONTEND_URL}/pricing\n\n"
-            f"Viel Erfolg beim Trading!\n"
-            f"Neural Trading OS\n\n"
-            f"---\nE-Mails abbestellen: {unsub_url}"
-        )
-        html = (
-            f"<html><body style='font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px;'>"
-            f"<div style='max-width:560px;margin:0 auto;'>"
-            f"<h1 style='color:#00D4FF;font-size:24px;margin-bottom:8px;'>Neural Trading OS</h1>"
-            f"<p>Hallo <strong>{username}</strong>,</p>"
-            f"<p>dein Konto wurde erfolgreich erstellt. Willkommen bei Neural Trading OS!</p>"
-            f"<h3 style='color:#00D4FF;'>Dein Free Plan enthält:</h3>"
-            f"<ul style='color:#94a3b8;'>"
-            f"<li>3 KI-Signale pro Tag (Claude Sonnet 4.6)</li>"
-            f"<li>Paper Trading — risikofreies Üben</li>"
-            f"<li>Elliott-Wellen-Analyse</li>"
-            f"<li>Echtzeit-Risiko-Dashboard</li>"
-            f"</ul>"
-            f"<p style='margin-top:24px;'>"
-            f"<a href='{dashboard_url}' style='background:#00D4FF;color:#000;padding:12px 24px;"
-            f"border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;'>"
-            f"Jetzt zum Dashboard →</a></p>"
-            f"<p style='color:#64748b;font-size:12px;margin-top:24px;'>"
-            f"Für mehr Signale und Live-Trading: "
-            f"<a href='{settings.FRONTEND_URL}/pricing' style='color:#00D4FF;'>Pläne ansehen</a>"
-            f"</p>"
-            f"<p style='color:#475569;font-size:11px;margin-top:16px;border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;'>"
-            f"Neural Trading OS · "
-            f"<a href='{settings.FRONTEND_URL}/datenschutz' style='color:#475569;'>Datenschutz</a> · "
-            f"<a href='{unsub_url}' style='color:#475569;'>Abmelden</a>"
-            f"</p>"
-            f"</div></body></html>"
-        )
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [to], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
-    except Exception as exc:
-        _logger.warning("welcome_email_failed for %s: %s", username, exc)
+    text = (
+        f"Hallo {username},\n\n"
+        f"dein Konto wurde erfolgreich erstellt. Willkommen bei Neural Trading OS!\n\n"
+        f"Dein Free Plan enthält:\n"
+        f"  • 3 KI-Signale pro Tag\n"
+        f"  • Paper Trading (risikofreies Üben)\n"
+        f"  • Elliott-Wellen-Analyse\n"
+        f"  • Echtzeit-Risiko-Dashboard\n\n"
+        f"Jetzt loslegen: {dashboard_url}\n\n"
+        f"Für mehr Signale und Live-Trading: {settings.FRONTEND_URL}/pricing\n\n"
+        f"Viel Erfolg beim Trading!\n"
+        f"Neural Trading OS\n\n"
+        f"---\nE-Mails abbestellen: {unsub_url}"
+    )
+    html = (
+        f"<html><body style='font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px;'>"
+        f"<div style='max-width:560px;margin:0 auto;'>"
+        f"<h1 style='color:#00D4FF;font-size:24px;margin-bottom:8px;'>Neural Trading OS</h1>"
+        f"<p>Hallo <strong>{username}</strong>,</p>"
+        f"<p>dein Konto wurde erfolgreich erstellt. Willkommen bei Neural Trading OS!</p>"
+        f"<h3 style='color:#00D4FF;'>Dein Free Plan enthält:</h3>"
+        f"<ul style='color:#94a3b8;'>"
+        f"<li>3 KI-Signale pro Tag (Claude Sonnet 4.6)</li>"
+        f"<li>Paper Trading — risikofreies Üben</li>"
+        f"<li>Elliott-Wellen-Analyse</li>"
+        f"<li>Echtzeit-Risiko-Dashboard</li>"
+        f"</ul>"
+        f"<p style='margin-top:24px;'>"
+        f"<a href='{dashboard_url}' style='background:#00D4FF;color:#000;padding:12px 24px;"
+        f"border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;'>"
+        f"Jetzt zum Dashboard →</a></p>"
+        f"<p style='color:#64748b;font-size:12px;margin-top:24px;'>"
+        f"Für mehr Signale und Live-Trading: "
+        f"<a href='{settings.FRONTEND_URL}/pricing' style='color:#00D4FF;'>Pläne ansehen</a>"
+        f"</p>"
+        f"<p style='color:#475569;font-size:11px;margin-top:16px;border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;'>"
+        f"Neural Trading OS · "
+        f"<a href='{settings.FRONTEND_URL}/datenschutz' style='color:#475569;'>Datenschutz</a> · "
+        f"<a href='{unsub_url}' style='color:#475569;'>Abmelden</a>"
+        f"</p>"
+        f"</div></body></html>"
+    )
+    if not await send_mail(to, "Willkommen bei Neural Trading OS 🚀", text, html, unsub_url):
+        _logger.warning("welcome_email_failed for %s", username)
 
 
 async def _notify_admin_new_registration(new_username: str, new_email: Optional[str], referred_by: Optional[str] = None) -> None:
@@ -371,7 +331,6 @@ async def _notify_admin_new_registration(new_username: str, new_email: Optional[
         _logger.info("[DEV] Admin notification would go to %s for new user %s", admin_email, new_username)
         return
 
-    sender = settings.SMTP_FROM or settings.SMTP_USER
     admin_url = f"{settings.FRONTEND_URL}/admin"
     registered_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     ref_row_text = f"\nEmpfohlen von: {referred_by}" if referred_by else ""
@@ -380,49 +339,36 @@ async def _notify_admin_new_registration(new_username: str, new_email: Optional[
         f"<td style='color:#FFAA00;font-weight:bold'>{referred_by}</td></tr>"
     ) if referred_by else ""
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        subject = f"Neue Registrierung: {new_username} — Neural Trading OS"
-        if referred_by:
-            subject = f"🔗 Referral-Registrierung: {new_username} (via {referred_by}) — Neural Trading OS"
-        msg["Subject"] = subject
-        msg["From"] = sender
-        msg["To"] = admin_email
-        text = (
-            f"Neue Registrierung auf Neural Trading OS\n\n"
-            f"Benutzername: {new_username}\n"
-            f"E-Mail: {new_email or '—'}\n"
-            f"Plan: Free\n"
-            f"Registriert: {registered_at}"
-            f"{ref_row_text}\n\n"
-            f"Admin-Panel: {admin_url}"
-        )
-        html = (
-            f"<div style='font-family:Arial,sans-serif;max-width:480px;background:#0f1117;color:#e2e8f0;padding:24px;border-radius:12px'>"
-            f"<h2 style='color:#00D4FF;margin:0 0 16px'>&#128100; Neue Registrierung</h2>"
-            f"<table style='width:100%;border-collapse:collapse'>"
-            f"<tr><td style='color:#94a3b8;padding:4px 0'>Benutzername</td><td style='font-weight:bold'>{new_username}</td></tr>"
-            f"<tr><td style='color:#94a3b8;padding:4px 0'>E-Mail</td><td>{new_email or '—'}</td></tr>"
-            f"<tr><td style='color:#94a3b8;padding:4px 0'>Plan</td><td>Free</td></tr>"
-            f"<tr><td style='color:#94a3b8;padding:4px 0'>Registriert</td><td>{registered_at}</td></tr>"
-            f"{ref_row_html}"
-            f"</table>"
-            f"<a href='{admin_url}' style='display:inline-block;margin-top:16px;background:#7B2FFF;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold'>Admin-Panel öffnen</a>"
-            f"</div>"
-        )
-        msg.attach(MIMEText(text, "plain", "utf-8"))
-        msg.attach(MIMEText(html, "html", "utf-8"))
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER and settings.SMTP_PASSWORD:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            srv.sendmail(sender, [admin_email], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
-    except Exception as exc:
-        _logger.debug("admin_registration_notify_failed: %s", exc)
+    subject = f"Neue Registrierung: {new_username} — Neural Trading OS"
+    if referred_by:
+        subject = f"🔗 Referral-Registrierung: {new_username} (via {referred_by}) — Neural Trading OS"
+    text = (
+        f"Neue Registrierung auf Neural Trading OS\n\n"
+        f"Benutzername: {new_username}\n"
+        f"E-Mail: {new_email or '—'}\n"
+        f"Plan: Free\n"
+        f"Registriert: {registered_at}"
+        f"{ref_row_text}\n\n"
+        f"Admin-Panel: {admin_url}"
+    )
+    html = (
+        f"<div style='font-family:Arial,sans-serif;max-width:480px;background:#0f1117;color:#e2e8f0;padding:24px;border-radius:12px'>"
+        f"<h2 style='color:#00D4FF;margin:0 0 16px'>&#128100; Neue Registrierung</h2>"
+        f"<table style='width:100%;border-collapse:collapse'>"
+        f"<tr><td style='color:#94a3b8;padding:4px 0'>Benutzername</td><td style='font-weight:bold'>{new_username}</td></tr>"
+        f"<tr><td style='color:#94a3b8;padding:4px 0'>E-Mail</td><td>{new_email or '—'}</td></tr>"
+        f"<tr><td style='color:#94a3b8;padding:4px 0'>Plan</td><td>Free</td></tr>"
+        f"<tr><td style='color:#94a3b8;padding:4px 0'>Registriert</td><td>{registered_at}</td></tr>"
+        f"{ref_row_html}"
+        f"</table>"
+        f"<a href='{admin_url}' style='display:inline-block;margin-top:16px;background:#7B2FFF;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold'>Admin-Panel öffnen</a>"
+        f"</div>"
+    )
+    if not await send_mail(
+        admin_email, subject, text, html,
+        require_password_for_login=True, failure_log_level=logging.DEBUG,
+    ):
+        _logger.debug("admin_registration_notify_failed")
 
 
 async def _send_referral_notification_email(referrer_username: str, new_user_username: str) -> None:
@@ -456,58 +402,37 @@ async def _send_referral_notification_email(referrer_username: str, new_user_use
 
     unsub_url = _unsubscribe_url(referrer_username)
     signals_url = f"{settings.FRONTEND_URL}/signals"
-    sender = settings.SMTP_FROM or settings.SMTP_USER
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Jemand hat sich über deinen Link registriert!"
-        msg["From"] = sender
-        msg["To"] = referrer_email
-        msg["List-Unsubscribe"] = f"<{unsub_url}>"
-        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-
-        text = (
-            f"Hey {referrer_username},\n\n"
-            f"dein Referral-Link hat funktioniert! {new_user_username} hat sich gerade bei Neural Trading OS registriert.\n\n"
-            f"Teile deinen Link weiter und hilf anderen Tradern, KI-gestützte Signale zu entdecken.\n\n"
-            f"Jetzt Signale generieren: {signals_url}\n\n"
-            f"Viel Erfolg!\n"
-            f"Neural Trading OS\n\n"
-            f"---\nE-Mails abbestellen: {unsub_url}"
-        )
-        html = (
-            f"<html><body style='font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px;'>"
-            f"<div style='max-width:560px;margin:0 auto;'>"
-            f"<h1 style='color:#00D4FF;font-size:24px;margin-bottom:8px;'>Neural Trading OS</h1>"
-            f"<h2 style='color:#FFAA00;font-size:20px;'>&#127881; Dein Referral hat geklappt!</h2>"
-            f"<p>Hey <strong>{referrer_username}</strong>,</p>"
-            f"<p><strong style='color:#FFAA00;'>{new_user_username}</strong> hat sich gerade über deinen Referral-Link bei Neural Trading OS registriert.</p>"
-            f"<p style='color:#94a3b8;'>Teile deinen Link weiter und hilf anderen Tradern, KI-gestützte Signale zu entdecken.</p>"
-            f"<p style='margin-top:24px;'>"
-            f"<a href='{signals_url}' style='background:#00D4FF;color:#000;padding:12px 24px;"
-            f"border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;'>"
-            f"Signale generieren →</a></p>"
-            f"<p style='color:#475569;font-size:11px;margin-top:24px;border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;'>"
-            f"Neural Trading OS · "
-            f"<a href='{settings.FRONTEND_URL}/datenschutz' style='color:#475569;'>Datenschutz</a> · "
-            f"<a href='{unsub_url}' style='color:#475569;'>Abmelden</a>"
-            f"</p>"
-            f"</div></body></html>"
-        )
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [referrer_email], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
-    except Exception as exc:
-        _logger.warning("referral_notification_failed for %s: %s", referrer_username, exc)
+    text = (
+        f"Hey {referrer_username},\n\n"
+        f"dein Referral-Link hat funktioniert! {new_user_username} hat sich gerade bei Neural Trading OS registriert.\n\n"
+        f"Teile deinen Link weiter und hilf anderen Tradern, KI-gestützte Signale zu entdecken.\n\n"
+        f"Jetzt Signale generieren: {signals_url}\n\n"
+        f"Viel Erfolg!\n"
+        f"Neural Trading OS\n\n"
+        f"---\nE-Mails abbestellen: {unsub_url}"
+    )
+    html = (
+        f"<html><body style='font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px;'>"
+        f"<div style='max-width:560px;margin:0 auto;'>"
+        f"<h1 style='color:#00D4FF;font-size:24px;margin-bottom:8px;'>Neural Trading OS</h1>"
+        f"<h2 style='color:#FFAA00;font-size:20px;'>&#127881; Dein Referral hat geklappt!</h2>"
+        f"<p>Hey <strong>{referrer_username}</strong>,</p>"
+        f"<p><strong style='color:#FFAA00;'>{new_user_username}</strong> hat sich gerade über deinen Referral-Link bei Neural Trading OS registriert.</p>"
+        f"<p style='color:#94a3b8;'>Teile deinen Link weiter und hilf anderen Tradern, KI-gestützte Signale zu entdecken.</p>"
+        f"<p style='margin-top:24px;'>"
+        f"<a href='{signals_url}' style='background:#00D4FF;color:#000;padding:12px 24px;"
+        f"border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;'>"
+        f"Signale generieren →</a></p>"
+        f"<p style='color:#475569;font-size:11px;margin-top:24px;border-top:1px solid rgba(255,255,255,0.06);padding-top:12px;'>"
+        f"Neural Trading OS · "
+        f"<a href='{settings.FRONTEND_URL}/datenschutz' style='color:#475569;'>Datenschutz</a> · "
+        f"<a href='{unsub_url}' style='color:#475569;'>Abmelden</a>"
+        f"</p>"
+        f"</div></body></html>"
+    )
+    if not await send_mail(referrer_email, "Jemand hat sich über deinen Link registriert!", text, html, unsub_url):
+        _logger.warning("referral_notification_failed for %s", referrer_username)
 
 
 async def _send_password_changed_email(to: str, username: str) -> None:
@@ -516,49 +441,35 @@ async def _send_password_changed_email(to: str, username: str) -> None:
         _logger.info("[DEV] Password-change security alert would be sent to %s (%s)", username, to)
         return
 
-    sender = settings.SMTP_FROM or settings.SMTP_USER
     changed_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     support_url = f"{settings.FRONTEND_URL}/forgot-password"
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Dein Passwort wurde geändert — Neural Trading OS"
-        msg["From"] = sender
-        msg["To"] = to
-        text = (
-            f"Hallo {username},\n\n"
-            f"dein Passwort wurde am {changed_at} erfolgreich geändert.\n\n"
-            f"Falls du diese Änderung NICHT vorgenommen hast, setze dein Passwort sofort zurück:\n"
-            f"{support_url}\n\n"
-            f"Neural Trading OS"
-        )
-        html = (
-            f"<div style='font-family:Arial,sans-serif;max-width:480px;background:#0f1117;color:#e2e8f0;padding:24px;border-radius:12px'>"
-            f"<h2 style='color:#00D4FF;margin:0 0 16px'>&#128274; Passwort geändert</h2>"
-            f"<p>Hallo <strong>{username}</strong>,</p>"
-            f"<p>dein Passwort wurde am <strong>{changed_at}</strong> erfolgreich geändert.</p>"
-            f"<div style='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:12px;margin:16px 0'>"
-            f"<p style='margin:0;color:#fca5a5'>&#9888;&#65039; Falls du diese Änderung <strong>nicht</strong> vorgenommen hast, "
-            f"setze dein Passwort sofort zurück.</p>"
-            f"</div>"
-            f"<a href='{support_url}' style='display:inline-block;background:#ef4444;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold'>"
-            f"Passwort zurücksetzen</a>"
-            f"<p style='font-size:11px;color:#64748b;margin-top:24px'>Neural Trading OS · Sicherheitsbenachrichtigung</p>"
-            f"</div>"
-        )
-        msg.attach(MIMEText(text, "plain", "utf-8"))
-        msg.attach(MIMEText(html, "html", "utf-8"))
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER and settings.SMTP_PASSWORD:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            srv.sendmail(sender, [to], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
-    except Exception as exc:
-        _logger.debug("password_changed_email_failed: %s", exc)
+    text = (
+        f"Hallo {username},\n\n"
+        f"dein Passwort wurde am {changed_at} erfolgreich geändert.\n\n"
+        f"Falls du diese Änderung NICHT vorgenommen hast, setze dein Passwort sofort zurück:\n"
+        f"{support_url}\n\n"
+        f"Neural Trading OS"
+    )
+    html = (
+        f"<div style='font-family:Arial,sans-serif;max-width:480px;background:#0f1117;color:#e2e8f0;padding:24px;border-radius:12px'>"
+        f"<h2 style='color:#00D4FF;margin:0 0 16px'>&#128274; Passwort geändert</h2>"
+        f"<p>Hallo <strong>{username}</strong>,</p>"
+        f"<p>dein Passwort wurde am <strong>{changed_at}</strong> erfolgreich geändert.</p>"
+        f"<div style='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:12px;margin:16px 0'>"
+        f"<p style='margin:0;color:#fca5a5'>&#9888;&#65039; Falls du diese Änderung <strong>nicht</strong> vorgenommen hast, "
+        f"setze dein Passwort sofort zurück.</p>"
+        f"</div>"
+        f"<a href='{support_url}' style='display:inline-block;background:#ef4444;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:bold'>"
+        f"Passwort zurücksetzen</a>"
+        f"<p style='font-size:11px;color:#64748b;margin-top:24px'>Neural Trading OS · Sicherheitsbenachrichtigung</p>"
+        f"</div>"
+    )
+    if not await send_mail(
+        to, "Dein Passwort wurde geändert — Neural Trading OS", text, html,
+        require_password_for_login=True, failure_log_level=logging.DEBUG,
+    ):
+        _logger.debug("password_changed_email_failed")
 
 
 # ---------------------------------------------------------------------------

@@ -127,10 +127,3 @@ export class TradingWebSocket {
     }
   }
 }
-
-// Pre-built channel sockets for convenience
-export const createSignalsSocket = () => new TradingWebSocket("signals");
-export const createPortfolioSocket = () => new TradingWebSocket("portfolio");
-export const createAlertsSocket = () => new TradingWebSocket("alerts");
-export const createPricesSocket = () => new TradingWebSocket("prices");
-export const createAllSocket = () => new TradingWebSocket("all");

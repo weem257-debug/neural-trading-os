@@ -41,6 +41,10 @@ import type {
   BacktestResult,
   ElliottWaveAnalysis,
   StockReport,
+  HkcmAnalysis,
+  HkcmIssue,
+  HkcmIssueListResponse,
+  HkcmImportResponse,
 } from "@/types";
 
 // ---------------------------------------------------------------------------
@@ -490,6 +494,54 @@ export const api = {
     /** Kuratierte Markt-Kategorien (US-Aktien, DAX, Indizes, Krypto, Forex, Rohstoffe). */
     markets: () =>
       apiFetch<MarketsResponse>("/api/analysis/markets"),
+  },
+
+  // -------------------------------------------------------------------------
+  // HKCM newsletter — parsed analyses from the daily HKCM mail
+  // -------------------------------------------------------------------------
+  hkcm: {
+    /** Newest imported issue with all of its analyses. 404 until the first import. */
+    latest: () => apiFetch<HkcmIssue>("/api/hkcm/latest"),
+    issues: (limit = 20, offset = 0) =>
+      apiFetch<HkcmIssueListResponse>(`/api/hkcm/issues?limit=${limit}&offset=${offset}`),
+    issue: (id: number) => apiFetch<HkcmIssue>(`/api/hkcm/issues/${id}`),
+    /** Every instrument HKCM has covered — drives the "HKCM" badge in the UI. */
+    tickers: () => apiFetch<string[]>("/api/hkcm/tickers"),
+    /** Newest analysis for one instrument. Throws on 404 when HKCM never covered it. */
+    forTicker: (ticker: string) =>
+      apiFetch<HkcmAnalysis>(`/api/hkcm/ticker/${encodeURIComponent(ticker)}`),
+    /**
+     * Upload one newsletter mail (.eml export or saved .html).
+     *
+     * Uses a raw fetch rather than apiFetch: the browser must set the
+     * multipart Content-Type itself so the boundary matches the body, which
+     * apiFetch's fixed `application/json` header would break.
+     */
+    importMail: (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const token = getAuthToken();
+      const csrf = getCsrfToken();
+      return fetch(`${API_BASE}/api/hkcm/import`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(csrf ? { "X-CSRF-Token": csrf } : {}),
+        },
+        body: form,
+      }).then(async (res) => {
+        if (!res.ok) {
+          let detail = `HTTP ${res.status}`;
+          try {
+            const err = await res.json();
+            detail = String(err.detail ?? err.error ?? detail);
+          } catch {}
+          throw new Error(detail);
+        }
+        return res.json() as Promise<HkcmImportResponse>;
+      });
+    },
   },
 
   // -------------------------------------------------------------------------

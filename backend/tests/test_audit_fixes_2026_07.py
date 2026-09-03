@@ -11,12 +11,9 @@ Covers, one block per finding:
   P1-5  webhook delivery re-validates URL (DNS-rebinding TOCTOU)
   P2-9  CSV formula-injection neutralisation + learning batch cap
 """
-import os
-import tempfile
-import uuid
-
 import pytest
-from fastapi.testclient import TestClient
+
+from tests.helpers import admin_headers as _admin_auth, trader_headers as _trader_headers_raw
 
 
 # ---------------------------------------------------------------------------
@@ -24,21 +21,8 @@ from fastapi.testclient import TestClient
 # ---------------------------------------------------------------------------
 
 @pytest.fixture(scope="module")
-def app_module():
-    db_fd, db_path = tempfile.mkstemp(suffix=".db", prefix="test_audit_")
-    os.close(db_fd)
-    os.environ["TRADING_DB_PATH"] = db_path
-    os.environ.pop("DATABASE_URL", None)
-
-    from app.main import app
-    app.state.limiter.enabled = False
-    with TestClient(app, raise_server_exceptions=False) as c:
-        yield c
-    app.state.limiter.enabled = True
-    try:
-        os.remove(db_path)
-    except OSError:
-        pass
+def db_prefix() -> str:
+    return "test_audit_"
 
 
 @pytest.fixture
@@ -48,35 +32,8 @@ def client(app_module):
     app_module.cookies.clear()
 
 
-def _admin_auth(client) -> dict:
-    resp = client.post(
-        "/api/auth/token",
-        data={"username": "admin", "password": "neural123"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert resp.status_code == 200, resp.text
-    token = resp.json()["access_token"]
-    client.cookies.clear()
-    return {"Authorization": f"Bearer {token}"}
-
-
 def _trader_auth(client) -> tuple[dict, str]:
-    uname = f"aud_{uuid.uuid4().hex[:10]}"
-    reg = client.post("/api/auth/register", json={
-        "username": uname,
-        "email": f"{uname}@example.com",
-        "password": "Password1!",
-        "gdpr_consent": True,
-    })
-    assert reg.status_code in (200, 201), reg.text
-    tok = client.post(
-        "/api/auth/token",
-        data={"username": uname, "password": "Password1!"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert tok.status_code == 200, tok.text
-    client.cookies.clear()
-    return {"Authorization": f"Bearer {tok.json()['access_token']}"}, uname
+    return _trader_headers_raw(client, "aud_")
 
 
 # ---------------------------------------------------------------------------

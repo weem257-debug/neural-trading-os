@@ -24,6 +24,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { formatEur as fmt } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,13 +39,6 @@ interface P2PSummary {
   total_invested: number;
   cash_balance: number;
   total_interest: number;
-}
-
-interface BankConnection {
-  id: number;
-  bank_name: string;
-  last_balance: number | null;
-  currency: string;
 }
 
 interface AssetBlock {
@@ -80,9 +74,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     ),
   ]);
 }
-
-const fmt = (n: number, currency = "EUR") =>
-  new Intl.NumberFormat("de-DE", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
 
 function pct(n: number, sign = true) {
   const s = sign && n > 0 ? "+" : "";

@@ -536,6 +536,13 @@ export interface PriceAlertRecord {
   fired_price?: number;
 }
 
+export type AlertCondition = PriceAlertRecord["condition"];
+
+// ---------------------------------------------------------------------------
+// Signal direction filters
+// ---------------------------------------------------------------------------
+export type DirectionFilter = "ALL" | "BUY" | "SELL" | "HOLD";
+
 // ---------------------------------------------------------------------------
 // WebSocket events
 // ---------------------------------------------------------------------------
@@ -562,4 +569,76 @@ export interface HealthResponse {
   uptime_seconds?: number | null;
   repos?: Record<string, boolean> | null;
   environment?: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// HKCM newsletter (/api/hkcm)
+// ---------------------------------------------------------------------------
+
+/** A coloured price band HKCM draws into its charts. */
+export interface HkcmTargetZone {
+  color: "gruen" | "rot" | "blau" | string;
+  label: string;
+  low: number | null;
+  high: number | null;
+}
+
+/** One instrument's analysis out of a newsletter issue. */
+export interface HkcmAnalysis {
+  id: number;
+  ticker: string;
+  isin: string;
+  name: string;
+  headline: string;
+  entry: number | null;
+  entry_kind: string;
+  entry_potential: boolean;
+  stop: number | null;
+  stop_note: string;
+  partial_exit: number | null;
+  risk_note: string;
+  what_happened: string;
+  primary_scenario: string;
+  alternative_scenario: string;
+  alternative_probability: number | null;
+  outlook: string;
+  opportunities: string;
+  supports: number[];
+  resistances: number[];
+  target_zones: HkcmTargetZone[];
+  chart_urls: string[];
+  position: number;
+  sent_at: string | null;
+  issue_id: number;
+  category: string;
+}
+
+export interface HkcmIssue {
+  id: number;
+  subject: string;
+  category: string;
+  sent_at: string | null;
+  news: string;
+  upcoming: string;
+  analyses: HkcmAnalysis[];
+}
+
+export interface HkcmIssueSummary {
+  id: number;
+  subject: string;
+  category: string;
+  sent_at: string | null;
+  tickers: string[];
+}
+
+export interface HkcmIssueListResponse {
+  issues: HkcmIssueSummary[];
+  total: number;
+}
+
+export interface HkcmImportResponse {
+  imported: boolean;
+  issue_id: number;
+  analyses: number;
+  tickers: string[];
 }

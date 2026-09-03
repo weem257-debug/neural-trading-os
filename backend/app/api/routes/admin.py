@@ -4,21 +4,20 @@ Admin API — User Management
 Endpoints for listing users and updating their tier / active status.
 All endpoints require role=admin (demo user "admin" qualifies).
 """
-import asyncio
 import logging
-import smtplib
 from datetime import datetime, UTC, date as _date, timedelta
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import select, func, case
 
-from app.api.auth import get_current_user, UserInfo, _is_unsubscribed, _unsubscribe_url
+from app.api.auth import UserInfo, _is_unsubscribed, _unsubscribe_url
+from app.api.deps import require_admin
 from app.core.config import settings
+from app.core.email import send_mail
 from app.core.rate_limits import limiter
+from app.core.watchlists import SIGNAL_WATCHLIST as _ADMIN_SIGNAL_WATCHLIST
 from app.db.database import get_session
 from app.db.models import User, SignalRecord, WaitlistEntry, SignalPerformance
 
@@ -42,13 +41,7 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 VALID_TIERS = {"free", "basic", "pro", "institutional"}
 
 
-def _require_admin(current_user: UserInfo = Depends(get_current_user)) -> UserInfo:
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Zugriff verweigert — Admin-Rolle erforderlich",
-        )
-    return current_user
+_require_admin = require_admin()
 
 
 class UserRecord(BaseModel):
@@ -348,7 +341,6 @@ async def send_upgrade_email(
         _upgrade_email_sent.add(key)
         return SendUpgradeEmailResponse(sent=True, message=f"[DEV] E-Mail simuliert (kein SMTP konfiguriert)")
 
-    sender = settings.SMTP_FROM or settings.SMTP_USER
     subject = "Dein Trading-Setup kann mehr — Neural Trading OS"
     html = f"""<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">
 <div style="max-width:480px;margin:0 auto">
@@ -381,28 +373,11 @@ async def send_upgrade_email(
         f"E-Mails abbestellen: {unsub_url}"
     )
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = sender
-        msg["To"] = user.email
-        msg["List-Unsubscribe"] = f"<{unsub_url}>"
-        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [user.email], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
+    if await send_mail(user.email, subject, text, html, unsub_url):
         _upgrade_email_sent.add(key)
         return SendUpgradeEmailResponse(sent=True, message=f"E-Mail an {user.email} gesendet")
-    except Exception as exc:
-        logger.warning("upgrade_email_failed for %s: %s", username, exc)
+    else:
+        logger.warning("upgrade_email_failed for %s", username)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="E-Mail konnte nicht gesendet werden")
 
 
@@ -437,7 +412,6 @@ async def send_reengagement_email(
         _reengagement_sent.add(key)
         return SendUpgradeEmailResponse(sent=True, message="[DEV] E-Mail simuliert (kein SMTP konfiguriert)")
 
-    sender = settings.SMTP_FROM or settings.SMTP_USER
     subject = "Deine KI-Signale warten — Neural Trading OS"
     html = (
         f'<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">'
@@ -468,28 +442,11 @@ async def send_reengagement_email(
         f"E-Mails abbestellen: {unsub_url}"
     )
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = sender
-        msg["To"] = user.email
-        msg["List-Unsubscribe"] = f"<{unsub_url}>"
-        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [user.email], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
+    if await send_mail(user.email, subject, text, html, unsub_url):
         _reengagement_sent.add(key)
         return SendUpgradeEmailResponse(sent=True, message=f"Re-Engagement-E-Mail an {user.email} gesendet")
-    except Exception as exc:
-        logger.warning("reengagement_email_failed for %s: %s", username, exc)
+    else:
+        logger.warning("reengagement_email_failed for %s", username)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="E-Mail konnte nicht gesendet werden")
 
 
@@ -541,7 +498,6 @@ async def bulk_send_upgrade_emails(request: Request, _: UserInfo = Depends(_requ
             sent += 1
             continue
 
-        sender = settings.SMTP_FROM or settings.SMTP_USER
         subject = "Dein Trading-Setup kann mehr — Neural Trading OS"
         html = (
             f'<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">'
@@ -567,28 +523,11 @@ async def bulk_send_upgrade_emails(request: Request, _: UserInfo = Depends(_requ
             f"E-Mails abbestellen: {unsub_url}"
         )
 
-        def _send(u=user, h=html, t=text, s=sender, un=unsub_url) -> None:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = s
-            msg["To"] = u.email
-            msg["List-Unsubscribe"] = f"<{un}>"
-            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            msg.attach(MIMEText(t, "plain"))
-            msg.attach(MIMEText(h, "html"))
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-                if settings.SMTP_HOST != "localhost":
-                    srv.starttls()
-                if settings.SMTP_USER:
-                    srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-                srv.sendmail(s, [u.email], msg.as_string())
-
-        try:
-            await asyncio.to_thread(_send)
+        if await send_mail(user.email, subject, text, html, unsub_url):
             _upgrade_email_sent.add(key)
             sent += 1
-        except Exception as exc:
-            logger.warning("bulk_upgrade_email_failed for %s: %s", user.username, exc)
+        else:
+            logger.warning("bulk_upgrade_email_failed for %s", user.username)
             failed += 1
 
     skipped = len(candidates) - len(targets)
@@ -659,7 +598,6 @@ async def bulk_reengagement_emails(request: Request, _: UserInfo = Depends(_requ
             sent += 1
             continue
 
-        sender = settings.SMTP_FROM or settings.SMTP_USER
         subject = "Deine KI-Signale warten — Neural Trading OS"
         html = (
             f'<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">'
@@ -687,28 +625,11 @@ async def bulk_reengagement_emails(request: Request, _: UserInfo = Depends(_requ
             f"E-Mails abbestellen: {unsub_url}"
         )
 
-        def _send(u=user, h=html, t=text, s=sender, un=unsub_url) -> None:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = s
-            msg["To"] = u.email
-            msg["List-Unsubscribe"] = f"<{un}>"
-            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            msg.attach(MIMEText(t, "plain"))
-            msg.attach(MIMEText(h, "html"))
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-                if settings.SMTP_HOST != "localhost":
-                    srv.starttls()
-                if settings.SMTP_USER:
-                    srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-                srv.sendmail(s, [u.email], msg.as_string())
-
-        try:
-            await asyncio.to_thread(_send)
+        if await send_mail(user.email, subject, text, html, unsub_url):
             _reengagement_sent.add(key)
             sent += 1
-        except Exception as exc:
-            logger.warning("reengagement_email_failed for %s: %s", user.username, exc)
+        else:
+            logger.warning("reengagement_email_failed for %s", user.username)
             failed += 1
 
     skipped = len(candidates) - len(targets)
@@ -761,7 +682,6 @@ async def invite_waitlist(request: Request, _: UserInfo = Depends(_require_admin
             sent += 1
             continue
 
-        sender = settings.SMTP_FROM or settings.SMTP_USER
         subject = "Dein Zugang zu Neural Trading OS ist bereit 🚀"
         html = (
             f'<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">'
@@ -795,26 +715,11 @@ async def invite_waitlist(request: Request, _: UserInfo = Depends(_require_admin
             f"Du erhältst diese E-Mail, weil du dich auf der Warteliste eingetragen hast."
         )
 
-        def _send(e=entry, h=html, t=text, s=sender) -> None:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = s
-            msg["To"] = e.email
-            msg.attach(MIMEText(t, "plain"))
-            msg.attach(MIMEText(h, "html"))
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-                if settings.SMTP_HOST != "localhost":
-                    srv.starttls()
-                if settings.SMTP_USER:
-                    srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-                srv.sendmail(s, [e.email], msg.as_string())
-
-        try:
-            await asyncio.to_thread(_send)
+        if await send_mail(entry.email, subject, text, html):
             _waitlist_invited.add(key)
             sent += 1
-        except Exception as exc:
-            logger.warning("waitlist_invite_failed for %s: %s", entry.email, exc)
+        else:
+            logger.warning("waitlist_invite_failed for %s", entry.email)
             failed += 1
 
     return WaitlistInviteResponse(
@@ -950,7 +855,6 @@ async def send_weekly_digest(request: Request, _: UserInfo = Depends(_require_ad
             sent += 1
             continue
 
-        sender = settings.SMTP_FROM or settings.SMTP_USER
         subject = "Dein Wochenrückblick — Neural Trading OS"
         html = (
             f'<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">'
@@ -990,28 +894,11 @@ async def send_weekly_digest(request: Request, _: UserInfo = Depends(_require_ad
             f"E-Mails abbestellen: {unsub_url}"
         )
 
-        def _send(u=user, h=html, t=text, s=sender, un=unsub_url) -> None:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = s
-            msg["To"] = u.email
-            msg["List-Unsubscribe"] = f"<{un}>"
-            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            msg.attach(MIMEText(t, "plain"))
-            msg.attach(MIMEText(h, "html"))
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-                if settings.SMTP_HOST != "localhost":
-                    srv.starttls()
-                if settings.SMTP_USER:
-                    srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-                srv.sendmail(s, [u.email], msg.as_string())
-
-        try:
-            await asyncio.to_thread(_send)
+        if await send_mail(user.email, subject, text, html, unsub_url):
             _weekly_digest_sent.add(key)
             sent += 1
-        except Exception as exc:
-            logger.warning("weekly_digest_failed for %s: %s", user.username, exc)
+        else:
+            logger.warning("weekly_digest_failed for %s", user.username)
             failed += 1
 
     return WeeklyDigestResponse(
@@ -1038,12 +925,6 @@ async def trigger_morning_briefings(request: Request, _: UserInfo = Depends(_req
     except Exception as exc:
         logger.warning("trigger_morning_briefings_failed reason=%s", exc)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Fehler: {exc}")
-
-
-_ADMIN_SIGNAL_WATCHLIST = [
-    "AAPL", "NVDA", "MSFT", "TSLA", "META", "AMD",
-    "GOOGL", "AMZN", "BTC-USD", "ETH-USD", "SPY", "QQQ",
-]
 
 
 class TriggerJobResponse(BaseModel):
@@ -1109,7 +990,6 @@ async def test_smtp(
             smtp_configured=False,
         )
 
-    sender = settings.SMTP_FROM or settings.SMTP_USER
     html = (
         '<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">'
         '<div style="max-width:480px;margin:0 auto">'
@@ -1119,22 +999,14 @@ async def test_smtp(
         '</div></body></html>'
     )
 
-    def _send() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "SMTP Test — Neural Trading OS"
-        msg["From"] = sender
-        msg["To"] = to
-        msg.attach(MIMEText("SMTP Test — Neural Trading OS: Konfiguration erfolgreich.", "plain"))
-        msg.attach(MIMEText(html, "html"))
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [to], msg.as_string())
-
     try:
-        await asyncio.to_thread(_send)
+        await send_mail(
+            to,
+            "SMTP Test — Neural Trading OS",
+            "SMTP Test — Neural Trading OS: Konfiguration erfolgreich.",
+            html,
+            raise_on_error=True,
+        )
         logger.info("admin_smtp_test_sent to=%s", to)
         return SmtpTestResponse(
             sent=True,
@@ -1194,7 +1066,6 @@ async def run_bulk_upgrade_emails_job() -> tuple[int, int, int]:
             sent += 1
             continue
 
-        sender = settings.SMTP_FROM or settings.SMTP_USER
         subject = "Dein Trading-Setup kann mehr — Neural Trading OS"
         html = (
             f'<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">'
@@ -1220,28 +1091,11 @@ async def run_bulk_upgrade_emails_job() -> tuple[int, int, int]:
             f"E-Mails abbestellen: {unsub_url}"
         )
 
-        def _send_upgrade(u=user, h=html, t=text, s=sender, subj=subject, un=unsub_url) -> None:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subj
-            msg["From"] = s
-            msg["To"] = u.email
-            msg["List-Unsubscribe"] = f"<{un}>"
-            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            msg.attach(MIMEText(t, "plain"))
-            msg.attach(MIMEText(h, "html"))
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-                if settings.SMTP_HOST != "localhost":
-                    srv.starttls()
-                if settings.SMTP_USER:
-                    srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-                srv.sendmail(s, [u.email], msg.as_string())
-
-        try:
-            await asyncio.to_thread(_send_upgrade)
+        if await send_mail(user.email, subject, text, html, unsub_url):
             _upgrade_email_sent.add(key)
             sent += 1
-        except Exception as exc:
-            logger.warning("auto_upgrade_email_failed for %s: %s", user.username, exc)
+        else:
+            logger.warning("auto_upgrade_email_failed for %s", user.username)
             failed += 1
 
     return sent, len(candidates) - len(targets), failed
@@ -1288,7 +1142,6 @@ async def run_bulk_reengagement_emails_job() -> tuple[int, int, int]:
             sent += 1
             continue
 
-        sender = settings.SMTP_FROM or settings.SMTP_USER
         subject = "Deine KI-Signale warten — Neural Trading OS"
         html = (
             f'<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">'
@@ -1315,28 +1168,11 @@ async def run_bulk_reengagement_emails_job() -> tuple[int, int, int]:
             f"E-Mails abbestellen: {unsub_url}"
         )
 
-        def _send_reengagement(u=user, h=html, t=text, s=sender, subj=subject, un=unsub_url) -> None:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subj
-            msg["From"] = s
-            msg["To"] = u.email
-            msg["List-Unsubscribe"] = f"<{un}>"
-            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            msg.attach(MIMEText(t, "plain"))
-            msg.attach(MIMEText(h, "html"))
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-                if settings.SMTP_HOST != "localhost":
-                    srv.starttls()
-                if settings.SMTP_USER:
-                    srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-                srv.sendmail(s, [u.email], msg.as_string())
-
-        try:
-            await asyncio.to_thread(_send_reengagement)
+        if await send_mail(user.email, subject, text, html, unsub_url):
             _reengagement_sent.add(key)
             sent += 1
-        except Exception as exc:
-            logger.warning("auto_reengagement_email_failed for %s: %s", user.username, exc)
+        else:
+            logger.warning("auto_reengagement_email_failed for %s", user.username)
             failed += 1
 
     return sent, len(candidates) - len(targets), failed
@@ -1440,7 +1276,6 @@ async def run_weekly_digest_job() -> tuple[int, int, int]:
             sent += 1
             continue
 
-        sender = settings.SMTP_FROM or settings.SMTP_USER
         subject = "Dein Wochenrückblick — Neural Trading OS"
         html = (
             f'<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">'
@@ -1480,28 +1315,11 @@ async def run_weekly_digest_job() -> tuple[int, int, int]:
             f"E-Mails abbestellen: {unsub_url}"
         )
 
-        def _send_digest(u=user, h=html, t=text, s=sender, subj=subject, un=unsub_url) -> None:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subj
-            msg["From"] = s
-            msg["To"] = u.email
-            msg["List-Unsubscribe"] = f"<{un}>"
-            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            msg.attach(MIMEText(t, "plain"))
-            msg.attach(MIMEText(h, "html"))
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-                if settings.SMTP_HOST != "localhost":
-                    srv.starttls()
-                if settings.SMTP_USER:
-                    srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-                srv.sendmail(s, [u.email], msg.as_string())
-
-        try:
-            await asyncio.to_thread(_send_digest)
+        if await send_mail(user.email, subject, text, html, unsub_url):
             _weekly_digest_sent.add(key)
             sent += 1
-        except Exception as exc:
-            logger.warning("auto_weekly_digest_failed for %s: %s", user.username, exc)
+        else:
+            logger.warning("auto_weekly_digest_failed for %s", user.username)
             failed += 1
 
     return sent, skipped, failed
@@ -1592,7 +1410,6 @@ async def run_daily_signal_email_notification_job(tickers: list[str]) -> tuple[i
             sent += 1
             continue
 
-        sender = settings.SMTP_FROM or settings.SMTP_USER
         subject = f"Neue KI-Signale: {', '.join(t for t, *_ in todays_signals[:3])} — Neural Trading OS"
         html = (
             f'<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">'
@@ -1625,28 +1442,11 @@ async def run_daily_signal_email_notification_job(tickers: list[str]) -> tuple[i
             f"E-Mails abbestellen: {unsub_url}"
         )
 
-        def _send_notif(u=user, h=html, t=text, s=sender, subj=subject, un=unsub_url) -> None:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subj
-            msg["From"] = s
-            msg["To"] = u.email
-            msg["List-Unsubscribe"] = f"<{un}>"
-            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            msg.attach(MIMEText(t, "plain"))
-            msg.attach(MIMEText(h, "html"))
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-                if settings.SMTP_HOST != "localhost":
-                    srv.starttls()
-                if settings.SMTP_USER:
-                    srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-                srv.sendmail(s, [u.email], msg.as_string())
-
-        try:
-            await asyncio.to_thread(_send_notif)
+        if await send_mail(user.email, subject, text, html, unsub_url):
             _daily_signal_notified.add(key)
             sent += 1
-        except Exception as exc:
-            logger.warning("daily_signal_notification_failed for %s: %s", user.username, exc)
+        else:
+            logger.warning("daily_signal_notification_failed for %s", user.username)
             failed += 1
 
     return sent, skipped, failed
@@ -1704,7 +1504,6 @@ async def run_activation_followup_job() -> tuple[int, int, int]:
             sent += 1
             continue
 
-        sender = settings.SMTP_FROM or settings.SMTP_USER
         subject = "Dein erstes KI-Signal wartet — Neural Trading OS"
         html = (
             f'<!DOCTYPE html><html><body style="font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px">'
@@ -1740,28 +1539,11 @@ async def run_activation_followup_job() -> tuple[int, int, int]:
             f"E-Mails abbestellen: {unsub_url}"
         )
 
-        def _send_activation(u=user, h=html, t=text, s=sender, subj=subject, un=unsub_url) -> None:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subj
-            msg["From"] = s
-            msg["To"] = u.email
-            msg["List-Unsubscribe"] = f"<{un}>"
-            msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            msg.attach(MIMEText(t, "plain"))
-            msg.attach(MIMEText(h, "html"))
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-                if settings.SMTP_HOST != "localhost":
-                    srv.starttls()
-                if settings.SMTP_USER:
-                    srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-                srv.sendmail(s, [u.email], msg.as_string())
-
-        try:
-            await asyncio.to_thread(_send_activation)
+        if await send_mail(user.email, subject, text, html, unsub_url):
             _activation_followup_sent.add(user.username)
             sent += 1
-        except Exception as exc:
-            logger.warning("activation_followup_failed for %s: %s", user.username, exc)
+        else:
+            logger.warning("activation_followup_failed for %s", user.username)
             failed += 1
 
     return sent, skipped, failed

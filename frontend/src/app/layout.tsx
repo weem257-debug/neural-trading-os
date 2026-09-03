@@ -12,9 +12,7 @@ import { PricesProvider } from "@/components/ui/PricesProvider";
 import { CookieConsent } from "@/components/ui/CookieConsent";
 import { OnboardingWizard } from "@/components/ui/OnboardingWizard";
 import { TokenRefresher } from "@/components/ui/TokenRefresher";
-
-const SITE_URL =
-  process.env.NEXT_PUBLIC_APP_URL ?? "https://neuraltrading.io";
+import { SITE_URL } from "@/lib/constants";
 
 // viewport-fit=cover enables env(safe-area-inset-*) on iOS notch/Dynamic Island devices.
 // Must be a separate export from metadata (Next.js 14+).
