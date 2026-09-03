@@ -25,6 +25,11 @@ interface TradingViewWidgetProps {
   height?: number | string;
   /** Minimum height in px, only applied when `height` is a CSS string. Defaults to 400. */
   minHeight?: number;
+  /**
+   * Applied to the outer sizing frame (the element that owns `height`), not
+   * to `.tradingview-widget-container` — the embed script rewrites that inner
+   * element's inline style, so anything meant to persist belongs on the frame.
+   */
   className?: string;
 }
 
@@ -77,11 +82,13 @@ function toTradingViewSymbol(ticker: string): string {
 }
 
 export function TradingViewWidget({ symbol, height = 420, minHeight = 400, className }: TradingViewWidgetProps) {
+  const frameRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const frame = frameRef.current;
     const container = containerRef.current;
-    if (!container || !symbol) return;
+    if (!frame || !container || !symbol) return;
 
     // React StrictMode (and any symbol switch) runs this effect as
     // mount → cleanup → mount. The TradingView embed loads its script
@@ -137,8 +144,8 @@ export function TradingViewWidget({ symbol, height = 420, minHeight = 400, class
       });
 
       container.appendChild(script);
-      currentWidth = container.clientWidth;
-      currentHeight = container.clientHeight;
+      currentWidth = frame.clientWidth;
+      currentHeight = frame.clientHeight;
     };
 
     // Defer to the next frame so StrictMode's throwaway pass is cancelled
@@ -156,16 +163,20 @@ export function TradingViewWidget({ symbol, height = 420, minHeight = 400, class
     // cancel each other, so the animation only triggers ONE final rebuild, and
     // the container height is CSS-fixed (never changed by the rebuild) so this
     // cannot loop.
+    // The observer watches the outer frame, whose size is CSS-fixed and never
+    // touched by the embed script — so the script's own style rewrite on the
+    // inner container can't be mistaken for a layout change and trigger a
+    // needless rebuild.
     const ro = new ResizeObserver(() => {
       if (disposed) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
+      const w = frame.clientWidth;
+      const h = frame.clientHeight;
       if (w > 0 && (Math.abs(w - currentWidth) > 24 || Math.abs(h - currentHeight) > 24)) {
         cancelAnimationFrame(rafId);
         rafId = requestAnimationFrame(buildWidget);
       }
     });
-    ro.observe(container);
+    ro.observe(frame);
 
     return () => {
       disposed = true;
@@ -177,15 +188,27 @@ export function TradingViewWidget({ symbol, height = 420, minHeight = 400, class
   }, [symbol]);
 
   return (
+    // The outer frame owns the size. TradingView's embed script rewrites the
+    // inline style of `.tradingview-widget-container` to `height: 100%` when
+    // `autosize` is on, so a height set directly on that element is lost and
+    // the iframe (also `height: 100%`) collapses to the 150px browser default.
+    // With the size one level up, the script's override is exactly right and
+    // the iframe fills the frame.
     <div
-      ref={containerRef}
-      className={`tradingview-widget-container ${className ?? ""}`}
+      ref={frameRef}
+      className={className}
       style={{
         height,
         minHeight: typeof height === "string" ? minHeight : undefined,
         width: "100%",
         minWidth: 0,
       }}
-    />
+    >
+      <div
+        ref={containerRef}
+        className="tradingview-widget-container"
+        style={{ height: "100%", width: "100%" }}
+      />
+    </div>
   );
 }

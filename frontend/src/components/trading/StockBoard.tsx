@@ -17,7 +17,7 @@
  * is only the fallback for symbols the socket isn't ticking.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowDown, ArrowUp, LayoutGrid, List, Plus, RefreshCw, X, Zap } from "lucide-react";
 import Link from "next/link";
@@ -115,17 +115,20 @@ function ViewToggle() {
 /* ------------------------------------------------------------------ */
 /* Card view                                                           */
 /* ------------------------------------------------------------------ */
-function StockCard({
-  entry,
-  active,
-  onSelect,
-  onRemove,
-}: {
+interface StockCardProps {
   entry: StockEntry;
   active: boolean;
   onSelect?: (ticker: string) => void;
   onRemove?: (ticker: string) => void;
-}) {
+}
+
+// forwardRef: `AnimatePresence mode="popLayout"` measures each child through a
+// ref to pop the exiting card out of the layout flow. A plain function
+// component swallows that ref and React warns on every render of the grid.
+const StockCard = forwardRef<HTMLDivElement, StockCardProps>(function StockCard(
+  { entry, active, onSelect, onRemove },
+  ref,
+) {
   const positive = (entry.change_pct ?? 0) >= 0;
   const tone: AccentTone = entry.change_pct === null ? "muted" : positive ? "positive" : "negative";
   const color = toneColor(tone);
@@ -133,6 +136,7 @@ function StockCard({
 
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
@@ -217,7 +221,7 @@ function StockCard({
       </div>
     </motion.div>
   );
-}
+});
 
 /* ------------------------------------------------------------------ */
 /* Table view                                                          */
