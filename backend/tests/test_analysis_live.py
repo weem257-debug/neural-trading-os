@@ -13,34 +13,18 @@ Run:
     cd dashboard/backend
     pytest tests/test_analysis_live.py -v
 """
-import os
-import tempfile
-import uuid
 from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
 import pytest
-from fastapi.testclient import TestClient
+
+from tests.helpers import admin_headers as _auth, trader_headers as _trader_headers_raw
 
 
 @pytest.fixture(scope="module")
-def app_module():
-    db_fd, db_path = tempfile.mkstemp(suffix=".db", prefix="test_analysis_live_")
-    os.close(db_fd)
-    os.environ["TRADING_DB_PATH"] = db_path
-    os.environ.pop("DATABASE_URL", None)
-
-    from app.main import app
-    app.state.limiter.enabled = False
-    with TestClient(app, raise_server_exceptions=False) as c:
-        yield c
-    app.state.limiter.enabled = True
-
-    try:
-        os.remove(db_path)
-    except OSError:
-        pass
+def db_prefix() -> str:
+    return "test_analysis_live_"
 
 
 @pytest.fixture
@@ -50,35 +34,9 @@ def client(app_module):
     app_module.cookies.clear()
 
 
-def _auth(client) -> dict:
-    resp = client.post(
-        "/api/auth/token",
-        data={"username": "admin", "password": "neural123"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert resp.status_code == 200, resp.text
-    token = resp.json()["access_token"]
-    client.cookies.clear()
-    return {"Authorization": f"Bearer {token}"}
-
-
 def _trader_auth(client) -> dict:
-    uname = f"trader_{uuid.uuid4().hex[:10]}"
-    reg = client.post("/api/auth/register", json={
-        "username": uname,
-        "email": f"{uname}@example.com",
-        "password": "Password1!",
-        "gdpr_consent": True,
-    })
-    assert reg.status_code in (200, 201), reg.text
-    tok = client.post(
-        "/api/auth/token",
-        data={"username": uname, "password": "Password1!"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert tok.status_code == 200, tok.text
-    client.cookies.clear()
-    return {"Authorization": f"Bearer {tok.json()['access_token']}"}
+    headers, _ = _trader_headers_raw(client, "trader_")
+    return headers
 
 
 def _make_history(days: int = 260, start: float = 150.0, trend: float = 0.15, seed: int = 42) -> pd.DataFrame:

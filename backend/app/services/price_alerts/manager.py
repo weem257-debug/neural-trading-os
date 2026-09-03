@@ -19,11 +19,8 @@ When an alert fires:
 """
 import asyncio
 import logging
-import smtplib
 import uuid
 from datetime import datetime, UTC
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Literal, Optional
 
 from sqlalchemy import select, delete
@@ -425,6 +422,7 @@ async def _send_price_alert_email(username: str, alert_dict: dict) -> None:
     try:
         from app.core.config import get_settings
         from app.api.auth import _is_unsubscribed
+        from app.core.email import send_mail
         settings = get_settings()
 
         if not settings.SMTP_HOST:
@@ -478,22 +476,19 @@ async def _send_price_alert_email(username: str, alert_dict: dict) -> None:
 
         text = f"Kursalarm: {ticker} {cond_label} {threshold} — Ausgelöst bei ${fired_price}\n\nDashboard: {app_url}/dashboard"
 
-        def _send() -> None:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = settings.SMTP_FROM or settings.SMTP_USER or "noreply@neural-trading.os"
-            msg["To"] = to_email
-            msg["List-Unsubscribe"] = f"<{unsub_url}>"
-            msg.attach(MIMEText(text, "plain", "utf-8"))
-            msg.attach(MIMEText(html, "html", "utf-8"))
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT or 587) as server:
-                server.starttls()
-                if settings.SMTP_USER and settings.SMTP_PASSWORD:
-                    server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-                server.sendmail(msg["From"], [to_email], msg.as_string())
-
-        await asyncio.to_thread(_send)
-        logger.info("price_alert_email_sent", extra={"username": username, "ticker": ticker})
+        if await send_mail(
+            to_email,
+            subject,
+            text,
+            html,
+            unsub_url,
+            sender_fallback="noreply@neural-trading.os",
+            smtp_port=settings.SMTP_PORT or 587,
+            always_starttls=True,
+            require_password_for_login=True,
+            list_unsubscribe_post=False,
+        ):
+            logger.info("price_alert_email_sent", extra={"username": username, "ticker": ticker})
     except Exception as e:
         logger.debug("price_alert_email_failed", extra={"reason": str(e)})
 

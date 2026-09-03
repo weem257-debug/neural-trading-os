@@ -10,7 +10,10 @@ Required env vars: PEERBERRY_EMAIL, PEERBERRY_PASSWORD
 """
 import os
 from datetime import datetime, UTC
+import functools
 from typing import Optional
+
+from app.core.numbers import safe_float
 
 import httpx
 
@@ -118,8 +121,4 @@ async def fetch_summary(email: Optional[str] = None, password: Optional[str] = N
         return _DEMO
 
 
-def _safe_float(v) -> Optional[float]:
-    try:
-        return float(v) if v is not None else None
-    except (TypeError, ValueError):
-        return None
+_safe_float = functools.partial(safe_float, default=None)

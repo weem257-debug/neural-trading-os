@@ -19,6 +19,8 @@ from typing import Any, Optional
 
 import numpy as np
 
+from app.core.numbers import finite_float
+
 logger = logging.getLogger(__name__)
 
 # Circuit-breaker thresholds
@@ -194,13 +196,7 @@ def compute_single_asset_risk(
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _sf(v: Any, default: float = 0.0) -> float:
-    """Safe float conversion — returns default on NaN/Inf/error."""
-    try:
-        f = float(v)
-        return f if math.isfinite(f) else default
-    except (TypeError, ValueError):
-        return default
+_sf = finite_float
 
 
 def _safe_default(reasons: list[str]) -> dict:

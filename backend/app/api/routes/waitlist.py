@@ -6,19 +6,18 @@ import hashlib
 import hmac
 import logging
 import re
-import smtplib
 from datetime import datetime, UTC
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select, delete
 from sqlalchemy.exc import IntegrityError
 
-from app.api.auth import UserInfo, get_current_user
+from app.api.auth import UserInfo
+from app.api.deps import require_admin
 from app.core.config import settings
+from app.core.email import send_mail
 from app.core.rate_limits import limiter
 from app.db.database import get_session
 from app.db.models import WaitlistEntry
@@ -53,7 +52,6 @@ async def _send_waitlist_welcome_email(to: str, position: int) -> None:
 
     register_url = f"{settings.FRONTEND_URL}/register"
     unsubscribe_url = _waitlist_unsub_url(to)
-    sender = settings.SMTP_FROM or settings.SMTP_USER
 
     html = f"""<!DOCTYPE html>
 <html lang="de">
@@ -108,26 +106,8 @@ async def _send_waitlist_welcome_email(to: str, position: int) -> None:
         f"Neural Trading OS\n"
     )
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Du bist auf der Liste — und kannst dich jetzt direkt registrieren"
-        msg["From"] = sender
-        msg["To"] = to
-        msg["List-Unsubscribe"] = f"<{unsubscribe_url}>"
-        msg["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-        msg.attach(MIMEText(text, "plain", "utf-8"))
-        msg.attach(MIMEText(html, "html", "utf-8"))
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [to], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
-    except Exception as exc:
-        _logger.warning("waitlist_welcome_email_failed to=%s reason=%s", to, exc)
+    if not await send_mail(to, "Du bist auf der Liste — und kannst dich jetzt direkt registrieren", text, html, unsubscribe_url):
+        _logger.warning("waitlist_welcome_email_failed to=%s", to)
 
 _EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
 
@@ -248,13 +228,8 @@ class WaitlistAdminResponse(BaseModel):
     status_code=200,
 )
 async def list_waitlist_admin(
-    _user: UserInfo = Depends(get_current_user),
+    _user: UserInfo = Depends(require_admin()),
 ) -> WaitlistAdminResponse:
-    if _user.role != "admin":
-        raise HTTPException(
-            status_code=403,
-            detail="Zugriff verweigert — Admin-Rolle erforderlich",
-        )
     async with get_session() as session:
         result = await session.execute(
             select(WaitlistEntry).order_by(WaitlistEntry.joined_at.desc())

@@ -14,10 +14,11 @@ import asyncio
 from datetime import datetime, UTC
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 
-from app.api.auth import get_current_user, UserInfo
+from app.api.auth import UserInfo
+from app.api.deps import require_admin
 from app.db.database import get_session
 from app.db.models import P2PSnapshot
 from app.services.p2p import mintos as mintos_svc
@@ -30,13 +31,7 @@ router = APIRouter(prefix="/p2p", tags=["P2P Lending"])
 # ---------------------------------------------------------------------------
 # Admin-only gate (P0-3/P0-4) — see app/api/routes/brokers.py for rationale.
 # ---------------------------------------------------------------------------
-def _require_p2p_admin(current_user: UserInfo = Depends(get_current_user)) -> UserInfo:
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Zugriff verweigert — Admin-Rolle erforderlich (P2P-Kontodaten)",
-        )
-    return current_user
+_require_p2p_admin = require_admin(" (P2P-Kontodaten)")
 
 
 # ---------------------------------------------------------------------------

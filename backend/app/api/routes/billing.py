@@ -13,10 +13,7 @@ Plans:
 import asyncio
 import json
 import logging
-import smtplib
 from datetime import datetime, UTC
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -26,6 +23,7 @@ from sqlalchemy import select
 
 from app.api.auth import UserInfo, get_current_user
 from app.core.config import settings
+from app.core.email import send_mail
 from app.core.plans import resolve_plan
 from app.db.database import get_session
 from app.db.models import BillingEvent, Subscription, User
@@ -98,58 +96,39 @@ async def _send_upgrade_email(to: str, username: str, plan: str) -> None:
     plan_name = meta["name"]
     dashboard_url = f"{settings.FRONTEND_URL}/dashboard"
     billing_url = f"{settings.FRONTEND_URL}/billing"
-    sender = getattr(settings, "SMTP_FROM", None) or settings.SMTP_USER
 
     features_html = "".join(f"<li style='margin-bottom:4px;'>{f}</li>" for f in features)
     features_text = "\n".join(f"  • {f}" for f in features)
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Dein {plan_name}-Plan ist aktiv — Neural Trading OS"
-        msg["From"] = sender
-        msg["To"] = to
-
-        text = (
-            f"Hallo {username},\n\n"
-            f"dein Upgrade auf den {plan_name}-Plan ist aktiv!\n\n"
-            f"Dein {plan_name}-Plan enthält:\n{features_text}\n\n"
-            f"Jetzt loslegen: {dashboard_url}\n\n"
-            f"Plan verwalten: {billing_url}\n\n"
-            f"Bei Fragen: weem257@gmail.com\n\n"
-            f"Neural Trading OS"
-        )
-        html = (
-            f"<html><body style='font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px;'>"
-            f"<div style='max-width:560px;margin:0 auto;'>"
-            f"<h1 style='color:#00D4FF;font-size:24px;margin-bottom:8px;'>Neural Trading OS</h1>"
-            f"<p>Hallo <strong>{username}</strong>,</p>"
-            f"<p>dein Upgrade auf den <strong style='color:#00FF88;'>{plan_name}-Plan</strong> ist aktiv! 🎉</p>"
-            f"<h3 style='color:#00D4FF;'>Dein {plan_name}-Plan enthält:</h3>"
-            f"<ul style='color:#94a3b8;'>{features_html}</ul>"
-            f"<p style='margin-top:24px;'>"
-            f"<a href='{dashboard_url}' style='background:#00D4FF;color:#000;padding:12px 24px;"
-            f"border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;'>"
-            f"Zum Dashboard →</a></p>"
-            f"<p style='color:#64748b;font-size:12px;margin-top:24px;'>"
-            f"Plan verwalten: <a href='{billing_url}' style='color:#00D4FF;'>Abrechnung</a> · "
-            f"Fragen: <a href='mailto:weem257@gmail.com' style='color:#00D4FF;'>weem257@gmail.com</a>"
-            f"</p>"
-            f"</div></body></html>"
-        )
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [to], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
-    except Exception as exc:
-        logger.warning("upgrade_email_failed for %s plan=%s: %s", username, plan, exc)
+    text = (
+        f"Hallo {username},\n\n"
+        f"dein Upgrade auf den {plan_name}-Plan ist aktiv!\n\n"
+        f"Dein {plan_name}-Plan enthält:\n{features_text}\n\n"
+        f"Jetzt loslegen: {dashboard_url}\n\n"
+        f"Plan verwalten: {billing_url}\n\n"
+        f"Bei Fragen: weem257@gmail.com\n\n"
+        f"Neural Trading OS"
+    )
+    html = (
+        f"<html><body style='font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px;'>"
+        f"<div style='max-width:560px;margin:0 auto;'>"
+        f"<h1 style='color:#00D4FF;font-size:24px;margin-bottom:8px;'>Neural Trading OS</h1>"
+        f"<p>Hallo <strong>{username}</strong>,</p>"
+        f"<p>dein Upgrade auf den <strong style='color:#00FF88;'>{plan_name}-Plan</strong> ist aktiv! 🎉</p>"
+        f"<h3 style='color:#00D4FF;'>Dein {plan_name}-Plan enthält:</h3>"
+        f"<ul style='color:#94a3b8;'>{features_html}</ul>"
+        f"<p style='margin-top:24px;'>"
+        f"<a href='{dashboard_url}' style='background:#00D4FF;color:#000;padding:12px 24px;"
+        f"border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;'>"
+        f"Zum Dashboard →</a></p>"
+        f"<p style='color:#64748b;font-size:12px;margin-top:24px;'>"
+        f"Plan verwalten: <a href='{billing_url}' style='color:#00D4FF;'>Abrechnung</a> · "
+        f"Fragen: <a href='mailto:weem257@gmail.com' style='color:#00D4FF;'>weem257@gmail.com</a>"
+        f"</p>"
+        f"</div></body></html>"
+    )
+    if not await send_mail(to, f"Dein {plan_name}-Plan ist aktiv — Neural Trading OS", text, html):
+        logger.warning("upgrade_email_failed for %s plan=%s", username, plan)
 
 
 async def _send_payment_failed_email(to: str, username: str, plan: str, billing_url: str) -> None:
@@ -158,61 +137,42 @@ async def _send_payment_failed_email(to: str, username: str, plan: str, billing_
         return
 
     plan_name = PLAN_META.get(plan, PLAN_META["free"])["name"]
-    sender = getattr(settings, "SMTP_FROM", None) or settings.SMTP_USER
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Zahlung fehlgeschlagen — dein {plan_name}-Plan ist in Gefahr"
-        msg["From"] = sender
-        msg["To"] = to
-
-        text = (
-            f"Hallo {username},\n\n"
-            f"leider konnte die Zahlung für deinen {plan_name}-Plan nicht verarbeitet werden.\n\n"
-            f"Um deinen Zugang zu erhalten, aktualisiere bitte deine Zahlungsmethode:\n"
-            f"{billing_url}\n\n"
-            f"Falls du nichts unternimmst, wird dein Abonnement automatisch beendet "
-            f"und dein Konto auf den Free-Plan zurückgesetzt.\n\n"
-            f"Bei Fragen: weem257@gmail.com\n\n"
-            f"Neural Trading OS"
-        )
-        html = (
-            f"<html><body style='font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px;'>"
-            f"<div style='max-width:560px;margin:0 auto;'>"
-            f"<h1 style='color:#00D4FF;font-size:24px;margin-bottom:8px;'>Neural Trading OS</h1>"
-            f"<div style='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);"
-            f"border-radius:8px;padding:16px;margin-bottom:24px;'>"
-            f"<p style='color:#f87171;font-weight:bold;margin:0;'>⚠️ Zahlung fehlgeschlagen</p>"
-            f"</div>"
-            f"<p>Hallo <strong>{username}</strong>,</p>"
-            f"<p>leider konnte die Zahlung für deinen <strong style='color:#f87171;'>{plan_name}-Plan</strong> "
-            f"nicht verarbeitet werden.</p>"
-            f"<p style='color:#94a3b8;'>Um deinen Zugang zu erhalten, aktualisiere bitte deine Zahlungsmethode. "
-            f"Falls du nichts unternimmst, wird dein Abonnement beendet und dein Konto auf den Free-Plan "
-            f"zurückgesetzt.</p>"
-            f"<p style='margin-top:24px;'>"
-            f"<a href='{billing_url}' style='background:#ef4444;color:#fff;padding:12px 24px;"
-            f"border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;'>"
-            f"Zahlungsmethode aktualisieren →</a></p>"
-            f"<p style='color:#64748b;font-size:12px;margin-top:24px;'>"
-            f"Fragen: <a href='mailto:weem257@gmail.com' style='color:#00D4FF;'>weem257@gmail.com</a>"
-            f"</p>"
-            f"</div></body></html>"
-        )
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [to], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
-    except Exception as exc:
-        logger.warning("payment_failed_email_error for %s: %s", username, exc)
+    text = (
+        f"Hallo {username},\n\n"
+        f"leider konnte die Zahlung für deinen {plan_name}-Plan nicht verarbeitet werden.\n\n"
+        f"Um deinen Zugang zu erhalten, aktualisiere bitte deine Zahlungsmethode:\n"
+        f"{billing_url}\n\n"
+        f"Falls du nichts unternimmst, wird dein Abonnement automatisch beendet "
+        f"und dein Konto auf den Free-Plan zurückgesetzt.\n\n"
+        f"Bei Fragen: weem257@gmail.com\n\n"
+        f"Neural Trading OS"
+    )
+    html = (
+        f"<html><body style='font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px;'>"
+        f"<div style='max-width:560px;margin:0 auto;'>"
+        f"<h1 style='color:#00D4FF;font-size:24px;margin-bottom:8px;'>Neural Trading OS</h1>"
+        f"<div style='background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);"
+        f"border-radius:8px;padding:16px;margin-bottom:24px;'>"
+        f"<p style='color:#f87171;font-weight:bold;margin:0;'>⚠️ Zahlung fehlgeschlagen</p>"
+        f"</div>"
+        f"<p>Hallo <strong>{username}</strong>,</p>"
+        f"<p>leider konnte die Zahlung für deinen <strong style='color:#f87171;'>{plan_name}-Plan</strong> "
+        f"nicht verarbeitet werden.</p>"
+        f"<p style='color:#94a3b8;'>Um deinen Zugang zu erhalten, aktualisiere bitte deine Zahlungsmethode. "
+        f"Falls du nichts unternimmst, wird dein Abonnement beendet und dein Konto auf den Free-Plan "
+        f"zurückgesetzt.</p>"
+        f"<p style='margin-top:24px;'>"
+        f"<a href='{billing_url}' style='background:#ef4444;color:#fff;padding:12px 24px;"
+        f"border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;'>"
+        f"Zahlungsmethode aktualisieren →</a></p>"
+        f"<p style='color:#64748b;font-size:12px;margin-top:24px;'>"
+        f"Fragen: <a href='mailto:weem257@gmail.com' style='color:#00D4FF;'>weem257@gmail.com</a>"
+        f"</p>"
+        f"</div></body></html>"
+    )
+    if not await send_mail(to, f"Zahlung fehlgeschlagen — dein {plan_name}-Plan ist in Gefahr", text, html):
+        logger.warning("payment_failed_email_error for %s", username)
 
 
 async def _send_cancellation_email(to: str, username: str, old_plan: str) -> None:
@@ -222,60 +182,41 @@ async def _send_cancellation_email(to: str, username: str, old_plan: str) -> Non
 
     plan_name = PLAN_META.get(old_plan, PLAN_META["free"])["name"]
     billing_url = f"{settings.FRONTEND_URL}/billing"
-    sender = getattr(settings, "SMTP_FROM", None) or settings.SMTP_USER
 
-    def _send_sync() -> None:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = f"Dein {plan_name}-Abo wurde beendet — wir vermissen dich!"
-        msg["From"] = sender
-        msg["To"] = to
-
-        text = (
-            f"Hallo {username},\n\n"
-            f"dein {plan_name}-Abonnement bei Neural Trading OS wurde beendet.\n\n"
-            f"Dein Konto wurde auf den kostenlosen Free-Plan zurückgesetzt (3 Signale/Tag).\n\n"
-            f"Du kannst dein Abo jederzeit wieder aktivieren:\n{billing_url}\n\n"
-            f"Bei Fragen: weem257@gmail.com\n\n"
-            f"Neural Trading OS"
-        )
-        html = (
-            f"<html><body style='font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px;'>"
-            f"<div style='max-width:560px;margin:0 auto;'>"
-            f"<h1 style='color:#00D4FF;font-size:24px;margin-bottom:8px;'>Neural Trading OS</h1>"
-            f"<p>Hallo <strong>{username}</strong>,</p>"
-            f"<p>dein <strong style='color:#A78BFA;'>{plan_name}-Abonnement</strong> wurde beendet. "
-            f"Dein Konto läuft jetzt im Free-Plan weiter (3 Signale/Tag).</p>"
-            f"<div style='margin:24px 0;padding:16px;background:rgba(123,47,255,0.08);"
-            f"border:1px solid rgba(123,47,255,0.25);border-radius:12px;'>"
-            f"<p style='margin:0 0 8px;font-weight:bold;color:#e2e8f0;'>Was du verpasst:</p>"
-            f"<ul style='margin:0;padding-left:20px;color:#94a3b8;line-height:1.8;'>"
-            f"<li>Mehr KI-Signale pro Tag (bis zu ∞ beim Institutional-Plan)</li>"
-            f"<li>Elliott-Wave-Analyse und Multi-Agent-Konsens</li>"
-            f"<li>Erweiterte Backtesting-Kapazitäten</li>"
-            f"</ul>"
-            f"</div>"
-            f"<p><a href='{billing_url}' style='background:rgba(123,47,255,0.2);border:1px solid rgba(123,47,255,0.5);"
-            f"color:#A78BFA;padding:12px 24px;border-radius:6px;text-decoration:none;"
-            f"font-weight:700;display:inline-block;'>Jetzt wieder aktivieren →</a></p>"
-            f"<p style='color:#64748b;font-size:12px;margin-top:24px;'>"
-            f"Fragen: <a href='mailto:weem257@gmail.com' style='color:#00D4FF;'>weem257@gmail.com</a>"
-            f"</p>"
-            f"</div></body></html>"
-        )
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-
-        with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as srv:
-            if settings.SMTP_HOST != "localhost":
-                srv.starttls()
-            if settings.SMTP_USER:
-                srv.login(settings.SMTP_USER, settings.SMTP_PASSWORD or "")
-            srv.sendmail(sender, [to], msg.as_string())
-
-    try:
-        await asyncio.to_thread(_send_sync)
-    except Exception as exc:
-        logger.warning("cancellation_email_error for %s: %s", username, exc)
+    text = (
+        f"Hallo {username},\n\n"
+        f"dein {plan_name}-Abonnement bei Neural Trading OS wurde beendet.\n\n"
+        f"Dein Konto wurde auf den kostenlosen Free-Plan zurückgesetzt (3 Signale/Tag).\n\n"
+        f"Du kannst dein Abo jederzeit wieder aktivieren:\n{billing_url}\n\n"
+        f"Bei Fragen: weem257@gmail.com\n\n"
+        f"Neural Trading OS"
+    )
+    html = (
+        f"<html><body style='font-family:sans-serif;background:#080b14;color:#e2e8f0;padding:32px;'>"
+        f"<div style='max-width:560px;margin:0 auto;'>"
+        f"<h1 style='color:#00D4FF;font-size:24px;margin-bottom:8px;'>Neural Trading OS</h1>"
+        f"<p>Hallo <strong>{username}</strong>,</p>"
+        f"<p>dein <strong style='color:#A78BFA;'>{plan_name}-Abonnement</strong> wurde beendet. "
+        f"Dein Konto läuft jetzt im Free-Plan weiter (3 Signale/Tag).</p>"
+        f"<div style='margin:24px 0;padding:16px;background:rgba(123,47,255,0.08);"
+        f"border:1px solid rgba(123,47,255,0.25);border-radius:12px;'>"
+        f"<p style='margin:0 0 8px;font-weight:bold;color:#e2e8f0;'>Was du verpasst:</p>"
+        f"<ul style='margin:0;padding-left:20px;color:#94a3b8;line-height:1.8;'>"
+        f"<li>Mehr KI-Signale pro Tag (bis zu ∞ beim Institutional-Plan)</li>"
+        f"<li>Elliott-Wave-Analyse und Multi-Agent-Konsens</li>"
+        f"<li>Erweiterte Backtesting-Kapazitäten</li>"
+        f"</ul>"
+        f"</div>"
+        f"<p><a href='{billing_url}' style='background:rgba(123,47,255,0.2);border:1px solid rgba(123,47,255,0.5);"
+        f"color:#A78BFA;padding:12px 24px;border-radius:6px;text-decoration:none;"
+        f"font-weight:700;display:inline-block;'>Jetzt wieder aktivieren →</a></p>"
+        f"<p style='color:#64748b;font-size:12px;margin-top:24px;'>"
+        f"Fragen: <a href='mailto:weem257@gmail.com' style='color:#00D4FF;'>weem257@gmail.com</a>"
+        f"</p>"
+        f"</div></body></html>"
+    )
+    if not await send_mail(to, f"Dein {plan_name}-Abo wurde beendet — wir vermissen dich!", text, html):
+        logger.warning("cancellation_email_error for %s", username)
 
 
 def _stripe_enabled() -> bool:

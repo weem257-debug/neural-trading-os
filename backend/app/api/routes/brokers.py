@@ -20,9 +20,10 @@ Endpunkte:
 import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 
-from app.api.auth import get_current_user, UserInfo
+from app.api.auth import UserInfo
+from app.api.deps import require_admin
 from app.services import credentials as creds_svc
 from app.services.brokers import bitpanda as bitpanda_svc
 from app.services.brokers import comdirect as comdirect_svc
@@ -44,13 +45,7 @@ router = APIRouter(prefix="/brokers", tags=["Brokers"])
 # these endpoints must not be reachable by an arbitrary logged-in "trader"
 # account — only admins. This mirrors the `_require_admin` pattern used in
 # app/api/routes/admin.py (same UserInfo.role == "admin" check).
-def _require_broker_admin(current_user: UserInfo = Depends(get_current_user)) -> UserInfo:
-    if current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Zugriff verweigert — Admin-Rolle erforderlich (Broker-/Kontodaten)",
-        )
-    return current_user
+_require_broker_admin = require_admin(" (Broker-/Kontodaten)")
 
 
 # ---------------------------------------------------------------------------

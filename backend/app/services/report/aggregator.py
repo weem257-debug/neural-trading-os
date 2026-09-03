@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import math
 from datetime import datetime, UTC, date, timedelta
 from typing import Any, Optional
 
@@ -34,6 +33,7 @@ from app.api.routes.sentiment import _cached_sentiment
 from app.services.jesse.client import run_backtest
 from app.services.report.technical import compute_technical
 from app.services.report.risk_single import compute_single_asset_risk
+from app.core.numbers import finite_float
 from app.core.config import settings as _settings
 
 logger = logging.getLogger(__name__)
@@ -464,12 +464,7 @@ def _build_summary(
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _sf(v: Any, default: float = 0.0) -> float:
-    try:
-        f = float(v)
-        return f if math.isfinite(f) else default
-    except (TypeError, ValueError):
-        return default
+_sf = finite_float
 
 
 def _clamp(v: float, lo: float = -1.0, hi: float = 1.0) -> float:

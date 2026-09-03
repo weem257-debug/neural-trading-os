@@ -8,35 +8,19 @@ Run:
     cd dashboard/backend
     pytest tests/test_hkcm_routes.py -v
 """
-import os
-import tempfile
-import uuid
 from email.message import EmailMessage
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
+
+from tests.helpers import trader_headers as _trader_headers_raw
 
 FIXTURE = Path(__file__).parent / "fixtures" / "hkcm_daily.txt"
 
 
 @pytest.fixture(scope="module")
-def app_module():
-    db_fd, db_path = tempfile.mkstemp(suffix=".db", prefix="test_hkcm_")
-    os.close(db_fd)
-    os.environ["TRADING_DB_PATH"] = db_path
-    os.environ.pop("DATABASE_URL", None)
-
-    from app.main import app
-    app.state.limiter.enabled = False
-    with TestClient(app, raise_server_exceptions=False) as c:
-        yield c
-    app.state.limiter.enabled = True
-
-    try:
-        os.remove(db_path)
-    except OSError:
-        pass
+def db_prefix() -> str:
+    return "test_hkcm_"
 
 
 @pytest.fixture
@@ -47,22 +31,8 @@ def client(app_module):
 
 
 def _fresh_user(client) -> dict:
-    uname = f"hkcm_{uuid.uuid4().hex[:10]}"
-    reg = client.post("/api/auth/register", json={
-        "username": uname,
-        "email": f"{uname}@example.com",
-        "password": "Password1!",
-        "gdpr_consent": True,
-    })
-    assert reg.status_code in (200, 201), reg.text
-    tok = client.post(
-        "/api/auth/token",
-        data={"username": uname, "password": "Password1!"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
-    assert tok.status_code == 200, tok.text
-    client.cookies.clear()
-    return {"Authorization": f"Bearer {tok.json()['access_token']}"}
+    headers, _ = _trader_headers_raw(client, "hkcm_")
+    return headers
 
 
 def _newsletter_html() -> str:
