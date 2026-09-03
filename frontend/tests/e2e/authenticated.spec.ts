@@ -33,7 +33,7 @@ test.describe("Auth-Guard: unauthenticated redirect", () => {
       // Auth-Guard must redirect to /login within 8s
       await expect(page).toHaveURL(/\/login/, { timeout: 8_000 });
       // Login page must not crash
-      await expect(page.locator("main, body")).toBeVisible({ timeout: 5_000 });
+      await expect(page.locator("body")).toBeVisible({ timeout: 5_000 });
     });
   }
 });
@@ -49,11 +49,16 @@ test.describe("Reset-password page (/reset-password)", () => {
   test("Lädt ohne Crash", async ({ page }) => {
     // Accept either /reset-password itself or redirect to /login (no valid token)
     await page.waitForURL(/\/(reset-password|login)/, { timeout: 8_000 });
-    await expect(page.locator("main, body")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("body")).toBeVisible({ timeout: 5_000 });
   });
 
   test("Zeigt Passwort-Eingabe oder Fehler bei fehlendem Token", async ({ page }) => {
-    // Wenn Token fehlt: zeigt Fehler-Feedback oder leitet weiter
+    // Wenn Token fehlt: zeigt Fehler-Feedback oder leitet weiter. Der Auth-Guard
+    // entscheidet erst nach der Hydration — ohne diese Wartezeit liest der Test
+    // die URL, bevor ein Redirect überhaupt stattfinden konnte (flaky).
+    await page
+      .waitForURL(/\/login/, { timeout: 5_000 })
+      .catch(() => page.locator("input[type='password'], [role='alert']").first().waitFor({ timeout: 5_000 }).catch(() => {}));
     const hasPasswordField = await page.locator("input[type='password']").isVisible().catch(() => false);
     const hasErrorText     = await page.getByText(/ungültig|abgelaufen|invalid|expired/i).isVisible().catch(() => false);
     const isOnLogin        = page.url().includes("/login");
@@ -70,6 +75,9 @@ test.describe("Authenticated content (skipped without session)", () => {
     test(`${path} zeigt korrektes H1-Heading wenn eingeloggt`, async ({ page }) => {
       await page.goto(path);
 
+      // Give the client-side Auth-Guard time to redirect; checking the URL
+      // synchronously after goto() raced the redirect and randomly failed.
+      await page.waitForURL(/\/login/, { timeout: 5_000 }).catch(() => {});
       const url = page.url();
       if (url.includes("/login")) {
         // Unauthenticated — skip content check, but confirm redirect happened cleanly

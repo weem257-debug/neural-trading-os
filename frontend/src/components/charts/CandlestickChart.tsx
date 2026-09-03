@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
+import { DEFAULT_SYMBOLS } from "@/lib/constants";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,7 +30,7 @@ interface CandlestickChartProps {
   height?: number;
 }
 
-const TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "BTC-USD"] as const;
+const TICKERS = DEFAULT_SYMBOLS;
 type Ticker = (typeof TICKERS)[number];
 
 type IndicatorKey = "sma20" | "sma50" | "ema12";

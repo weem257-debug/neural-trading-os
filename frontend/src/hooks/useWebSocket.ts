@@ -62,7 +62,5 @@ export function useWebSocket(
 /**
  * Convenience hooks for specific channels.
  */
-export const useSignalsStream = () => useWebSocket("signals");
-export const usePortfolioStream = () => useWebSocket("portfolio");
 export const useAlertsStream = () => useWebSocket("alerts");
 export const usePricesStream = () => useWebSocket("prices");

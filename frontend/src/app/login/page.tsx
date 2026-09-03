@@ -2,10 +2,12 @@
 
 import { useState, useCallback, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, Cpu, Lock, User, AlertTriangle } from "lucide-react";
+import { Eye, EyeOff, Lock, User } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { API_BASE } from "@/lib/api";
 import { safeRedirectPath } from "@/lib/safeRedirect";
+import { AuthCard, AuthError } from "@/components/ui/AuthCard";
+import { authInputStyle, authInputFocus, authInputBlur } from "@/components/ui/AuthInput";
 
 function LoginForm() {
   const router = useRouter();
@@ -79,79 +81,12 @@ function LoginForm() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       {/* Login Card */}
-      <div
-        className="w-full max-w-sm relative"
-        style={{
-          background: "rgba(8,11,20,0.85)",
-          border: "1px solid rgba(76,141,246,0.25)",
-          borderRadius: "1rem",
-          backdropFilter: "blur(24px)",
-          boxShadow:
-            "0 0 60px rgba(76,141,246,0.08), 0 25px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(76,141,246,0.1)",
-        }}
-      >
-        {/* Top accent line */}
-        <div
-          className="absolute top-0 left-8 right-8 h-px rounded-full"
-          style={{
-            background:
-              "linear-gradient(90deg, transparent, rgba(76,141,246,0.6), transparent)",
-          }}
-        />
-
-        <div className="px-8 py-10">
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <div
-              className="w-14 h-14 rounded-xl flex items-center justify-center mb-4"
-              style={{
-                background:
-                  "linear-gradient(135deg, rgba(76,141,246,0.15), rgba(163,113,247,0.15))",
-                border: "1px solid rgba(76,141,246,0.35)",
-                boxShadow: "0 0 24px rgba(76,141,246,0.25)",
-              }}
-            >
-              <Cpu
-                className="w-7 h-7"
-                style={{ color: "#4C8DF6", filter: "drop-shadow(0 0 8px rgba(76,141,246,0.8))" }}
-              />
-            </div>
-            <h1
-              className="text-xl font-black tracking-widest"
-              style={{
-                color: "#4C8DF6",
-                textShadow: "0 0 20px rgba(76,141,246,0.6), 0 0 40px rgba(76,141,246,0.3)",
-                letterSpacing: "0.15em",
-              }}
-            >
-              NEURAL TRADING OS
-            </h1>
-            <p
-              className="text-xs mt-1 tracking-wider"
-              style={{ color: "rgba(100,116,139,0.7)" }}
-            >
-              SICHERER ZUGANG
-            </p>
-          </div>
-
+      <AuthCard subtitle="SICHERER ZUGANG">
           {/* Error Banner */}
           {error && (
-            <div
-              className="flex items-center gap-2 px-4 py-3 rounded-lg mb-5 animate-pulse"
-              style={{
-                background: "rgba(239,68,68,0.1)",
-                border: "1px solid rgba(239,68,68,0.4)",
-                boxShadow: "0 0 16px rgba(239,68,68,0.15)",
-              }}
-            >
-              <AlertTriangle className="w-4 h-4 flex-shrink-0 text-red-400" />
-              <span
-                className="text-sm font-semibold tracking-wider"
-                style={{ color: "#f87171" }}
-              >
-                {error}
-              </span>
-            </div>
+            <AuthError pulse glow textClassName="text-sm font-semibold tracking-wider">
+              {error}
+            </AuthError>
           )}
 
           {/* Form */}
@@ -179,18 +114,9 @@ function LoginForm() {
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Benutzername eingeben"
                   className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm text-slate-200 placeholder-slate-600 outline-none transition-all duration-200"
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(76,141,246,0.15)",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.border = "1px solid rgba(76,141,246,0.5)";
-                    e.currentTarget.style.boxShadow = "0 0 12px rgba(76,141,246,0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.border = "1px solid rgba(76,141,246,0.15)";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
+                  style={authInputStyle}
+                  onFocus={authInputFocus}
+                  onBlur={authInputBlur}
                 />
               </div>
             </div>
@@ -218,18 +144,9 @@ function LoginForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Passwort eingeben"
                   className="w-full pl-10 pr-10 py-2.5 rounded-lg text-sm text-slate-200 placeholder-slate-600 outline-none transition-all duration-200"
-                  style={{
-                    background: "rgba(255,255,255,0.04)",
-                    border: "1px solid rgba(76,141,246,0.15)",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.border = "1px solid rgba(76,141,246,0.5)";
-                    e.currentTarget.style.boxShadow = "0 0 12px rgba(76,141,246,0.1)";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.border = "1px solid rgba(76,141,246,0.15)";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
+                  style={authInputStyle}
+                  onFocus={authInputFocus}
+                  onBlur={authInputBlur}
                 />
                 <button
                   type="button"
@@ -320,8 +237,7 @@ function LoginForm() {
               ← Zurück zur Startseite
             </a>
           </p>
-        </div>
-      </div>
+      </AuthCard>
     </div>
   );
 }

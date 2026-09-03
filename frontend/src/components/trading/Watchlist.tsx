@@ -7,24 +7,16 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { useTradingStore } from "@/store/tradingStore";
 import { Sparkline } from "@/components/charts/Sparkline";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-interface WatchlistEntry {
-  ticker: string;
-  price: number | null;
-  change_pct: number | null;
-  history: number[];
-  error?: boolean;
-}
+import type { StockEntry as WatchlistEntry } from "@/components/trading/StockBoard";
+import { DEFAULT_SYMBOLS, REFRESH_INTERVAL_MS } from "@/lib/constants";
+import { formatPrice } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const DEFAULT_TICKERS = ["AAPL", "MSFT", "NVDA", "TSLA", "BTC-USD"];
+const DEFAULT_TICKERS = DEFAULT_SYMBOLS;
 const MAX_TICKERS = 10;
-const REFRESH_INTERVAL_MS = 60_000; // WS ticks handle real-time; REST is fallback
+// REFRESH_INTERVAL_MS: WS ticks handle real-time; REST is fallback
 const STORAGE_KEY = "watchlist_tickers";
 
 // ---------------------------------------------------------------------------
@@ -82,9 +74,7 @@ function WatchlistRow({
           <span className="text-xs text-slate-600">N/A</span>
         ) : (
           <span className="text-xs font-mono font-bold text-slate-200">
-            {entry.price >= 1000
-              ? `$${entry.price.toLocaleString("en-US", { maximumFractionDigits: 0 })}`
-              : `$${entry.price.toFixed(2)}`}
+            {formatPrice(entry.price)}
           </span>
         )}
       </div>

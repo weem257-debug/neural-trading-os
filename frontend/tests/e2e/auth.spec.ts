@@ -17,7 +17,7 @@ test.describe("Login page", () => {
   test("/login opens the correct page", async ({ page }) => {
     await expect(page).toHaveURL(/\/login/, { timeout: 8_000 });
     // Page should load without crashing
-    await expect(page.locator("main, body")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("body")).toBeVisible({ timeout: 5_000 });
   });
 
   test("Login form has Username and Password fields", async ({ page }) => {
@@ -126,6 +126,6 @@ test.describe("Register page mit Referral-Code", () => {
   test("Zeigt generischen Banner bei ungültigem Base64-Code", async ({ page }) => {
     await page.goto("/register?ref=!!invalid!!");
     // Sollte trotzdem einen Banner zeigen (generisch), aber keinen Absturz verursachen
-    await expect(page.locator("main, body")).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator("body")).toBeVisible({ timeout: 8_000 });
   });
 });

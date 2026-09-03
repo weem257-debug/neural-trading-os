@@ -1,9 +1,5 @@
 import type { Metadata } from "next";
-
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.BACKEND_URL ??
-  "http://localhost:8000";
+import { SERVER_API_BASE as API_BASE } from "@/lib/serverApi";
 
 const DIR_LABEL: Record<string, string> = {
   BUY: "KAUFEN",

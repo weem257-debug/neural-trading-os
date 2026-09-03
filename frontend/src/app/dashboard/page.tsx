@@ -16,6 +16,7 @@ import type { ExplanationContent } from "@/components/ui/ExplanationModal";
 import { SkeletonCard, SkeletonChart } from "@/components/ui/Skeleton";
 import { Watchlist } from "@/components/trading/Watchlist";
 import { api } from "@/lib/api";
+import { dirLabel } from "@/lib/signalDisplay";
 import { useAlertsStream } from "@/hooks/useWebSocket";
 import { useTradingStore } from "@/store/tradingStore";
 import { useAuthStore } from "@/store/authStore";
@@ -146,12 +147,6 @@ const EXPLAIN_AGENTS: ExplanationContent = {
 };
 
 /* ---- Direction helpers ---- */
-const DIR_LABELS_DE: Record<string, string> = {
-  STRONG_BUY: "Starker Kauf", BUY: "Kaufen", HOLD: "Halten",
-  SELL: "Verkaufen", STRONG_SELL: "Starker Verkauf",
-};
-function dirLabel(d: string) { return DIR_LABELS_DE[d] ?? d; }
-
 const SOURCE_LABELS_DE: Record<string, string> = {
   Technical: "Technisch", Sentiment: "Sentiment", Fundamental: "Fundamental",
   TradingAgents: "Multi-Agenten", Composite: "Komposit", News: "News",

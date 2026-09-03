@@ -536,6 +536,13 @@ export interface PriceAlertRecord {
   fired_price?: number;
 }
 
+export type AlertCondition = PriceAlertRecord["condition"];
+
+// ---------------------------------------------------------------------------
+// Signal direction filters
+// ---------------------------------------------------------------------------
+export type DirectionFilter = "ALL" | "BUY" | "SELL" | "HOLD";
+
 // ---------------------------------------------------------------------------
 // WebSocket events
 // ---------------------------------------------------------------------------

@@ -34,6 +34,7 @@ import {
   Legend,
 } from "recharts";
 import { api } from "@/lib/api";
+import { formatEur as fmt } from "@/lib/format";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,9 +84,6 @@ interface SnapshotRecord {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const fmt = (n: number, currency = "EUR") =>
-  new Intl.NumberFormat("de-DE", { style: "currency", currency, maximumFractionDigits: 0 }).format(n);
 
 const fmtFull = (n: number, currency = "EUR") =>
   new Intl.NumberFormat("de-DE", { style: "currency", currency, maximumFractionDigits: 2 }).format(n);
@@ -463,7 +461,7 @@ function HistoryTab() {
 // Section
 // ---------------------------------------------------------------------------
 
-type Tab = "overview" | "history";
+type P2PTab = "overview" | "history";
 
 export function P2PSection() {
   const [summary, setSummary] = useState<P2PSummary | null>(null);
@@ -471,7 +469,7 @@ export function P2PSection() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [snapshotMsg, setSnapshotMsg] = useState("");
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useState<P2PTab>("overview");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -498,7 +496,7 @@ export function P2PSection() {
     }
   };
 
-  const TABS: { id: Tab; label: string }[] = [
+  const TABS: { id: P2PTab; label: string }[] = [
     { id: "overview", label: "Übersicht" },
     { id: "history", label: "Verlauf" },
   ];

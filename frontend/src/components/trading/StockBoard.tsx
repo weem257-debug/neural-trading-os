@@ -27,8 +27,8 @@ import { usePrefsStore, useStockView } from "@/store/prefsStore";
 import { Sparkline, SPARK_DOWN, SPARK_UP } from "@/components/charts/Sparkline";
 import { AccentTone, toneColor } from "@/components/ui/AccentPanel";
 import { SectionLabel } from "@/components/ui/GlassCard";
-
-const REFRESH_INTERVAL_MS = 60_000;
+import { REFRESH_INTERVAL_MS } from "@/lib/constants";
+import { formatPrice } from "@/lib/format";
 
 export interface StockEntry {
   ticker: string;
@@ -44,13 +44,6 @@ type SortDir = "asc" | "desc";
 /* ------------------------------------------------------------------ */
 /* Formatting                                                          */
 /* ------------------------------------------------------------------ */
-function fmtPrice(v: number | null): string {
-  if (v === null || Number.isNaN(v)) return "—";
-  return v >= 1000
-    ? `$${v.toLocaleString("en-US", { maximumFractionDigits: 0 })}`
-    : `$${v.toFixed(2)}`;
-}
-
 function fmtChange(v: number | null): string {
   if (v === null || Number.isNaN(v)) return "—";
   return `${v >= 0 ? "+" : ""}${v.toFixed(2)}%`;
@@ -179,7 +172,7 @@ const StockCard = forwardRef<HTMLDivElement, StockCardProps>(function StockCard(
 
         <div className="flex items-baseline justify-between gap-2 mt-1">
           <p className="text-xl font-bold font-mono leading-none" style={{ color: "var(--foreground)" }}>
-            {entry.error ? "N/A" : fmtPrice(entry.price)}
+            {entry.error ? "N/A" : formatPrice(entry.price)}
           </p>
           <span className="text-sm font-bold font-mono" style={{ color }}>
             {fmtChange(entry.change_pct)}
@@ -311,7 +304,7 @@ function StockTable({
                   )}
                 </td>
                 <td className="px-3 py-2 text-right text-xs font-mono font-bold text-slate-200">
-                  {entry.error ? <span className="text-slate-600">N/A</span> : fmtPrice(entry.price)}
+                  {entry.error ? <span className="text-slate-600">N/A</span> : formatPrice(entry.price)}
                 </td>
                 <td className="px-3 py-2 text-right">
                   <span

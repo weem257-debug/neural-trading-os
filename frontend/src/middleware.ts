@@ -32,6 +32,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Report-Only elsewhere. "report-only": global kill-switch → Report-Only on
 // every route (used if an enforce regression is observed in production).
 const CSP_MODE = process.env.CSP_MODE ?? "enforce";
+const IS_DEV = process.env.NODE_ENV === "development";
 
 // Hosts that should never be indexed by search engines (F-05).
 const NOINDEX_HOSTS = new Set<string>([
@@ -63,7 +64,12 @@ function buildCsp(nonce: string): string {
     // 'strict-dynamic') may execute → genuine XSS protection. 'strict-dynamic'
     // is universally supported by evergreen browsers, so no unsafe fallback is
     // needed. 'self' is kept as a conventional (strict-dynamic-ignored) token.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    // Development only: Next.js dev builds evaluate client chunks through
+    // `eval` (eval-source-map devtool) — with an enforcing policy on /login
+    // & co. the whole app shell stays blank locally and every E2E run against
+    // `next dev` fails. Production builds never use eval, so the shipped
+    // policy is unchanged.
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${IS_DEV ? " 'unsafe-eval'" : ""}`,
     // style-src keeps 'unsafe-inline' — this is explicitly permitted by the
     // audit (F-03) and does not weaken script XSS protection.
     // fonts.googleapis.com: globals.css @imports the Google Fonts stylesheet.

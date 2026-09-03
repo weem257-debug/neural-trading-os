@@ -9,27 +9,12 @@ import {
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
+import type { SignalPerformanceResponse } from "@/types";
+import { dirLabel as dirLabelBase } from "@/lib/signalDisplay";
 
-const DIR_DE: Record<string, string> = {
-  STRONG_BUY: "Starker Kauf", BUY: "Kaufen", HOLD: "Halten",
-  SELL: "Verkaufen", STRONG_SELL: "Starker Verkauf",
-};
-const dirLabel = (d: string) => DIR_DE[d.toUpperCase()] ?? d;
+const dirLabel = (d: string) => dirLabelBase(d, { upper: true });
 
-interface PerfEntry {
-  signal_id: string;
-  ticker: string;
-  direction: string;
-  return_pct: number;
-}
-
-interface PerfData {
-  avg_return: number;
-  win_rate: number;
-  best_signal: PerfEntry | null;
-  worst_signal: PerfEntry | null;
-  total_evaluated: number;
-}
+type PerfData = SignalPerformanceResponse;
 
 interface TotalData {
   total: number;

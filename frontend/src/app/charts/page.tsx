@@ -28,8 +28,9 @@ import { HkcmPanel } from "@/components/trading/HkcmPanel";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useTradingStore } from "@/store/tradingStore";
 import { notify } from "@/store/notificationStore";
+import { DEFAULT_SYMBOLS } from "@/lib/constants";
 
-const DEFAULT_WATCHLIST = ["AAPL", "MSFT", "NVDA", "TSLA", "BTC-USD"];
+const DEFAULT_WATCHLIST = DEFAULT_SYMBOLS;
 const MAX_SYMBOLS = 30;
 
 

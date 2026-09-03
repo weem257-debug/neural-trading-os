@@ -11,7 +11,7 @@ import {
   Activity,
 } from "lucide-react";
 import { api } from "@/lib/api";
-import type { PriceAlertRecord } from "@/types";
+import type { PriceAlertRecord, AlertCondition } from "@/types";
 import { useAlertsStream } from "@/hooks/useWebSocket";
 import {
   ExplanationModal,
@@ -101,7 +101,6 @@ const EXPLAIN_RISK_ALERTS: ExplanationContent = {
 };
 
 
-type AlertCondition = PriceAlertRecord["condition"];
 type AlertStatus = PriceAlertRecord["status"] | "expired";
 
 interface RiskAlert {

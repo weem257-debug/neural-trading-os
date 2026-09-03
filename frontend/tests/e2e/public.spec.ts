@@ -50,7 +50,7 @@ test.describe("Register page (/register)", () => {
 
   test("Lädt korrekt und zeigt Registrierungsformular", async ({ page }) => {
     await expect(page).toHaveURL(/\/register/, { timeout: 8_000 });
-    await expect(page.locator("main, body")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("body")).toBeVisible({ timeout: 5_000 });
   });
 
   test("Zeigt Username-, E-Mail- und Passwort-Felder", async ({ page }) => {
@@ -115,7 +115,7 @@ test.describe("Pricing page (/pricing)", () => {
 
   test("Lädt korrekt ohne Auth", async ({ page }) => {
     await expect(page).toHaveURL(/\/pricing/, { timeout: 8_000 });
-    await expect(page.locator("main, body")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("body")).toBeVisible({ timeout: 5_000 });
   });
 
   test("Zeigt mindestens 3 Plan-Karten (Free, Basic, Pro)", async ({ page }) => {
@@ -147,7 +147,7 @@ test.describe("Signal marketplace (/signals/marketplace)", () => {
 
   test("Lädt ohne Auth korrekt", async ({ page }) => {
     await expect(page).toHaveURL(/signals\/marketplace/, { timeout: 8_000 });
-    await expect(page.locator("main, body")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("body")).toBeVisible({ timeout: 5_000 });
   });
 
   test("Zeigt Signal-Tabelle oder Marktplatz-Content", async ({ page }) => {
@@ -167,7 +167,7 @@ test.describe("Performance page (/performance)", () => {
 
   test("Lädt ohne Auth korrekt", async ({ page }) => {
     await expect(page).toHaveURL(/\/performance/, { timeout: 8_000 });
-    await expect(page.locator("main, body")).toBeVisible({ timeout: 5_000 });
+    await expect(page.locator("body")).toBeVisible({ timeout: 5_000 });
   });
 
   test("Zeigt Performance-Heading", async ({ page }) => {
@@ -192,7 +192,7 @@ test.describe("Invite page (/invite/[code])", () => {
 
   test("Lädt ohne Auth korrekt", async ({ page }) => {
     await page.goto(`/invite/${validCode}`);
-    await expect(page.locator("main, body")).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator("body")).toBeVisible({ timeout: 8_000 });
   });
 
   test("Zeigt Einlader-Username bei gültigem Code", async ({ page }) => {
