@@ -26,9 +26,9 @@
 #   pip install --extra-index-url https://download.pytorch.org/whl/cpu \
 #       "numpy>=1.26,<2.0" -r requirements-kronos.txt
 # The explicit numpy pin keeps torch from silently pulling numpy>=2 (hard pin).
-torch==2.2.2+cpu
+torch==2.14.0
 
-einops==0.8.1
+einops==0.8.2
 huggingface_hub>=0.33.1
 safetensors>=0.6.2
 tqdm>=4.67.1

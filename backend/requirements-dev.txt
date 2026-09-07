@@ -21,7 +21,7 @@
 # the suite is actually validated against. pytest 9 requires pytest-asyncio >=
 # 1.x; the `asyncio_mode` and `asyncio_default_fixture_loop_scope` settings in
 # pytest.ini work on both lines.
-pytest==9.1.0
+pytest==9.1.1
 pytest-asyncio==1.4.0
 # httpx is declared in requirements.txt (runtime HTTP client) and doubles as the
 # transport behind fastapi.testclient.TestClient — no separate pin needed.
